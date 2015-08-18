@@ -10,26 +10,30 @@ library(gridExtra)
 load('gis.Rdata')
 
 flows <- readRDS('flows.Rdata')
+
 q.day <- flows$df %>%
   rename(Q_cfs=Q) %>%
   mutate(Q_cms=Q_cfs*0.0283168, # ft3/s -> m3/s
          DATE=as.Date(DATE),
-         WYEAR=wyear(DATE),
-         MONTH=month(DATE)) %>%
-  left_join(subbasins_areas, by='SITE_NAME') %>%
-  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(subbasins_areas$SITE_NAME)),
+         MONTH=month(DATE))
+
+q.day[['WYEAR']] <- wyear(q.day[['DATE']])
+
+q.day <- left_join(q.day, subbasin_area, by='SITE_NAME') %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)),
          Q_mm_d=Q_cms*86400/(AREA_KM2*1e6)*1000) # mm/day
 q.mon <- group_by(q.day, SITE_NAME, WYEAR, MONTH) %>%
-  summarise(Q_mm_mon=sum(Q_mm_d)) # mm/mon
-
+  summarise(Q_mm_mon=sum(Q_mm_d)) %>% # mm/mon
+  ungroup
 q.wyr <- group_by(q.mon, SITE_NAME, WYEAR) %>%
-  summarise(Q_cm_yr=sum(Q_mm_mon)/10) # cm/yr
+  summarise(Q_cm_yr=sum(Q_mm_mon)/10) %>% # cm/yr
+  ungroup
 
 q.wyr.site <- group_by(q.wyr, SITE_NAME) %>%
   summarise(Q_cm_yr=mean(Q_cm_yr))
 
 load('prism.Rdata')
-prism.mon <- filter(prism_subbasin) %>%
+prism.mon <- mutate(prism_subbasin, MONTH=month(MONTHYEAR)) %>%
   select(SITE, SITE_NAME, MONTHYEAR, WYEAR, MONTH, PRCP_mm_mon=PRCP)
 
 prism.wyr <- group_by(prism.mon, SITE, SITE_NAME, WYEAR) %>%
@@ -117,8 +121,8 @@ df.power %>%
 df.wyr <- left_join(ungroup(q.wyr), ungroup(prism.wyr), by=c('SITE_NAME', 'WYEAR')) %>%
   filter(WYEAR %in% seq(2001, 2014)) %>%
   mutate(Q_PRCP=Q_cm_yr/PRCP_cm_yr) %>%
-  mutate(SITE=ordered(SITE, levels=levels(subbasins_areas$SITE)),
-         SITE_NAME=ordered(SITE_NAME, levels=levels(subbasins_areas$SITE_NAME)))
+  mutate(SITE=ordered(SITE, levels=levels(subbasin_area$SITE)),
+         SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)))
 
 # plots ----
 pdf(file.path('pdf', 'flow-precip-relationships.pdf'), width=11, height=8.5)
@@ -144,7 +148,7 @@ p.power <- df.power.wyr %>%
   xlim(0, NA) +
   ylim(0, NA)
 
-grid.arrange(p.beatty, p.power, ncol=2, nrow=2, main='\nLong Term Annual Precip vs Flow, 1982-2012')
+grid.arrange(grobs=list(p.beatty, p.power), ncol=2, nrow=2, main='\nLong Term Annual Precip vs Flow, 1982-2012')
 
 mutate(df.wyr, GROUP=ifelse(WYEAR <= 2012, '2001-2012',
                         ifelse(WYEAR==2013, '2013', '2014'))) %>%
@@ -179,7 +183,7 @@ p.apr <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_
   theme(legend.position='top') +
   labs(x='Snow Water Equiv on Apr 1 (cm)', y='Flow per Area (cm/yr)')
 
-grid.arrange(p.max, p.apr, ncol=2, main='Annual Flow per Area vs Snow Water Equivalent')
+grid.arrange(grobs=list(p.max, p.apr), ncol=2, main='Annual Flow per Area vs Snow Water Equivalent')
 
 ggplot(df.wyr, aes(WYEAR, Q_PRCP)) +
   geom_line() +
