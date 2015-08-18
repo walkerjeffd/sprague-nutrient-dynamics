@@ -23,9 +23,10 @@ snotel <- lapply(names(files), function(site_name) {
 }) %>%
   do.call(rbind, .)
 
+snotel[['WYEAR']] <- wyear(snotel[['DATE']])
+
 snotel <- snotel %>%
-  mutate(SITE_NAME=factor(SITE_NAME),
-         WYEAR=wyear(DATE)) %>%
+  mutate(SITE_NAME=factor(SITE_NAME)) %>%
   filter(WYEAR <= 2014)
 
 # stations ----
@@ -38,6 +39,7 @@ snotel.wyr <- snotel %>%
   summarise(N=sum(!is.na(SWE_in)),
             SWE_MEAN=mean(SWE_in, na.rm=TRUE),
             SWE_MAX=max(SWE_in, na.rm=TRUE)) %>%
+  ungroup %>%
   filter(N>=300)
 
 snotel.wyr <- snotel %>%
