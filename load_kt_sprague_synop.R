@@ -51,7 +51,7 @@ df <- plyr::rename(df, c("INDEX"="INDEX",
                          "TP_DUP"="TP_DUP",
                          "TP_DIFF"="TP_DIFF",
                          "TP_RPD"="TP_RPD",
-                         "TP_PASS_FAIL"="TP_PASS_FAIL", 
+                         "TP_PASS_FAIL"="TP_PASS_FAIL",
                          "PO4_MGL"="PO4_ppm",
                          "PO4_DUP"="PO4_DUP",
                          "PO4_DIFF"="PO4_DIFF",
@@ -71,12 +71,12 @@ df <- plyr::rename(df, c("INDEX"="INDEX",
                          "TN_DUP"="TN_DUP",
                          "TN_DIFF"="TN_DIFF",
                          "TN_RPD"="TN_RPD",
-                         "TN_PASS_FAIL"="TN_PASS_FAIL", 
+                         "TN_PASS_FAIL"="TN_PASS_FAIL",
                          "CL_MGL"="CL_ppm",
                          "CL_DUP"="CL_DUP",
                          "CL_DIFF"="CL_DIFF",
                          "CL_RPD"="CL_RPD",
-                         "CL_PASS_FAIL"="CL_PASS_FAIL", 
+                         "CL_PASS_FAIL"="CL_PASS_FAIL",
                          "TSS_MGL"="TSS_ppm",
                          "TSS_DUP"="TSS_DUP",
                          "TSS_DIFF"="TSS_DIFF",
@@ -110,18 +110,23 @@ df[which(df$TIME==17.25), "TIME"] <- 1725
 
 # parse dates and times
 df <- mutate(df, DATE=mdy(DATE))
-df <- mutate(df, HOUR=floor(TIME/100),
-             MINUTE=TIME-HOUR*100,
-             TIME=ifelse(is.na(HOUR), '12:00', paste0(sprintf('%02d', HOUR), ':', sprintf('%02d', MINUTE))),
-             DATETIME=paste0(format(DATE, '%Y-%m-%d'), ' ', TIME) %>% ymd_hm())
+df <- mutate(df,
+             HOUR=floor(TIME/100),
+             MINUTE=TIME-HOUR*100)
+df[['TIME']] <- ifelse(is.na(df[['HOUR']]),
+                       '12:00',
+                       paste0(sprintf('%02d', df[['HOUR']]), ':',
+                              sprintf('%02d', df[['MINUTE']])))
+
+df <- mutate(df, DATETIME=paste0(format(DATE, '%Y-%m-%d'), ' ', TIME) %>% ymd_hm())
 
 # remove rows without date
 df <- filter(df, !is.na(DATETIME))
 
 # stations ----
 stn.raw <- select(df, SITE, SITE_DESCRIPTION, LAT, LON) %>% unique %>% arrange(SITE)
-stn.raw <- mutate(stn.raw, 
-                  LAT_DMS=as.character(gsub("[^0-9]+", "", as.character(LAT))), 
+stn.raw <- mutate(stn.raw,
+                  LAT_DMS=as.character(gsub("[^0-9]+", "", as.character(LAT))),
                   LON_DMS=format(as.character(gsub("[^0-9]+", "", as.character(LON))), digits=8),
                   LAT_D=substr(LAT_DMS, 1, 2),
                   LAT_M=substr(LAT_DMS, 3, 4),

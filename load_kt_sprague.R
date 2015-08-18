@@ -9,7 +9,7 @@ theme_set(theme_bw())
 DATA_DIR <- getOption('UKL_DATA')
 
 df <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv'), stringsAsFactors=FALSE)
-df <- rename(df, 
+df <- rename(df,
              INDEX=INDEX,
              DATE=DATE,
              LAT=GPS_N,
@@ -86,7 +86,7 @@ df <- rename(df,
              CL_SPIKE=CL_SPIKE,
              CL_DIFF=CL_DIFF,
              CL_RPD=CL_RPD,
-             CL_PASS_FAIL=CL_PASS_FAIL, 
+             CL_PASS_FAIL=CL_PASS_FAIL,
              SIO2_ppm=SIO2.MGL,
              SIO2_DUP=SIO2_DUP,
              SIO2_SPIKE=SIO2_SPIKE,
@@ -130,7 +130,7 @@ if (length(idx.missing_date) > 0) {
   df <- df[-idx.missing_date, ]
 }
 
-# remove QA samples 
+# remove QA samples
 idx.qaqc_samples <- which(df$SITE %in% c("SR0110", "SR0550", "SR0990"))
 if (length(idx.qaqc_samples)) {
   cat("Removing", length(idx.qaqc_samples), "QAQC sample rows\n")
@@ -144,7 +144,7 @@ if (length(idx.qaqc_samples)) {
 # fix times
 if (length(which(df$TIME==8.35)) > 0) {
   cat('Fixing time: 8.35\n')
-  df[which(df$TIME==8.35), "TIME"] <- 835  
+  df[which(df$TIME==8.35), "TIME"] <- 835
 }
 if (length(which(df$TIME==15.06)) > 0) {
   cat('Fixing time: 15.06\n')
@@ -155,9 +155,14 @@ if (length(which(df$TIME==15.06)) > 0) {
 cat('Parsing dates and times\n')
 df <- mutate(df, DATE=mdy(DATE))
 df <- mutate(df, HOUR=floor(TIME/100),
-                 MINUTE=TIME-HOUR*100,
-                 TIME=ifelse(is.na(HOUR), '12:00', paste0(sprintf('%02d', HOUR), ':', sprintf('%02d', MINUTE))),
-                 DATETIME=paste0(format(DATE, '%Y-%m-%d'), ' ', TIME) %>% ymd_hm())
+                 MINUTE=TIME-HOUR*100)
+df[['TIME']]  <- ifelse(is.na(df[['HOUR']]),
+                        '12:00',
+                        paste0(sprintf('%02d', df[['HOUR']]), ':',
+                               sprintf('%02d', df[['MINUTE']])))
+
+df <- mutate(df, DATETIME=paste0(format(DATE, '%Y-%m-%d'), ' ', TIME) %>%
+                            ymd_hm())
 
 # remove Whiskey Creek
 idx.whiskey <- which(df$SITE == "SR3333")
@@ -177,12 +182,12 @@ if (length(idx.nf_ivory) > 0) {
 
 # extract stations
 cat('Extracting station info\n')
-stn.raw <- select(df, SITE, SITE_DESCRIPTION, LAT, LON) %>% 
+stn.raw <- select(df, SITE, SITE_DESCRIPTION, LAT, LON) %>%
   mutate_each(funs(str_trim)) %>%
-  unique %>% 
+  unique %>%
   arrange(SITE)
-stn.raw <- mutate(stn.raw, 
-                  LAT_DMS=as.character(gsub("[^0-9]+", "", as.character(LAT))), 
+stn.raw <- mutate(stn.raw,
+                  LAT_DMS=as.character(gsub("[^0-9]+", "", as.character(LAT))),
                   LON_DMS=format(as.character(gsub("[^0-9]+", "", as.character(LON))), digits=8),
                   LAT_D=substr(LAT_DMS, 1, 2),
                   LAT_M=substr(LAT_DMS, 3, 4),
@@ -196,8 +201,8 @@ stn.raw <- mutate(stn.raw,
   unique
 
 # save raw stations to csv
-select(stn.raw, SITE, DESCRIPTION=SITE_DESCRIPTION, LAT=LAT_DD, LON=LON_DD) %>% 
-  unique %>% 
+select(stn.raw, SITE, DESCRIPTION=SITE_DESCRIPTION, LAT=LAT_DD, LON=LON_DD) %>%
+  unique %>%
   write.csv('./csv/kt_sprague_stations_raw.csv', row.names=FALSE)
 
 # load manual stn list from csv
@@ -206,7 +211,7 @@ stn <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'kt_sprague_stations.csv'),
 
 # load shapefile with subbasin areas
 cat("Loading basins shapefile and adding drainage area to sites table\n")
-subbasins_shp <- readShapeSpatial(file.path(DATA_DIR, '../gis/sprague/r_wgs84/sprague_subbasins.shp'), 
+subbasins_shp <- readShapeSpatial(file.path(DATA_DIR, '../gis/sprague/r_wgs84/sprague_subbasins.shp'),
                                   proj4string = CRS("+proj=longlat +datum=WGS84"))
 subbasins <- fortify(subbasins_shp, region="SITE")
 
@@ -236,7 +241,7 @@ df <- gather(df, VAR.UNITS, VALUE, FLOW_cfs:TURBIDITY_NTU) %>%
 
 # order factors
 cat("Setting SITE factor order\n")
-stn <- mutate(stn, 
+stn <- mutate(stn,
               SITE=ordered(SITE, levels=stn$SITE),
               SITE_NAME=ordered(SITE_NAME, levels=stn$SITE_NAME),
               SITE_ABBR=ordered(SITE_ABBR, levels=stn$SITE_ABBR))
@@ -254,7 +259,7 @@ detection_limits <- readRDS('detection_limits.Rdata')
 #   left_join(detection_limits) %>%
 #   mutate(HALF_LOWERDL=LOWERDL/2,
 #          HALF_UPPERDL=UPPERDL/2)
-# 
+#
 # filter(df.limits, VAR %in% c('TN', 'NH4', 'NO23'), year(DATE)==2008) %>%
 #   ggplot(aes(DATE, VALUE, color=VALUE==HALF_LOWERDL)) +
 #   geom_point() +
@@ -269,10 +274,10 @@ df.rpd <- df.orig %>%
   mutate(DATE=ymd(paste(YEAR,MONTH,DAY,sep='-')),
          SITE=factor(SITE)) %>%
   select(SITE, DATE, TP_ppm:TSS_DUP) %>%
-  gather(VAR_TYPE, VALUE, -SITE, -DATE) %>% 
+  gather(VAR_TYPE, VALUE, -SITE, -DATE) %>%
   separate(VAR_TYPE, c("VAR", "TYPE"), sep="[_]") %>%
   mutate(TYPE=plyr::revalue(TYPE, c("ppm"="PRIMARY", "DUP"="DUP"))) %>%
-  spread(TYPE, VALUE) %>% 
+  spread(TYPE, VALUE) %>%
   filter(!is.na(DUP)) %>%
   left_join(detection_limits, by="VAR") %>%
   mutate(DL_PERIOD=ifelse(DATE < ymd("2008-04-01"), 'UPPER', 'LOWER'),
@@ -284,8 +289,8 @@ df.rpd <- df.orig %>%
          RPD_PASS=ifelse(RPD_TYPE=='HIGH', RPD<=0.2, DIFF<=DL))
 
 # number of rejected samples by RPD type
-filter(df.rpd, RPD_PASS==FALSE) %>% 
-  group_by(VAR, RPD_TYPE) %>% 
+filter(df.rpd, RPD_PASS==FALSE) %>%
+  group_by(VAR, RPD_TYPE) %>%
   tally %>%
   spread(RPD_TYPE, n) %>%
   mutate(HIGH=ifelse(is.na(HIGH), 0, HIGH),
@@ -306,23 +311,23 @@ pdf(file.path('pdf', 'dataset-rpd-test.pdf'), width=11, height=8.5)
 # Timeseries of raw data with RPD test results
 select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
   gather(SAMPLE, VALUE, PRIMARY, DUP) %>%
-  ggplot(aes(DATE, VALUE, color=RPD_PASS)) + 
+  ggplot(aes(DATE, VALUE, color=RPD_PASS)) +
   geom_line(aes(y=HALF_DL), color='black', alpha=0.5) +
   geom_point(aes(size=RPD_PASS)) +
   scale_color_manual('Pass RPD?', values=c('TRUE'='grey50', 'FALSE'='orangered')) +
   scale_size_manual('Pass RPD?', values=c('TRUE'=1, 'FALSE'=2)) +
-  scale_y_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 3))) + 
+  scale_y_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 3))) +
   labs(x='', y='Concentration (ppm)', title='Timeseries of RPD Test Results (All Sites)') +
   facet_wrap(~VAR, scales='free_y') +
   theme(panel.grid.minor.y=element_blank())
 
 # PRIMARY vs DUP scatter plot, showing which values pass/fail RPD test
 select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
-  ggplot(aes(PRIMARY, DUP, color=RPD_PASS)) + 
+  ggplot(aes(PRIMARY, DUP, color=RPD_PASS)) +
   geom_abline(linetype=2) +
   geom_point(aes(size=RPD_PASS)) +
-  scale_x_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 1))) + 
-  scale_y_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 1))) + 
+  scale_x_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 1))) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 1))) +
   labs(x='Primary Sample (ppm)', y='Duplicate Sample (ppm)', title='Comparison of Primary and Duplicate Concentrations (All Sites)') +
   scale_color_manual('Pass RPD?', values=c('TRUE'='grey50', 'FALSE'='orangered')) +
   scale_size_manual('Pass RPD?', values=c('TRUE'=1, 'FALSE'=2)) +
@@ -391,7 +396,7 @@ df.raw <- df %>%
   mutate(SITE=ordered(SITE, levels=levels(stn$SITE)),
          SITE_NAME=ordered(SITE_NAME, levels=levels(stn$SITE_NAME)))
 cat("Summary of QAQC flags for RAW dataset")
-table(df.raw$VAR, df.raw$QAQC)         
+table(df.raw$VAR, df.raw$QAQC)
 
 # CLEAN dataset ----
 df.clean <- df.raw
@@ -404,7 +409,7 @@ df.clean <- filter(df.clean, VAR %in% c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23'
   mutate(VAR=ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')))
 df.clean <- droplevels(df.clean)
 cat("Summary of QAQC flags for CLEAN dataset")
-table(df.clean$VAR, df.clean$QAQC)         
+table(df.clean$VAR, df.clean$QAQC)
 
 # POR dataset ----
 df.por <- df.clean
@@ -422,9 +427,9 @@ cat("Summary of sites set to detection limit for POR dataset\n")
 table(df.por$SITE_NAME, df.por$LIMITED)
 
 # check that all values are at or above upper dl
-df.por_check <- filter(df.por, VAR %in% detection_limits$VAR) %>% 
-  group_by(VAR) %>% 
-  summarise(MIN_VALUE=min(VALUE, na.rm=TRUE)) %>% 
+df.por_check <- filter(df.por, VAR %in% detection_limits$VAR) %>%
+  group_by(VAR) %>%
+  summarise(MIN_VALUE=min(VALUE, na.rm=TRUE)) %>%
   left_join(detection_limits, by='VAR') %>%
   mutate(PASS=MIN_VALUE>=UPPERDL)
 stopifnot(all(df.por_check$PASS))
@@ -445,9 +450,9 @@ cat("Summary of sites set to detection limit for RECENT dataset\n")
 table(df.recent$SITE_NAME, df.recent$LIMITED)
 
 # check all values >= 1/2 lower DL
-df.recent_check <- filter(df.recent, VAR %in% detection_limits$VAR) %>% 
-  group_by(VAR) %>% 
-  summarise(MIN_VALUE=min(VALUE, na.rm=TRUE)) %>% 
+df.recent_check <- filter(df.recent, VAR %in% detection_limits$VAR) %>%
+  group_by(VAR) %>%
+  summarise(MIN_VALUE=min(VALUE, na.rm=TRUE)) %>%
   left_join(detection_limits, by='VAR') %>%
   mutate(PASS=MIN_VALUE>=LOWERDL)
 stopifnot(all(df.recent_check$PASS))

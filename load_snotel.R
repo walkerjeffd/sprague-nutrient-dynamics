@@ -19,9 +19,11 @@ snotel <- lapply(names(files), function(site_name) {
   names(df) <- c('DATE', 'SWE_in')
   df$DATE <- ymd(df$DATE)
   df$SITE_NAME <- site_name
-  df  
+  df
 }) %>%
-  do.call(rbind, .) %>%
+  do.call(rbind, .)
+
+snotel <- snotel %>%
   mutate(SITE_NAME=factor(SITE_NAME),
          WYEAR=wyear(DATE)) %>%
   filter(WYEAR <= 2014)

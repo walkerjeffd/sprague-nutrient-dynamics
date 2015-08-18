@@ -16,6 +16,7 @@ Hash: 096699d1ac1cf530acfc646a0c90ee5d
 Package: GGally
 Source: CRAN
 Version: 0.5.0
+Hash: 17567326f1d99b4a104283027dd1acea
 Requires: ggplot2, gtable, plyr, reshape, stringr
 
 Package: MASS
@@ -277,6 +278,7 @@ Requires: mnormt
 Package: reshape
 Source: CRAN
 Version: 0.8.5
+Hash: 08a3fc774cceaaec54edea9e9687a6c5
 Requires: plyr
 
 Package: reshape2
@@ -284,6 +286,12 @@ Source: CRAN
 Version: 1.4.1
 Hash: 3131569136fc8988dd84ef57c9c28d5c
 Requires: Rcpp, plyr, stringr
+
+Package: rgeos
+Source: CRAN
+Version: 0.3-11
+Hash: 6fc7f3057e858f121231f81a9bce66ac
+Requires: sp
 
 Package: rjson
 Source: CRAN
@@ -328,6 +336,7 @@ Requires: dplyr, lazyeval, reshape2, stringi
 Package: wq
 Source: CRAN
 Version: 0.4.4
+Hash: 12efcb78b9aeb081daf5fca971944376
 Requires: ggplot2, reshape2, zoo
 
 Package: yaml

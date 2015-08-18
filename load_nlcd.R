@@ -53,7 +53,7 @@ nlcd <- nlcd %>%
 nlcd <- mutate(nlcd,
                LULC_CAT=ordered(LULC_CAT,
                                 levels=c('Developed', 'Planted/Cultivated',
-                                         'Herbaceous', 'Shrubland', 'Barren', 
+                                         'Herbaceous', 'Shrubland', 'Barren',
                                          'Forest', 'Wetlands', 'Water')),
                LULC_GRP=factor(LULC_GRP))
 
@@ -76,7 +76,7 @@ nlcd_unique <- expand.grid(EXTENT=unique(nlcd$EXTENT),
                            LULC_CAT=unique(nlcd$LULC_CAT)) %>%
   left_join(select(nlcd, LULC_CAT, LULC_GRP) %>% unique, by='LULC_CAT')
 
-nlcd <- full_join(nlcd, nlcd_unique, 
+nlcd <- full_join(nlcd, nlcd_unique,
                   by=c('EXTENT', 'SITE_NAME', 'LULC_CAT', 'LULC_GRP')) %>%
   mutate(AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2))
 stopifnot(all(table(nlcd$EXTENT, nlcd$SITE_NAME)==14))
@@ -91,7 +91,7 @@ nlcd <- group_by(nlcd, EXTENT, SITE_NAME) %>%
 nlcd.grp <- nlcd %>%
   mutate(SOURCE="NLCD_GRP") %>%
   select(SOURCE, EXTENT, SITE_NAME, LANDUSE=LULC_GRP, SUM_AREA_KM2, AREA_KM2, AREA_FRAC)
-group_by(nlcd.grp, EXTENT, SITE_NAME, SUM_AREA_KM2) %>% 
+group_by(nlcd.grp, EXTENT, SITE_NAME, SUM_AREA_KM2) %>%
   summarise(AREA_FRAC=sum(AREA_FRAC))
 
 nlcd.cat <- nlcd %>%
@@ -101,7 +101,7 @@ nlcd.cat <- nlcd %>%
   summarise(AREA_KM2=sum(AREA_KM2)) %>%
   ungroup %>%
   mutate(AREA_FRAC=ifelse(SUM_AREA_KM2>0, AREA_KM2/SUM_AREA_KM2, 0))
-group_by(nlcd.cat, EXTENT, SITE_NAME, SUM_AREA_KM2) %>% 
+group_by(nlcd.cat, EXTENT, SITE_NAME, SUM_AREA_KM2) %>%
   summarise(AREA_FRAC=sum(AREA_FRAC))
 
 nlcd <- rbind(nlcd.grp, nlcd.cat)
@@ -166,8 +166,9 @@ filter(nlcd.subbasin, EXTENT=="basin") %>%
   mutate(AREA_DIFF=GIS_AREA_KM2-TOTAL_AREA_KM2)
 
 stopifnot(all(table(nlcd.subbasin$EXTENT, nlcd.subbasin$SITE_NAME)==22))
+
+nlcd.incbasin <- nlcd
 stopifnot(all(table(nlcd.incbasin$EXTENT, nlcd.incbasin$SITE_NAME)==22))
 
 # save nlcd ----
-nlcd.incbasin <- nlcd
 save(nlcd.incbasin, nlcd.subbasin, file='nlcd.Rdata')
