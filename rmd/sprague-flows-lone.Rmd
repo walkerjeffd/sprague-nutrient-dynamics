@@ -1,0 +1,822 @@
+---
+title: "Sprague River Basin - Flows at Lone Pine"
+author: "Jeffrey D Walker, PhD"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  html_document:
+    css: styles.css
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+---
+
+This document compares streamflow data at `Lone_Pine` to the next downstream station at `Power` and the sum of two upstream stations `Godowa` and `Sycan`. 
+
+```{r libraries, echo=FALSE, warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(knitr)
+library(ggmap)
+library(gridExtra)
+library(scales)
+theme_set(theme_bw())
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+
+DATA_DIR <- getOption('UKL_DATA')
+
+da_slope <- 1425.8/1591.7
+```
+
+```{r load data}
+load('../usgs.Rdata')
+stn.usgs <- mutate(stn.usgs, 
+                   SOURCE="USGS",
+                   SITE=STATION_ID) %>%
+  select(SOURCE, SITE_NAME, SITE, DESCRIPTION, LAT, LON)
+q.usgs <- mutate(q.usgs, SITE=STATION_ID) %>%
+  select(SOURCE, SITE_NAME, SITE, DATE, FLOW) %>%
+  filter(SITE_NAME=='Power') %>%
+  mutate(SITE=as.character(SITE), SITE_NAME=as.character(SITE_NAME)) %>%
+  droplevels
+stn.usgs <- filter(stn.usgs, SITE_NAME %in% unique(q.usgs$SITE_NAME))
+
+load('../owrd.Rdata')
+q.owrd <- q.owrd %>%
+  select(SOURCE, SITE_NAME, SITE=STATION_ID, DATE, FLOW) %>%
+  mutate(SITE=as.character(SITE), SITE_NAME=as.character(SITE_NAME)) %>%
+  filter(SITE_NAME %in% c('Power', 'Lone_Pine', 'Sycan', 'Godowa', 'Beatty'))
+stn.owrd <- filter(stn.owrd, SITE_NAME %in% unique(q.owrd$SITE_NAME)) %>%
+  mutate(SOURCE="OWRD") %>%
+  select(SOURCE, SITE_NAME, SITE=STATION_ID, DESCRIPTION, LAT, LON)
+
+load('../kt_sprague.Rdata')
+wq.kt_sprague <- wq.kt_sprague[['RAW']] %>%
+  select(SITE, SITE_NAME, DATE, VAR, UNITS, VALUE)
+load('../gis.Rdata')
+stn.area <- left_join(stn.kt_sprague, select(subbasins_areas, SITE, DRAINAGE_AREA_SQKM=AREA_KM2))
+q.kt <- filter(wq.kt_sprague, VAR=='FLOW') %>% 
+  mutate(SOURCE="KT",
+         FLOW=VALUE) %>% 
+  select(SOURCE, SITE_NAME, SITE, DATE, FLOW) %>%
+  mutate(SITE=as.character(SITE), SITE_NAME=as.character(SITE_NAME)) %>%
+  filter(SITE_NAME %in% c('Lone_Pine', 'Godowa', 'Sycan', 'Power'))
+stn.kt <- mutate(stn.kt_sprague, SOURCE="KT") %>%
+  select(SITE_NAME, SITE, DESCRIPTION, LAT, LON, SOURCE) %>%
+  arrange(SITE_NAME) %>%
+  filter(SITE_NAME %in% unique(q.kt$SITE_NAME))
+
+q <- rbind(q.usgs, q.kt, q.owrd) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, 
+                           levels=c('Power', 'Lone_Pine', 'Sycan', 'Godowa', 'Beatty'))) %>%
+  filter(year(DATE) >= 2000) %>%
+  mutate(SOURCE_SITE=paste(SOURCE, SITE_NAME, sep='_'))
+
+stn <- rbind(stn.usgs, stn.kt, stn.owrd) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, 
+                           levels=c('Power', 'Lone_Pine', 'Sycan', 'Godowa', 'Beatty'))) %>%
+  mutate(SOURCE_SITE=paste(SOURCE, SITE_NAME, sep='_')) %>%
+  arrange(SITE_NAME, SOURCE)
+```
+
+# Stations
+
+This table lists the stations used in this analysis. There are four unique locations identified by `SITE_NAME`. At each of these locations, biweekly instantaneous flow measurements were collected by Klamath Tribes (KT) and continuous daily flow measurements were collected by USGS or OWRD.
+
+```{r stn-table, results='asis'}
+arrange(stn, SITE_NAME, SOURCE) %>%
+  select(-SOURCE_SITE) %>%
+  knitr::kable(format='markdown')
+```
+
+This map shows the four locations.
+
+```{r map, fig.width=6, fig.height=6}
+map <- get_stamenmap(bbox=c(-122.1, 42.15, -120.6, 43), zoom=10, color = 'bw')
+
+ggmap(map, extent = 'device', darken = c(0.4, 'black')) +
+  geom_point(aes(LON, LAT, color=SOURCE), data=arrange(stn, rev(SOURCE)), size=3) +
+  geom_text(aes(LON, LAT, label=SITE_NAME,
+                hjust=ifelse(SOURCE=='USGS' | SITE_NAME=="Godowa" | SOURCE=="OWRD", 1.1, -0.1)),
+            data=filter(stn, SOURCE=='KT' | SITE_NAME=='Beatty'), color='white', size=4) +
+  scale_color_manual('', values=c('orangered', 'deepskyblue', 'chartreuse3'))
+```
+
+# Compute Godowa+Sycan
+
+```{r compute godowa sycan}
+q.gs <- filter(q, SITE_NAME %in% c('Godowa', 'Sycan')) %>%
+  droplevels %>%
+  select(SOURCE, SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(`Godowa+Sycan`=Sycan+Godowa) %>%
+  select(SOURCE, DATE, `Godowa+Sycan`) %>%
+  gather(SITE_NAME, FLOW, `Godowa+Sycan`, na.rm=TRUE) %>%
+  mutate(SITE='Godowa+Sycan', SOURCE_SITE=paste(SOURCE, SITE, sep='_'))
+q <- rbind(q, q.gs)
+```
+
+
+# Flow Dataset
+
+This figure shows flow datasets for each location beginning in 2000 when records at all but one station (`USGS_Power`) began. The lines show the continuous daily flows from USGS or OWRD, and the points show the biweekly instantaneous flows measured by KT.
+
+```{r plot-flow, fig.width=8, fig.height=6}
+ggplot(filter(q, SOURCE %in% c('USGS', 'OWRD')), aes(DATE, FLOW, color=SOURCE)) +
+  geom_line() +
+  geom_point(data=filter(q, SOURCE %in% c('KT')), size=1, color='black') +
+  facet_wrap(~SITE_NAME, ncol=2) +
+  scale_color_manual('', values=c('USGS'='orangered', 'OWRD'='deepskyblue')) +
+  labs(x='', y='Flow (cfs)')
+```
+
+----
+
+# Lone Pine vs Power
+
+This section compares the flows at `Lone_Pine` to the flows at `Power`. The drainage areas for these two locations are 1,426 and 1,592 sq. miles, respectively, yielding a drainage area ratio of `r format(1425.8/1591.7, digits=3)`. Although Lone Pine has a smaller drainage area, measured high flows are consistently higher than the flows measured at Power, as shown below.
+
+## Biweekly vs Continuous Daily Flows
+
+### Power
+
+This figure compares the biweekly KT flows against the continuous daily USGS flows at `Power` with linear (left) and logarithmic (right) scales. The plots show that the two stations are comparable with slightly higher high flows measured by USGS relative to KT. The red lines are the 1:1 line, the blue lines are a linear regression lines. 
+
+```{r plot-power-scatter, fig.width=8, fig.height=4}
+p.power.lin <- select(q, SOURCE, DATE, SITE_NAME, FLOW) %>%
+  filter(SITE_NAME=='Power') %>%
+  spread(SOURCE, FLOW) %>%
+  ggplot(aes(x=USGS, y=KT)) +
+  geom_point(size=1) +
+  geom_smooth(method='lm') +
+  geom_abline(linetype=2, color='red') + 
+  labs(x="USGS @ Power (cfs)", y="KT @ Power (cfs)")
+p.power.log <- p.power.lin +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  scale_x_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+        panel.grid.minor=element_blank())
+grid.arrange(p.power.lin, p.power.log, nrow=1, main='\nComparison of KT and USGS Flows at Power')
+```
+
+### Lone_Pine
+
+This figure compares the biweekly KT flows against the continuous daily OWRD flows at `Lone_Pine`. The plots show greater high flows at the OWRD station relative to the K-T station, and similar low flows at both. The red lines are the 1:1 line, the blue lines are a linear regressions.
+
+```{r plot-lone-scatter, fig.width=8, fig.height=4}
+p.lone.lin <- select(q, SOURCE, DATE, SITE_NAME, FLOW) %>%
+  filter(SITE_NAME=='Lone_Pine') %>%
+  spread(SOURCE, FLOW) %>%
+  ggplot(aes(x=OWRD, y=KT)) +
+  geom_point(size=1) +
+  geom_smooth(method='lm', size=1) +
+  geom_abline(linetype=2, color='red') +
+  labs(x="OWRD @ Lone_Pine (cfs)", y="KT @ Lone_Pine (cfs)")
+p.lone.log <- p.lone.lin +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  scale_x_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+        panel.grid.minor=element_blank())
+
+grid.arrange(p.lone.lin, p.lone.log, nrow=1, main='\nComparison of KT and USGS Flows at Lone_Pine')
+```
+
+## Daily Flows
+
+This figure compares the relationships between the KT and OWRD flows at `Lone_Pine` against the USGS flows at `Power`. Both `Lone_Pine` datasets show larger high flows and smaller low flows relative to the `Power` station. The colored lines are linear regressions, the solid black line is the 1:1 line, and the dashed black line is the expected flow based on the drainage area ratio of `r format(da_slope, digits=3)`.
+
+```{r plot-scatter-usgs-power, fig.width=8, fig.height=7}
+p.lin <- select(q, DATE, SOURCE_SITE, FLOW) %>%
+  filter(SOURCE_SITE %in% c('USGS_Power', 'KT_Lone_Pine', 'OWRD_Lone_Pine')) %>%
+  spread(SOURCE_SITE, FLOW) %>% 
+  gather(SOURCE_SITE, FLOW, KT_Lone_Pine, OWRD_Lone_Pine) %>%
+  ggplot(aes(USGS_Power, FLOW)) +
+  geom_point(size=1) +
+  geom_smooth(method='lm', size=1) +
+  geom_abline() +
+  facet_wrap(~SOURCE_SITE, ncol=1) +
+  labs(x="USGS @ Power (cfs)", y="KT/OWRD @ Lone_Pine (cfs)")
+p.log <- p.lin +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  scale_x_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  theme(axis.text=element_text(size=8),
+        axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+        panel.grid.minor=element_blank())
+grid.arrange(p.lin, p.log, nrow=1, main='\nComparison of Lone_Pine to Power')
+```
+
+### Daily Flow Comparison Grouped by Year
+
+This figure compares the daily flows between OWRD at `Lone_Pine` and USGS at `Power` within each water year to see if the relationship differs between each year. Years 2013 and 2014, in particular, may show differences due to the withdrawal restrictions. In all years, the linear regression lines tend to cross the 1:1 line (solid black) around 500-1,000 cfs, above which point Lone Pine flows tend to higher than Power flows.
+
+```{r, fig.width=8, fig.height=12}
+p <- select(q, DATE, SOURCE_SITE, FLOW) %>%
+  filter(SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  spread(SOURCE_SITE, FLOW) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  filter(WYEAR %in% 2010:2014) %>%
+  ggplot(aes(USGS_Power, OWRD_Lone_Pine)) +
+  geom_abline() +
+  geom_point(size=1) +
+  geom_smooth(method='lm', se=FALSE) +
+  theme(legend.position=c(0,1), legend.justification=c(0,1)) +
+  facet_wrap(~WYEAR, ncol=1) +
+  labs(x="USGS @ Power (cfs)", y="OWRD @ Lone_Pine (cfs)")
+
+p.lin <- p + geom_abline(intercept=0, slope=da_slope, color='black', linetype=2) +
+  ggtitle('Linear Scale')
+p.log <- p +
+  geom_abline(slope=1, intercept=log10(da_slope), linetype=2) +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  scale_x_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  theme(axis.text.y=element_text(size=8), 
+        axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+        panel.grid.minor=element_blank()) +
+  ggtitle('Log Scale')
+grid.arrange(p.lin, p.log, ncol=2)
+```
+
+### Temporal Lag in High Flows
+
+```{r, results='hide'}
+select(q, SOURCE_SITE, DATE, FLOW) %>%
+  spread(SOURCE_SITE, FLOW) %>%
+  filter(USGS_Power > 2000) %>%
+  mutate(MONTH=month(DATE), YEAR=year(DATE)) %>%
+  group_by(YEAR, MONTH) %>%
+  summarise(N_USGS_Power=sum(!is.na(USGS_Power)),
+            N_OWRD_Lone=sum(!is.na(OWRD_Lone_Pine)))
+```
+
+This figure shows the daily flows for USGS at `Power` and OWRD at `Lone_Pine` during a series of high flow events in 2011. It shows a lag of about 1-2 days with flows rising earlier at `Lone_Pine` than at `Power`. This could explain in part why the comparison of daily flows shows higher flows at `Lone_Pine`. However, it also shows that the peak flow for each event is higher at `Lone_Pine` and thus suggests an attenuation of the peak flow between the two stations.
+
+```{r plot-lag, fig.width=8, fig.height=4}
+select(q, SOURCE_SITE, DATE, FLOW) %>%
+  filter(year(DATE)==2011, month(DATE) %in% c(4, 5)) %>%
+  filter(SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  ggplot(aes(DATE, FLOW, color=SOURCE_SITE)) +
+  geom_point() +
+  geom_line() +
+  labs(y='Flow (cfs)', x='') +
+  scale_color_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  theme(legend.position=c(1, 0), legend.justification=c(1, 0), legend.background=element_blank())
+```
+
+This figure compares the daily flows in the previous plot. The red points and line show a stronger relationship between the 1-day lagged values for OWRD at `Lone_Pine` relative to the blue points and line that compare the the un-lagged flows. 
+
+```{r plot-lag-scatter, fig.width=4, fig.height=4}
+select(q, SOURCE_SITE, DATE, FLOW) %>%
+  filter(year(DATE)==2011, month(DATE) %in% c(4, 5)) %>%
+  filter(SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  spread(SOURCE_SITE, FLOW) %>%
+  mutate(OWRD_Lone_Pine_Lag=lag(OWRD_Lone_Pine)) %>%
+  gather(SOURCE_SITE, FLOW, OWRD_Lone_Pine, OWRD_Lone_Pine_Lag) %>%
+  ggplot(aes(USGS_Power, FLOW, color=SOURCE_SITE)) +
+  geom_point() +
+  geom_smooth(method='lm', se=FALSE) +
+  geom_abline() +
+  labs(y='OWRD @ Lone_Pine (cfs)', x='USGS @ Power (cfs)') +
+  scale_color_manual('', values=c('OWRD_Lone_Pine'='steelblue', 'OWRD_Lone_Pine_Lag'='orangered'),
+                     labels=c('OWRD_Lone_Pine'='OWRD @ Lone_Pine(t)', 'OWRD_Lone_Pine_Lag'='OWRD @ Lone_Pine(t-1)')) +
+  theme(legend.position=c(0, 1), legend.justification=c(0, 1), legend.background=element_blank())
+```
+
+### Flow Duration Curves
+
+This figure shows the flow duration curves for each timeseries as another way to compare the differences in high and low flows between `Lone_Pine` and `Power`. 
+
+```{r fdc}
+fdc <- function(df) {
+  x <- df$FLOW
+  n <- length(x)
+  M <- rank(x)
+  p <- 100*(M/(n+1))/100
+  data.frame(FLOW=x, PROB=p)
+}
+# q.wide <- select(q, SOURCE_SITE, DATE, FLOW) %>%
+#   spread(SOURCE_SITE, FLOW)
+# q.wide <- q.wide[complete.cases(q.wide),]
+# 
+# q.fdc <- filter(q, DATE %in% q.wide$DATE) %>%
+#   filter(SITE_NAME=='Power') %>%
+#   group_by(SOURCE, SOURCE_SITE) %>%
+#   do(fdc(.)) %>%
+#   mutate(GROUP=ifelse(SOURCE_SITE %in% c('USGS_Power', 'KT_Power'),
+#                       'Power',
+#                       'Lone'))
+# 
+# ggplot(q.fdc, aes(PROB, FLOW, color=SOURCE)) +
+#   geom_line(aes(linetype=GROUP)) +
+#   scale_y_log10(breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000))
+```
+
+This figure compares the FDCs between the USGS at `Power` and OWRD at `Lone_Pine` sites. Only dates with measurements for both stations are included.
+
+```{r plot-fdc, fig.width=8, fig.height=4}
+q.fdc.owrd <- filter(q, SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  group_by(DATE) %>%
+  mutate(N=sum(!is.na(FLOW))) %>%
+  filter(N>1) %>%
+  group_by(SOURCE_SITE) %>%
+  do(fdc(.))
+
+p.lin <- ggplot(q.fdc.owrd, aes(PROB, FLOW, color=SOURCE_SITE)) +
+  geom_line() +
+  theme(legend.position=c(0, 1), legend.justification=c(0, 1)) +
+  labs(x='Non-Exceedence Probability', y='Flow (cfs)') +
+  scale_color_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  ggtitle('Linear Scale')
+p.log <- p.lin +
+  scale_y_log10(breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  ggtitle('Log Scale') +
+  theme(axis.text.y=element_text(size=8))
+grid.arrange(p.lin, p.log, ncol=2)
+```
+
+This figure shows the FDC's for each location grouped by month.
+
+```{r plot-fdc-month, fig.width=8, fig.height=8}
+q.fdc.owrd.mon <- filter(q, SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  group_by(DATE) %>%
+  mutate(N=sum(!is.na(FLOW))) %>%
+  filter(N>1) %>%
+  mutate(MONTH=month(DATE)) %>%
+  group_by(SOURCE_SITE, MONTH) %>%
+  do(fdc(.))
+
+ggplot(q.fdc.owrd.mon, aes(PROB, FLOW, color=SOURCE_SITE)) +
+  geom_line() +
+  facet_wrap(~MONTH) +
+  scale_y_log10(breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  labs(x='Non-Exceedence Probability', y='Flow (cfs)') +
+  scale_color_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  theme(axis.text.y=element_text(size=8),
+        legend.position='top', 
+        panel.grid.minor.y=element_blank())
+```
+
+This figure shows the FDC curves grouped by water year.
+
+```{r plot-fdc-wyr, fig.width=8, fig.height=6}
+q.fdc.owrd.wyr <- filter(q, SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  group_by(DATE) %>%
+  mutate(N=sum(!is.na(FLOW))) %>%
+  filter(N>1) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  filter(WYEAR %in% seq(2010, 2014)) %>%
+  group_by(SOURCE_SITE, WYEAR) %>%
+  do(fdc(.))
+
+ggplot(q.fdc.owrd.wyr, aes(PROB, FLOW, color=SOURCE_SITE)) +
+  geom_line() +
+  facet_wrap(~WYEAR) +
+  scale_y_log10(breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  labs(x='Non-Exceedence Probability', y='Flow (cfs)') +
+  scale_color_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  theme(axis.text.y=element_text(size=8),
+        legend.position='top', 
+        panel.grid.minor.y=element_blank())
+```
+
+## Monthly Flows
+
+```{r q-monthly}
+q.mon <- filter(q, SOURCE %in% c('USGS', 'OWRD')) %>%
+  group_by(SOURCE, SITE, SOURCE_SITE, SITE_NAME, MONTHYEAR=floor_date(DATE, unit='month')) %>%
+  summarise(FLOW=mean(FLOW),
+            N=n()) %>%
+  ungroup
+```
+
+This figure shows the monthly mean flows for USGS at `Power` and OWRD at `Lone_Pine`. The KT stations were not used since only biweekly measurements were collected. The two highest flow events in 2011 and 2012 both show larger high flows at `Lone_Pine` than `Power`.
+
+```{r plot-mon, fig.width=6, fig.height=4}
+q.mon %>%
+  filter(MONTHYEAR >= ymd('2009-06-01'),
+         SITE_NAME %in% c('Power', 'Lone_Pine')) %>%
+  ggplot(aes(MONTHYEAR, FLOW, color=SOURCE_SITE)) +
+  geom_line() +
+  labs(y="Mean Monthly Flow (cfs)", x='') +
+  scale_color_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  theme(legend.position=c(1, 1), legend.justification=c(1, 1), legend.background=element_blank())
+```
+
+This figure shows a scatterplot of the monthly flows at `USGS_Power` and `OWRD_Lone` on linear and log scales. As with the daily flows, the high flows were larger at `OWRD_Lone` than `USGS_Power`. The solid black line is the 1:1 line, the dashed black line is the expected monthly flows based on the drainage area of `r format(da_slope, digits=3)`, and the blue line is a linear regression.
+
+```{r plot-mon-scatter, fig.width=8, fig.height=4}
+p <- q.mon %>%
+  filter(MONTHYEAR >= ymd('2009-06-01')) %>%
+  ungroup %>%
+  select(SOURCE_SITE, MONTHYEAR, FLOW) %>%
+  spread(SOURCE_SITE, FLOW) %>%
+  ggplot(aes(USGS_Power, OWRD_Lone_Pine)) +
+  geom_abline() +
+  geom_point() +
+  geom_smooth(method='lm', se=FALSE) +
+  labs(x='USGS @ Power (cfs)', y='OWRD @ Lone_Pine (cfs)')
+p.lin <- p +
+  geom_abline(intercept=0, slope=da_slope, linetype=2)
+p.log <- p +
+  geom_abline(slope=1, intercept=log10(da_slope), linetype=2) +
+  scale_y_log10(label=comma, breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  scale_x_log10(label=comma, breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  theme(axis.text.y=element_text(size=8), 
+      axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+      panel.grid.minor=element_blank())
+grid.arrange(p.lin, p.log, nrow=1, main='\nComparison of Monthly Mean Flows')
+```
+
+This plot shows the overall mean flow by month for the two locations across all years. Note that the high spring flows in April and May are on average higher at `Lone_Pine`, while the flows at `Power` are higher during the dry summer months.
+
+```{r plot-mon-mean, fig.width=6, fig.height=4}
+filter(q, SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  group_by(DATE) %>%
+  mutate(N=sum(!is.na(FLOW))) %>%
+  filter(N>1) %>%
+  mutate(MONTH=ordered(month(DATE), c(10, 11, 12, 1:9))) %>%
+  group_by(SOURCE_SITE, MONTH) %>%
+  summarise(MEAN=mean(FLOW)) %>%
+  ggplot(aes(factor(MONTH), MEAN, fill=SOURCE_SITE)) +
+  geom_bar(position='dodge', stat='identity') +
+  scale_fill_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  labs(x='Month', y='Mean Monthly Flow (cfs)') +
+  theme(legend.position=c(0, 1), legend.justification=c(0, 1), legend.background=element_blank())
+```
+
+## Annual Flows
+
+```{r q-yr}
+q.wyr <- group_by(q, SOURCE, SITE, SOURCE_SITE, SITE_NAME, WYEAR=fluxr::wyear(DATE)) %>%
+  filter(SOURCE_SITE %in% c('USGS_Power', 'OWRD_Lone_Pine')) %>%
+  summarise(N=sum(!is.na(FLOW)),
+            FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  filter(WYEAR >= 2010, WYEAR <= 2014) %>%
+  ungroup
+```
+
+This figure shows the annual mean flows for USGS at `Power` and OWRD at `Lone_Pine`. The K-T stations were not used since only biweekly measurements were collected. Only years with complete flow records at both stations (2010-2014) are included. This shows that the annual flows are approximately equal between the two locations in high flow years (2011, 2012). During low flow years, mean annual flows tend to be higher at `Power`.
+
+```{r plot-wyr, fig.width=6, fig.height=4}
+q.wyr %>%
+  ggplot(aes(WYEAR, FLOW, fill=SOURCE_SITE)) +
+  geom_bar(position='dodge', stat='identity') +
+  labs(y="Annual Flow") +
+  scale_fill_manual('', values=c('USGS_Power'='deepskyblue', 'OWRD_Lone_Pine'='orangered')) +
+  labs(x='Water Year', y='Annual Mean Flow (cfs)') +
+  theme(legend.position=c(1, 1), legend.justification=c(1, 1), legend.background=element_blank())
+```
+
+This figure shows the difference in annual mean flow between `Power` and `Lone_Pine`.
+
+```{r plot-wyr-diff, fig.width=6, fig.height=4}
+q.wyr %>%
+  select(SITE_NAME, WYEAR, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(Power_Lone=Power-Lone_Pine) %>%
+  ggplot(aes(WYEAR, Power_Lone)) +
+  geom_bar(position='dodge', stat='identity', fill='grey70') +
+  geom_hline(yint=0, color='grey40') +
+  geom_text(aes(label=format(Power_Lone, digits=1), y=0), vjust=-1) +
+  labs(x='Water Year', y='Difference in Annual Mean Flow (cfs)\nPower - Lone_Pine')
+```
+
+This figure shows scatterplots of the annual flows at `Power` and `Lone_Pine`. The annual flows were almost equal at the two sites for the two water years with the highest mean flows (2011 and 2012). For the other three water years (2010, 2013, 2014), the `Lone_Pine` station had slightly lower annual mean flows than `Power`. The solid black line is the 1:1 line, the dashed black line is the expected monthly flows based on the drainage area of `r format(da_slope, digits=3)`, and the blue line is a linear regression.
+
+```{r plot-yr-scatter, fig.width=8, fig.height=4}
+p <- q.wyr %>%
+  select(SOURCE_SITE, WYEAR, FLOW) %>%
+  spread(SOURCE_SITE, FLOW) %>%
+  ggplot(aes(USGS_Power, OWRD_Lone_Pine)) +
+  geom_abline() +
+  geom_point() +
+  geom_text(aes(label=WYEAR, hjust=ifelse(WYEAR==2010, 1.1, -0.1))) +
+  geom_smooth(method='lm', se=FALSE) +
+  labs(x='USGS @ Power (cfs)', y='OWRD @ Lone_Pine (cfs)')
+p.lin <- p +
+  geom_abline(intercept=0, slope=da_slope, linetype=2) +
+  ylim(100, 1000) +
+  xlim(100, 1000)
+p.log <- p +
+  geom_abline(slope=1, intercept=log10(da_slope), linetype=2) +
+  scale_y_log10(label=comma, limits=c(100, 1000), breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  scale_x_log10(label=comma, limits=c(100, 1000), breaks=c(seq(1,9)*10, seq(1,9)*100, seq(1,9)*1000)) +
+  theme(axis.text.y=element_text(size=8), 
+    axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+    panel.grid.minor=element_blank())
+grid.arrange(p.lin, p.log, nrow=1)
+```
+
+----
+
+# Lone vs Godowa+Sycan
+
+This section compares the flows at `Sprauge_Lone` to the sum of two upstream stations `Godowa` and `Sycan`.
+
+## Daily Flows
+
+This figure shows the daily flows at `Lone_Pine` compared to the sum of `Godowa + Sycan` (all based on OWRD stations). 
+
+```{r plot-gs-daily, fig.width=8, fig.height=4}
+filter(q, SOURCE_SITE %in% c('OWRD_Lone_Pine', 'OWRD_Godowa', 'OWRD_Sycan'), year(DATE)>=2009) %>%
+  select(SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(`Godowa+Sycan`=Godowa+Sycan) %>%
+  gather(SITE_NAME, FLOW, -DATE) %>%
+  filter(SITE_NAME %in% c('Lone_Pine', 'Godowa+Sycan')) %>%
+  ggplot(aes(DATE, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('',
+                     values=c('Lone_Pine'='deepskyblue', 'Godowa+Sycan'='orangered')) +
+  labs(x='', y='Flow (cfs)') +
+  theme(legend.position=c(1, 1), legend.justification=c(1, 1))
+```
+
+This figure compares daily flows at `Sprauge_Lone` and `Godowa + Sycan` on linear and logarithmic scales. It shows that under low flow conditions, the sum of `Godowa + Sycan` is consistently higher than the flow at `Lone_Pine`. Under high flow conditions, the sum of `Godowa + Sycan` is approximately equal to the flow at `Lone_Pine`. This indicates significant losses between the two locations under low flow conditions due to withdrawals, evapotranspiration, and/or groundwater recharge. 
+
+```{r plot-gs-scatter, fig.width=8, fig.height=4}
+p.lin <- filter(q, SOURCE_SITE %in% c('OWRD_Lone_Pine', 'OWRD_Godowa', 'OWRD_Sycan'), year(DATE)>=2009) %>%
+  select(SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(Godowa_Sycan=Godowa+Sycan) %>%
+  ggplot(aes(Godowa_Sycan, Lone_Pine)) +
+  geom_abline(linetype=2, color='red') +
+  geom_point(size=1) +
+  geom_smooth(se=FALSE, size=1) +
+  labs(x='Godowa + Sycan (cfs)', y='OWRD @ Lone_Pine (cfs)')
+p.log <- p.lin +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  scale_x_log10(breaks=log_breaks(seq(1, 9), c(10, 100, 1000)), label=comma) +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1, size=8), 
+        panel.grid.minor=element_blank())
+grid.arrange(p.lin, p.log, ncol=2)
+```
+
+## Annual Flows
+
+This figure shows the annual flows at `Lone_Pine` compared to the sum of `Godowa + Sycan` (all based on OWRD stations).
+
+```{r plot-gs-wyr, fig.width=8, fig.height=4}
+filter(q, SOURCE_SITE %in% c('OWRD_Lone_Pine', 'OWRD_Godowa', 'OWRD_Sycan'), year(DATE)>=2009) %>%
+  select(SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(`Godowa+Sycan`=Godowa+Sycan) %>%
+  gather(SITE_NAME, FLOW, -DATE) %>%
+  filter(SITE_NAME %in% c('Lone_Pine', 'Godowa+Sycan')) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(N=n(),
+            FLOW=mean(FLOW)) %>%
+  filter(N>360) %>%
+  ggplot(aes(WYEAR, FLOW, fill=SITE_NAME)) +
+  geom_bar(stat='identity', position='dodge') +
+  scale_fill_manual('',
+                    values=c('Lone_Pine'='orangered', 'Godowa+Sycan'='deepskyblue')) +
+  labs(x='Water Year', y='Annual Mean Flow (cfs)') +
+  theme(legend.position=c(1, 1), legend.justification=c(1, 1))
+```
+
+This figure shows the difference in annual mean flow between `Lone_Pine` and `Godowa+Sycan`.
+
+```{r plot-gs-wyr-diff, fig.width=8, fig.height=4}
+filter(q, SOURCE_SITE %in% c('OWRD_Lone_Pine', 'OWRD_Godowa', 'OWRD_Sycan'), year(DATE)>=2009) %>%
+  select(SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(`Godowa+Sycan`=Godowa+Sycan) %>%
+  gather(SITE_NAME, FLOW, -DATE) %>%
+  filter(SITE_NAME %in% c('Lone_Pine', 'Godowa+Sycan')) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(N=n(),
+            FLOW=mean(FLOW)) %>%
+  filter(N>360) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(Difference=Lone_Pine-`Godowa+Sycan`) %>%
+  ggplot(aes(WYEAR, Difference)) +
+  geom_bar(stat='identity', position='dodge', fill='grey70') +
+  geom_text(aes(label=format(Difference, digits=2), y=0, vjust=-1)) +
+  geom_hline(yint=0, color='grey40') +
+  labs(x='Water Year', y='Difference in Annual Mean Flow (cfs)\nSprauge_Lone - [Godowa + Sycan]')
+```
+
+# Beatty vs Godowa
+
+The OWRD gages at Beatty and Godowa are only about 3 km apart and therefore should have relatively similar flows.
+
+```{r plot-owrd-beatty-godowa, fig.width=8, fig.height=4}
+filter(q, SOURCE=='OWRD', SITE_NAME %in% c('Godowa', 'Beatty')) %>% 
+  group_by(DATE) %>%
+  mutate(N=n()) %>%
+  filter(N==2) %>%
+  ggplot(aes(DATE, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('', values=c('Godowa'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='', y='Flow (cfs)')
+```
+
+This figure shows the distribution of flow difference between Godowa and Beatty for each month. Positive values indicate higher flows at Godowa. The negative values in April-June indicate some higher flows at Beatty. This could be due to withdrawals between the two gages. Based on the POU dataset, there are 9 point of use claims for irrigation totalling 7.5 cfs between the two gages.
+
+```{r boxplot-owrd-beatty-godowa, fig.width=6, fig.height=4}
+filter(q, SOURCE=='OWRD', SITE_NAME %in% c('Godowa', 'Beatty')) %>% 
+  select(SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(Godowa_Beatty=Godowa-Beatty) %>%
+  filter(!is.na(Godowa_Beatty)) %>%
+  mutate(MONTH=ordered(month(DATE), levels=c(10:12, 1:9))) %>%
+  ggplot(aes(MONTH, Godowa_Beatty)) +
+  geom_hline(yint=0, alpha=0.5) +
+  geom_boxplot() +
+  labs(x='Month', y='Godowa - Beatty (cfs)')
+```
+
+```{r plot-owrd-beatty-godowa-wyr, fig.width=6, fig.height=4}
+filter(q, SOURCE=='OWRD', SITE_NAME %in% c('Godowa', 'Beatty')) %>% 
+  select(SITE_NAME, DATE, FLOW) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  filter(WYEAR %in% seq(2009, 2014)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(N=sum(!is.na(FLOW)), FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  ggplot(aes(WYEAR, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('', values=c('Godowa'='orangered', 'Beatty'='deepskyblue')) +
+  ylim(0, NA) +
+  labs(x='', y='Annual Mean Flow (cfs)')
+```
+
+```{r}
+filter(q, SOURCE=='OWRD', SITE_NAME %in% c('Godowa', 'Beatty')) %>% 
+  group_by(DATE) %>%
+  mutate(N=n()) %>%
+  filter(N==2) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  filter(month(DATE) %in% seq(4, 6)) %>%
+  ggplot(aes(DATE, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('', values=c('Godowa'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='', y='Flow (cfs)') +
+  facet_wrap(~WYEAR, scales='free_x')
+
+```
+
+
+```{r}
+filter(q, SOURCE=='OWRD', SITE_NAME %in% c('Godowa', 'Beatty')) %>% 
+  mutate(MONTH=ordered(month(DATE), levels=c(10:12, 1:9)),
+         WYEAR=fluxr::wyear(DATE),
+         MONTHYEAR=floor_date(DATE, 'month')) %>%
+  filter(WYEAR %in% seq(2009, 2014)) %>%
+  group_by(MONTHYEAR, WYEAR, MONTH, SITE_NAME) %>%
+  summarise(N_NA=sum(is.na(FLOW)),
+            FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  ggplot(aes(MONTHYEAR, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('', values=c('Godowa'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='', y='Monthly Mean Flow (cfs)')
+#   facet_wrap(~WYEAR, scales='free_x')
+
+```
+
+# Beatty vs Power
+
+The OWRD station at Beatty and USGS station at Power are the two long term datasets.
+
+```{r}
+q.bp <- rbind(filter(q.usgs, SITE_NAME=='Power'),
+              filter(q.owrd, SITE_NAME=='Beatty')) %>%
+  select(SITE_NAME, DATE, FLOW) %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  filter(WYEAR %in% seq(1954, 2014))
+```
+
+```{r}
+q.bp %>%
+  mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
+  group_by(MONTHYEAR, SITE_NAME) %>%
+  summarise(N_NA=sum(is.na(FLOW)),
+            FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  ggplot(aes(MONTHYEAR, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('', values=c('Power'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='', y='Monthly Mean Flow (cfs)')
+```
+
+The double mass curve indicates a change around WY 2001
+
+```{r}
+q.bp.wyr <- q.bp %>%
+  mutate(WYEAR=fluxr::wyear(DATE)) %>%
+  group_by(WYEAR, SITE_NAME) %>%
+  summarise(FLOW=mean(FLOW)) %>%
+  arrange(SITE_NAME, WYEAR)
+slope.bp <- sum(filter(q.bp.wyr, SITE_NAME=='Power')$FLOW)/sum(filter(q.bp.wyr, SITE_NAME=='Beatty')$FLOW)
+group_by(q.bp.wyr, SITE_NAME) %>%
+  mutate(FLOW=cumsum(FLOW)) %>%
+  spread(SITE_NAME, FLOW) %>%
+  ggplot(aes(Beatty, Power)) +
+  geom_point() +
+  geom_abline(intercept=0, slope=slope.bp)
+```
+
+The residual shows the inflection point at WY 2001.
+
+```{r}
+group_by(q.bp.wyr, SITE_NAME) %>%
+  mutate(FLOW=cumsum(FLOW)) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(DIFF=Power-Beatty*slope.bp) %>%
+  ggplot(aes(WYEAR, DIFF)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yint=0, alpha=0.5) +
+  labs(x='Water Year', y='Double Mass Curve Residual (cfs)')
+```
+
+Annual flows at each site indicate downward trends, with larger decrease at Power. Multiple high years flows just before inflection point in late 1990s.
+
+```{r}
+ggplot(q.bp.wyr, aes(WYEAR, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  geom_smooth(method='lm') +
+  scale_color_manual('', values=c('Power'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='Water Year', y='Annual Mean Flow (cfs)') +
+  theme(legend.position=c(1, 1), legend.justification=c(1, 1))
+```
+
+Annual peak flows indicates large flood in 1997 that may have affected rating curves.
+
+```{r}
+q.bp %>% 
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(FLOW=max(FLOW, na.rm=TRUE)) %>%
+  ggplot(aes(WYEAR, FLOW, color=SITE_NAME)) +
+  geom_line() +
+  scale_color_manual('', values=c('Power'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='Water Year', y='Annual Max Flow (cfs)') +
+  theme(legend.position=c(1, 1), legend.justification=c(1, 1))  
+```
+
+
+```{r}
+spread(q.bp.wyr, SITE_NAME, FLOW) %>%
+  ggplot(aes(Power, Beatty, color=WYEAR>=2001)) +
+  geom_point() +
+  geom_smooth(method='lm', se=FALSE) +
+  scale_color_manual('', values=c('TRUE'='orangered', 'FALSE'='deepskyblue'),
+                     labels=c('TRUE'='2001-2014', 'FALSE'='1954-2000'))
+```
+
+
+```{r}
+spread(q.bp.wyr, SITE_NAME, FLOW) %>%
+  mutate(Power_Beatty=Power-Beatty) %>%
+  ggplot(aes(WYEAR, Beatty/Power, color=WYEAR>=2009)) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(method='lm', se=FALSE) +
+  labs(x='Water Year', y='(Power-Beatty)/Power')
+```
+
+
+```{r}
+q.bp %>%
+  mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
+  group_by(MONTHYEAR, SITE_NAME) %>%
+  summarise(N_NA=sum(is.na(FLOW)),
+            FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(Power_Beatty=Power-Beatty) %>%
+  ggplot(aes(MONTHYEAR, Beatty/Power, color=fluxr::wyear(MONTHYEAR)>=2009)) +
+  geom_line() +
+#   scale_color_manual('', values=c('Power'='orangered', 'Beatty'='deepskyblue')) +
+  labs(x='', y='Monthly Mean Flow (cfs)')
+```
+
+```{r}
+spread(q.bp.wyr, SITE_NAME, FLOW) %>%
+  mutate(Power_Beatty=Power-Beatty) %>%
+  ggplot(aes(Beatty, Power_Beatty)) +
+  geom_point() +
+  ylim(0, NA) +
+  xlim(0, NA) +
+  geom_smooth(method='lm', se=FALSE)
+```
+
+
+# Reference Info
+
+For reference, here is the rating curve for `OWRD_Lone_Pine` ([source](http://apps.wrd.state.or.us/apps/sw/hydro_near_real_time/display_rating_curve.aspx?station_nbr=11500500)):
+
+![OWRD rating curve](img/owrd_11500500_rating_curve.png)
+
+This figure shows the geomorphology and springs in the area ([source](http://or.water.usgs.gov/projs_dir/Sprague/report/Figures/plate.pdf)).
+
+![Sprague Geomorphology](img/sprague_geomorphology.png)
+
+# Conclusions
+
+- Daily mean flows at Lone Pine are consistently higher than the flows at Power under high flow conditions based on the USGS, OWRD, and K-T datasets.
+- Simarly, monthly mean flows are also higher at Lone Pine than Power under high flow conditions based on the OWRD and USGS continuous daily flows.
+- However, the annual mean flows are slightly higher at Power during most water years and with differences ranging from 0 to 45 cfs in WY 2010 - 2014.
+- There is a noticeable 1-day lag in daily flows under high flow conditions between Lone Pine and Power, however the peak flows for any given event are still higher at Lone Pine than Power even if they occur a day earlier.
+- This evidence suggests there is a significant storage effect between the two stations where high flows may spill over into oxbows and/or the flood plain. This temporary storage is then released slowly under low flow conditions based on the higher low flows at Power than Lone Pine. On an annual basis there seems to be a slight net gain between the two stations.
+- Comparison of `Lone_Pine` to the sum of flows from `Godowa` and `Sycan` shows significant loss of low flows between Godowa and Lone Pine, and approximately equal high flows. On an annual basis, the difference in annual mean flows between `Lone_Pine` and `Godowa+Sycan` ranges from -2 to 25 cfs with loss in flows during dry years and gains in flow during wet years.

@@ -1,0 +1,310 @@
+---
+title: "Sprague River Basin - WQ Data Outliers"
+author: "Jeffrey D Walker, PhD"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  html_document:
+    css: styles.css
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+---
+
+# Overview
+
+This document identifies outliers in the water quality dataset for Sprague River basin.
+
+```{r libraries, echo=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+theme_set(theme_bw())
+
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r load kt_sprague}
+load('../kt_sprague.Rdata')
+
+wq <- wq.kt_sprague[['RAW']]
+wq.raw <- wq.kt_sprague.orig %>%
+  mutate(DATE=mdy(DATE))
+
+# add flow and stage columns
+wq <- select(wq, -UNITS, -DATETIME)
+wq.flow <- select(wq, SITE, DATE, VAR, VALUE) %>%
+  filter(VAR %in% c('FLOW', 'STAGE')) %>%
+  spread(VAR, VALUE)
+wq <- filter(wq, VAR %in% c('COND', 'DO', 'NH4', 'NO23', 'PH', 'PO4', 'TEMP', 'TN', 'TP', 'TSS', 'TURBIDITY')) %>%
+  droplevels %>%
+  left_join(wq.flow) %>%
+  select(SITE, SITE_NAME, DATE, FLOW, STAGE, VAR, VALUE, QAQC) %>%
+  arrange(SITE, DATE) %>%
+  mutate(FAIL=(QAQC!='PASS'))
+```
+
+----
+
+# Blank Samples
+
+One sample at `SR0050` (`Sprague_SF`) collected on 07/16/2008 had TP, PO4, TN, NH4 and NO23 concentrations that were all very low and identical to the concentrations in other blank samples. This evidence suggests a potential error due to mislabeled samples or an error in copying the data to the master dataset spreadsheet. This sample is assigned `QAQC=BLANK` and is excluded from further analysis.
+
+```{r tp outlier low2, results='asis'}
+qaqc_blank <- filter(wq, VAR=='TP', QAQC=='BLANK', VALUE==0.0045) %>%
+  select(SITE, DATE)
+qaqc_blank %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, TP, PO4, TN, NH4, NO23) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+# Total Phosphorus (TP)
+
+This figure identifies abnormal results for TP.
+
+```{r tp ts, fig.width=8, fig.height=5}
+filter(wq, VAR=='TP') %>%
+  ggplot(aes(DATE, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='', y='TP (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))
+```
+
+Three of the highlighted samples have reported TP concentrations of 0.009 mg/L, which is the value used for blank samples in the original dataset. Futhermore, the measured PO4 concentrations are significantly higher than the TP concentration for each of these samples. This evidence suggests a potential error due to mislabeled samples or an error in copying the data to the master dataset spreadsheet. These three samples will thus be excluded from further analysis.
+
+```{r tp low, results='asis'}
+tp_low <- filter(wq, VAR=='TP', QAQC=='LOW') %>%
+  select(SITE, DATE)
+tp_low %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, COND, PH, DO, TURBIDITY, TSS, TP, PO4, TN, NH4, NO23) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+Eight samples had reported TP concentrations that did not fit the general relationships against flow or other variables. See the `outlier/tp.pdf` for more comparisons. These samples all had values that were higher than expected for the given flow rate.
+
+```{r tp outlier, results='asis'}
+tp_outlier <- filter(wq, VAR=='TP', QAQC=='OUTLIER') %>%
+  select(SITE, DATE)
+tp_outlier %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, TP, PO4, TN, NH4, NO23, TSS) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+The following subsections show how these TP samples compare to the relationships between TP and concentrations of other nutrient parameters as well as flow. These figures provide further support that these TP concentrations are abnormal.
+
+```{r tp-flow, fig.width=8, fig.height=5}
+filter(wq, VAR=='TP') %>%
+  ggplot(aes(FLOW, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  scale_x_log10() +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  labs(x='Flow (cfs)', y='TP (ppm)') +
+  facet_wrap(~SITE_NAME+SITE, ncol=4, scales='free') +
+  theme(panel.grid.minor = element_blank())
+```
+
+----
+
+# Orthosphosphate (PO4)
+
+This figure shows the PO4 sample concentrations. Aside from the one blank sample mentioned above, all measurements will be used in further analyses.
+
+```{r po4 ts, fig.width=8, fig.height=5}
+filter(wq, VAR=='PO4') %>%
+  ggplot(aes(DATE, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='', y='PO4 (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))
+```
+
+----
+
+# Total Nitrogen (TN)
+
+This figure shows the TN sample concentrations. There were five samples with very low concentrations (one `BLANK` and four `LOW`) that will be excluded.
+
+```{r tn, fig.width=8, fig.height=5}
+filter(wq, VAR=='TN') %>%
+  ggplot(aes(DATE, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='', y='TN (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))
+```
+
+The following lists the site and dates for the four `LOW` TN samples. Note that these TN concentrations are less than the sum of NH4+NO23.
+
+```{r tn outlier, results='asis'}
+tn.low <- filter(wq, VAR=='TN', QAQC=="LOW") %>%
+  select(SITE, DATE)
+tn.low %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, COND, PH, DO, TP, PO4, TN, NH4, NO23) %>%
+  mutate('NH4+NO23'=NH4+NO23) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+----
+
+# Ammonium (NH4)
+
+This figure shows the NH4 sample concentrations. There were two samples with very low concentrations (one `BLANK` and one `LOW`), and one abnormally high `OUTLIER` that will be excluded.
+
+```{r nh4, fig.width=8, fig.height=5}
+filter(wq, VAR=='NH4') %>%
+  ggplot(aes(DATE, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='', y='NH4 (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))
+```
+
+The one `LOW` NH4 sample had a concentration much lower than half the detection limit (0.005 mg/L).
+
+```{r nh4 low, results='asis'}
+nh4.low <- filter(wq, VAR=='NH4', QAQC=="LOW") %>%
+  select(SITE, DATE)
+nh4.low %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, COND, PH, DO, TP, PO4, TN, NH4, NO23) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+The one high `OUTLIER` NH4 sample occured at Sycan, and had very high NH4 and NO23, the sum of which exceeds TN. Therefore both the NH4 and NO23 concentrations for this sample are considered outliers.
+
+```{r nh4 outlier, results='asis'}
+nh4.outlier <- filter(wq, VAR=='NH4', QAQC=="OUTLIER") %>%
+  select(SITE, DATE)
+nh4.outlier %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, COND, PH, DO, TP, PO4, TN, NH4, NO23) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+----
+
+# Nitrate + Nitrite (NO23)
+
+There was one abnormally high `OUTLIER` NO23 concentration at Sycan.
+
+```{r no23, fig.width=8, fig.height=5}
+filter(wq, VAR=='NO23') %>%
+  ggplot(aes(DATE, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='', y='NO23 (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))
+```
+
+The one high `OUTLIER` NO23 sample occured at Sycan, and had very high NH4 and NO23, the sum of which exceeds TN. Therefore both the NH4 and NO23 concentrations for this sample are considered outliers.
+
+```{r no23 outlier, results='asis'}
+no23.outlier <- filter(wq, VAR=='NO23', QAQC=="OUTLIER") %>%
+  select(SITE, DATE)
+no23.outlier %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, FLOW, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(DATE, SITE, SITE_NAME, FLOW, COND, PH, DO, TP, PO4, TN, NH4, NO23) %>%
+  arrange(DATE, SITE) %>%
+  kable(format='markdown')
+```
+
+----
+
+# Total Suspended Solids (TSS)
+
+Three samples reported negative TSS concentrations. These sample will be removed.
+
+```{r tss negative, results='asis'}
+tss.negative <- filter(wq, VAR=='TSS', QAQC=="NEGATIVE") %>%
+  select(SITE, DATE)
+tss.negative %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(SITE, SITE_NAME, DATE, TSS, TURBIDITY) %>%
+  kable(format='markdown')
+```
+
+Among the remaining non-negative TSS samples, one sample was considered an abnormally high outlier.
+
+```{r tss outlier, results='asis'}
+tss.outlier <- filter(wq, VAR=='TSS', QAQC=="OUTLIER") %>%
+  select(SITE, DATE)
+tss.outlier %>%
+  left_join(select(wq, SITE, SITE_NAME, DATE, VAR, VALUE)) %>%
+  spread(VAR, VALUE) %>%
+  select(SITE, SITE_NAME, DATE, TSS, TURBIDITY) %>%
+  kable(format='markdown')
+```
+
+```{r tss, fig.width=8, fig.height=5}
+filter(wq, VAR=='TSS', VALUE>0) %>%
+  ggplot(aes(DATE, VALUE, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='', y='TSS (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+#   scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))
+```
+
+This TSS sample was assigned to `OUTLIER` because it fell far outside the relationship between TSS and Turbidity at `Lone_Pine`.
+
+```{r tss turb, fig.width=8, fig.height=5}
+filter(wq, VAR=="TSS", VALUE > 0) %>%
+  select(SITE, SITE_NAME, DATE, QAQC, FAIL, VAR, VALUE) %>%
+  spread(VAR, VALUE) %>%
+  left_join(filter(wq, VAR=="TURBIDITY") %>% select(SITE, DATE, TURBIDITY=VALUE)) %>%
+  ggplot(aes(TURBIDITY, TSS, color=QAQC, size=FAIL)) +
+  geom_point() +
+  labs(x='Turbidity (NTU)', y='TSS (ppm)') +
+  scale_color_manual('', values=c('PASS'='gray50', 'RPD'='black', 'BLANK'='deepskyblue', 'LOW'='chartreuse3', 'OUTLIER'='red')) +
+  scale_size_manual('', values=c('TRUE'=2, 'FALSE'=1), guide=FALSE) +
+  facet_wrap(~SITE_NAME+SITE, ncol=4) +
+  scale_x_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  scale_y_log10(breaks=fluxr::log_breaks(c(1,5), 10^seq(-3, 2))) +
+  theme(panel.grid.minor = element_blank())
+```

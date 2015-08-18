@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+packrat/lib*/
+
+*.jpg
+*.png
+*.rdata
+*.Rdata
+*.pdf
+*.html
+*.zip
