@@ -29,21 +29,21 @@ q <- left_join(q, select(stn.kt_sprague, SITE, SITE_NAME), by='SITE_NAME') %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=levels(stn.kt_sprague$SITE_NAME)))
 stopifnot(all(!is.na(q$Q)))
 
-# # plot daily flows
-# ggplot(q, aes(DATE, Q)) +
-#   geom_line() +
-#   facet_wrap(~SITE_NAME) +
-#   labs(x="", y="Flow (hm3/d)")
-# 
-# # plot annual flows
-# mutate(q, WYEAR=wyear(DATE)) %>%
-#   group_by(SITE_NAME, WYEAR) %>%
-#   summarize(Q=mean(Q)) %>%
-#   ggplot(aes(factor(WYEAR), Q)) +
-#   geom_bar(stat='identity') +
-#   facet_wrap(~SITE_NAME) +
-#   labs(x="Water Year", y="Annual Mean Flow (hm3/d)") +
-#   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+# plot daily flows
+ggplot(q, aes(DATE, Q)) +
+  geom_line() +
+  facet_wrap(~SITE_NAME) +
+  labs(x="", y="Flow (hm3/d)")
+
+# plot annual flows
+mutate(q, WYEAR=wyear(DATE)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarize(Q=mean(Q)) %>%
+  ggplot(aes(factor(WYEAR), Q)) +
+  geom_bar(stat='identity') +
+  facet_wrap(~SITE_NAME) +
+  labs(x="Water Year", y="Annual Mean Flow (hm3/d)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
 # reshape wq data
 wq <- lapply(dataset_levels, function(dataset) {
@@ -67,20 +67,20 @@ wq[['Qs']] <- cfs_to_hm3d(wq[['FLOW']])
 
 # convert units from ppm to ppb
 wq <- wq %>%
-  mutate(VALUE=ifelse(UNITS=="ppm", VALUE*1000, VALUE)) %>%
-  mutate(UNITS=ifelse(UNITS=="ppm", "ppb", "ppm")) %>%
+  mutate(VALUE=ifelse(UNITS=="ppm", VALUE*1000, VALUE),
+         UNITS=ifelse(UNITS=="ppm", "ppb", "ppm")) %>%
   select(-FLOW) %>%
   rename(C=VALUE)
 stopifnot(all(wq$C > 0 | wq$DATASET=='RAW'))
 
 # plot wq data
-# wq %>%
-#   filter(DATASET=='POR') %>%
-#   ggplot(aes(DATE, C)) +
-#   geom_point(size=1) +
-#   facet_grid(VAR~SITE_NAME, scales='free_y') +
-#   labs(x="", y="Concentration (ppb)") +
-#   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+wq %>%
+  filter(DATASET=='POR') %>%
+  ggplot(aes(DATE, C)) +
+  geom_point(size=1) +
+  facet_grid(VAR~SITE_NAME, scales='free_y') +
+  labs(x="", y="Concentration (ppb)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
 # create list of sites and variables for each dataset
 dataset_sites <- lapply(dataset_levels, function(dataset) {
@@ -99,7 +99,7 @@ names(dataset_vars) <- dataset_levels
 q <- lapply(names(wq.kt_sprague), function(dataset) {
   mutate(q,
          SITE_NAME=as.character(SITE_NAME),
-         DATASET=dataset) %>% 
+         DATASET=dataset) %>%
     filter(SITE_NAME %in% dataset_sites[[dataset]])
 }) %>%
   rbind_all(.)
@@ -108,40 +108,33 @@ q <- lapply(names(wq.kt_sprague), function(dataset) {
 wq <- select(wq, DATASET, SITE, SITE_NAME, DATE, VAR, Qs, C)
 wq.wide <- spread(wq, VAR, C)
 
-df <- left_join(q, wq.wide, by=c('SITE_NAME', 'DATE', 'SITE', 'DATASET'))
-str(df)
-
-df <- df %>%
-  gather(VAR, C, NH4, NO23, PO4, TN, TP, TSS)
-str(df)
-
-df <- df %>%
+df <- left_join(q, wq.wide, by=c('SITE_NAME', 'DATE', 'SITE', 'DATASET')) %>%
+  gather(VAR, C, NH4, NO23, PO4, TN, TP, TSS) %>%
   arrange(DATASET, SITE, VAR, DATE)
-str(df)
 
-# wyear() does not play nicely with mutate!
-df$WYEAR <- wyear(df$DATE)
 df <- mutate(df,
+             WYEAR=wyear(df$DATE),
              SAMPLED=!is.na(C),
-             L=Q*C)
-df <- mutate(df,
-             SITE=ordered(as.character(SITE), levels=levels(stn.kt_sprague$SITE)),
-             SITE_NAME=ordered(as.character(SITE_NAME), levels=levels(stn.kt_sprague$SITE_NAME)))
-df <- select(df, DATASET, SITE, SITE_NAME, DATE, WYEAR, VAR, Q, Qs, C, L, SAMPLED)
+             L=Q*C,
+             SITE=ordered(SITE,
+                          levels=levels(stn.kt_sprague$SITE)),
+             SITE_NAME=ordered(SITE_NAME,
+                               levels=levels(stn.kt_sprague$SITE_NAME))) %>%
+  select(df, DATASET, SITE, SITE_NAME, DATE, WYEAR, VAR, Q, Qs, C, L, SAMPLED)
 str(df)
 
 # table(df$SITE_NAME, df$DATASET)
 # summary(df)
 
 # years for predictions
-# filter(df, SAMPLED) %>%
-#   group_by(DATASET, SITE_NAME, VAR, WYEAR) %>%
-#   summarise(N=n()) %>%
-#   filter(N>1) %>%
-#   ggplot() +
-#   geom_tile(aes(x=factor(WYEAR), SITE_NAME)) +
-#   facet_grid(VAR~DATASET) +
-#   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+filter(df, SAMPLED) %>%
+  group_by(DATASET, SITE_NAME, VAR, WYEAR) %>%
+  summarise(N=n()) %>%
+  filter(N>1) %>%
+  ggplot() +
+  geom_tile(aes(x=factor(WYEAR), SITE_NAME)) +
+  facet_grid(VAR~DATASET) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
 # estimate loads
 estimate_loads <- function(df, dataset, variable, site) {
@@ -153,12 +146,12 @@ estimate_loads <- function(df, dataset, variable, site) {
     x <- filter(df, WYEAR %in% seq(wyear_ranges[[dataset]][1], wyear_ranges[[dataset]][2]))
     predict_wyear_range <- predict_wyear_ranges[[dataset]]
   }
-  
+
   x <- ungroup(x)
   x <- x[, c('DATE', 'Q', 'C')]
-  
+
   loads <- flux_regression(x, interp = TRUE, max_interval = 90, predict_wyear_range = predict_wyear_range)
-  
+
   loads
 }
 # x <- filter(df, DATASET=='RECENT', SITE=="SR0090", VAR=="TP") %>% estimate_loads(.)
@@ -234,9 +227,9 @@ df_day <- left_join(df_day, areas, by="SITE_NAME") %>%
          L_AREA=L/AREA_KM2,                 # kg/km2/mon
          Q_AREA=Q/AREA_KM2*100) %>%         # cm/mon
   gather(TERM, VALUE, Q, L, C, L_AREA, Q_AREA) %>%
-  mutate(SITE_NAME=ordered(as.character(SITE_NAME), 
-                           levels=c("Power", 
-                                    "Power-Lone_Pine", 
+  mutate(SITE_NAME=ordered(as.character(SITE_NAME),
+                           levels=c("Power",
+                                    "Power-Lone_Pine",
                                     "Lone_Pine",
                                     "Lone_Pine-Godowa-Sycan",
                                     "Godowa",
@@ -252,7 +245,7 @@ df_day <- left_join(df_day, areas, by="SITE_NAME") %>%
 
 # monthly data frame ----
 df_mon <- filter(df_day, TERM %in% c('Q', 'L', 'Q_AREA', 'L_AREA')) %>%
-  spread(TERM, VALUE) %>% 
+  spread(TERM, VALUE) %>%
   mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
   group_by(DATASET, VAR, SITE_NAME, AREA_KM2, MONTHYEAR, MONTH, WYEAR) %>%
   summarise(Q=sum(Q),
@@ -265,7 +258,7 @@ df_mon <- filter(df_day, TERM %in% c('Q', 'L', 'Q_AREA', 'L_AREA')) %>%
 
 # wyear data frame ----
 df_wyr <- filter(df_mon, TERM %in% c('Q', 'L', 'Q_AREA', 'L_AREA')) %>%
-  spread(TERM, VALUE) %>% 
+  spread(TERM, VALUE) %>%
   group_by(DATASET, VAR, SITE_NAME, AREA_KM2, WYEAR) %>%
   summarise(Q=sum(Q),
             L=sum(L),
