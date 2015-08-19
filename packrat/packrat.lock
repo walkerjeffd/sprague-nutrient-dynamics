@@ -112,8 +112,8 @@ Hash: de202f956596a476d09304e3a2ebf1e5
 
 Package: dplyr
 Source: CRAN
-Version: 0.4.1
-Hash: 128f526017993fec2d18062d5a77ca20
+Version: 0.4.2
+Hash: 575d8eeb967fe03f6d6c0d04ed8401d5
 Requires: BH, DBI, R6, Rcpp, assertthat, lazyeval, magrittr
 
 Package: evaluate
