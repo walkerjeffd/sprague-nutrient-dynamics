@@ -111,16 +111,12 @@ wq.wide <- spread(wq, VAR, C)
 df <- left_join(q, wq.wide, by=c('SITE_NAME', 'DATE', 'SITE', 'DATASET')) %>%
   gather(VAR, C, NH4, NO23, PO4, TN, TP, TSS) %>%
   arrange(DATASET, SITE, VAR, DATE)
-
-df <- mutate(df,
-             WYEAR=wyear(df$DATE),
-             SAMPLED=!is.na(C),
-             L=Q*C,
-             SITE=ordered(SITE,
-                          levels=levels(stn.kt_sprague$SITE)),
-             SITE_NAME=ordered(SITE_NAME,
-                               levels=levels(stn.kt_sprague$SITE_NAME))) %>%
-  select(df, DATASET, SITE, SITE_NAME, DATE, WYEAR, VAR, Q, Qs, C, L, SAMPLED)
+df$WYEAR <- wyear(df$DATE)
+df$SAMPLED <- !is.na(df$C)
+df$L <- df$Q*df$C
+df$SITE <- ordered(df$SITE, levels=levels(stn.kt_sprague$SITE))
+df$SITE_NAME <- ordered(df$SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME))
+df <- df[, c('DATASET', 'SITE', 'SITE_NAME', 'DATE', 'WYEAR', 'VAR', 'Q', 'Qs', 'C', 'L', 'SAMPLED')]
 str(df)
 
 # table(df$SITE_NAME, df$DATASET)
@@ -200,10 +196,64 @@ df_day <- lapply(names(loads), function(dataset) {
   rbind_all %>%
   mutate(DATASET=ordered(DATASET, levels=dataset_levels),
          SITE_NAME=ordered(SITE_NAME, levels=site_name_levels),
-         VAR=factor(VAR))
+         VAR=factor(VAR)) %>%
+  select(-SAMPLED)
 
-df_day <- select(df_day, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L) %>%
-  gather(TERM, VALUE, Q, L) %>%
+df_day_p <- filter(df_day, VAR %in% c('TP', 'PO4')) %>%
+  gather(TERM, VALUE, L, C) %>%
+  spread(VAR, VALUE) %>%
+  mutate(PP = TP - PO4) %>%
+  gather(VAR, VALUE, TP, PO4, PP) %>%
+  filter(VAR=='PP') %>%
+  spread(TERM, VALUE) %>%
+  mutate(C=ifelse(C<=1, 1, C),
+         L=Q*C)
+
+df_day <- rbind(df_day, df_day_p) %>%
+  arrange(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
+  mutate(FREQ="DAY") %>%
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+
+# compute month
+df_mon <- df_day %>%
+  mutate(DATE=floor_date(DATE, 'month')) %>%
+  group_by(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
+  summarise(Q=sum(Q),
+            L=sum(L),
+            C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
+  ungroup %>%
+  mutate(FREQ="MON") %>%
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+
+# compute wyr
+df_wyr <- df_day %>%
+  mutate(MONTH=10,
+         DATE=ymd(paste(WYEAR-1, MONTH, 1, sep='-'))) %>%
+  group_by(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
+  summarise(Q=sum(Q),
+            L=sum(L),
+            C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
+  ungroup %>%
+  mutate(FREQ="WYR") %>%
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+
+df_site <- df_day %>%
+  group_by(DATASET, VAR, SITE_NAME) %>%
+  summarise(DATE=min(DATE),
+            Q=sum(Q),
+            L=sum(L),
+            C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
+  ungroup %>%
+  mutate(MONTH=month(DATE), WYEAR=wyear(DATE),
+         FREQ="SITE") %>%
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+
+df_all <- rbind(df_day, df_mon, df_wyr, df_site) %>%
+  mutate(FREQ = ordered(FREQ, levels=c("DAY", "MON", "WYR", "SITE")))
+
+
+df_all <- df_all %>%
+  gather(TERM, VALUE, Q, L, C) %>%
   spread(SITE_NAME, VALUE) %>%
   mutate('Power-Lone_Pine' = Power - Lone_Pine,
          'Lone_Pine-Godowa-Sycan' = Lone_Pine - Sycan - Godowa,
@@ -211,20 +261,11 @@ df_day <- select(df_day, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L) %>%
          'Godowa-SF_Ivory-NF_Ivory' = Godowa - SF_Ivory - NF_Ivory,
          'SF_Ivory-SF' = SF_Ivory - SF,
          'NF_Ivory-NF' = NF_Ivory - NF) %>%
-  gather(SITE_NAME, VALUE, -DATASET, -VAR, -DATE, -MONTH, -WYEAR, -TERM, na.rm=TRUE) %>%
+  gather(SITE_NAME, VALUE, -FREQ, -DATASET, -VAR, -DATE, -MONTH, -WYEAR, -TERM, na.rm=TRUE) %>%
   spread(TERM, VALUE)
 
-df_day_p <- filter(df_day, VAR %in% c('TP', 'PO4')) %>%
-  spread(VAR, L) %>%
-  mutate(PP = TP - PO4) %>%
-  gather(VAR, L, TP, PO4, PP) %>%
-  filter(VAR=='PP')
-df_day <- rbind(df_day, df_day_p) %>%
-  arrange(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR)
-
-df_day <- left_join(df_day, areas, by="SITE_NAME") %>%
-  mutate(C=ifelse(L <= 0 | Q <= 0, NA, L/Q), # ppb
-         L_AREA=L/AREA_KM2,                 # kg/km2/mon
+df_all <- left_join(df_all, areas, by="SITE_NAME") %>%
+  mutate(L_AREA=L/AREA_KM2,                 # kg/km2/mon
          Q_AREA=Q/AREA_KM2*100) %>%         # cm/mon
   gather(TERM, VALUE, Q, L, C, L_AREA, Q_AREA) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME),
@@ -241,76 +282,31 @@ df_day <- left_join(df_day, areas, by="SITE_NAME") %>%
                                     "SF",
                                     "NF_Ivory",
                                     "NF_Ivory-NF",
-                                    "NF")))
-
-# monthly data frame ----
-df_mon <- filter(df_day, TERM %in% c('Q', 'L', 'Q_AREA', 'L_AREA')) %>%
-  spread(TERM, VALUE) %>%
-  mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
-  group_by(DATASET, VAR, SITE_NAME, AREA_KM2, MONTHYEAR, MONTH, WYEAR) %>%
-  summarise(Q=sum(Q),
-            L=sum(L),
-            C=ifelse(L <= 0 | Q <= 0, NA, L/Q),
-            Q_AREA=sum(Q_AREA),
-            L_AREA=sum(L_AREA)) %>%
-  gather(TERM, VALUE, Q, L, C, Q_AREA, L_AREA) %>%
-  mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')))
-
-# wyear data frame ----
-df_wyr <- filter(df_mon, TERM %in% c('Q', 'L', 'Q_AREA', 'L_AREA')) %>%
-  spread(TERM, VALUE) %>%
-  group_by(DATASET, VAR, SITE_NAME, AREA_KM2, WYEAR) %>%
-  summarise(Q=sum(Q),
-            L=sum(L),
-            C=ifelse(L <= 0 | Q <= 0, NA, L/Q),
-            Q_AREA=sum(Q_AREA),
-            L_AREA=sum(L_AREA)) %>%
-  gather(TERM, VALUE, Q, L, C, Q_AREA, L_AREA)
-
-# site data frame ----
-df_site <- spread(df_wyr, TERM, VALUE) %>%
-  group_by(DATASET, VAR, SITE_NAME, AREA_KM2) %>%
-  summarise(N.WYEAR=n(),
-            Q=mean(Q),
-            L=mean(L),
-            C=ifelse(L <= 0 | Q < 0, NA, L/Q),
-            Q_AREA=mean(Q_AREA),
-            L_AREA=mean(L_AREA)) %>%
-  ungroup %>%
-  gather(TERM, VALUE, Q, L, C, Q_AREA, L_AREA)
+                                    "NF")),
+         TERM=ordered(as.character(TERM),
+                      levels=c('Q','Q_AREA','L','L_AREA','C')))
 
 # separate flow variable ----
-df_day_flow <- filter(df_day, VAR=='TP') %>%
+df_all_flow <- filter(df_all, VAR=='TP') %>%
   filter(TERM %in% c('Q', 'Q_AREA')) %>%
   mutate(VAR='FLOW')
-df_day <- filter(df_day, !(TERM %in% c('Q', 'Q_AREA'))) %>%
-  rbind(df_day_flow) %>%
+df_all <- filter(df_all, !(TERM %in% c('Q', 'Q_AREA'))) %>%
+  rbind(df_all_flow) %>%
   mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')),
          VAR=ordered(as.character(VAR), levels=c('FLOW','TP','PO4','PP','TN','NH4','NO23','TSS')))
 
-df_mon_flow <- filter(df_mon, VAR=='TP') %>%
-  filter(TERM %in% c('Q', 'Q_AREA')) %>%
-  mutate(VAR='FLOW')
-df_mon <- filter(df_mon, !(TERM %in% c('Q', 'Q_AREA'))) %>%
-  rbind(df_mon_flow) %>%
-  mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')),
-         VAR=ordered(as.character(VAR), levels=c('FLOW','TP','PO4','PP','TN','NH4','NO23','TSS')))
 
-df_wyr_flow <- filter(df_wyr, VAR=='TP') %>%
-  filter(TERM %in% c('Q', 'Q_AREA')) %>%
-  mutate(VAR='FLOW')
-df_wyr <- filter(df_wyr, !(TERM %in% c('Q', 'Q_AREA'))) %>%
-  rbind(df_wyr_flow) %>%
-  mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')),
-         VAR=ordered(as.character(VAR), levels=c('FLOW','TP','PO4','PP','TN','NH4','NO23','TSS')))
-
-df_site_flow <- filter(df_site, VAR=='TP') %>%
-  filter(TERM %in% c('Q', 'Q_AREA')) %>%
-  mutate(VAR='FLOW')
-df_site <- filter(df_site, !(TERM %in% c('Q', 'Q_AREA'))) %>%
-  rbind(df_site_flow) %>%
-  mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')),
-         VAR=ordered(as.character(VAR), levels=c('FLOW','TP','PO4','PP','TN','NH4','NO23','TSS')))
+df_day <- filter(df_all, FREQ=="DAY") %>%
+  select(-FREQ)
+df_mon <- filter(df_all, FREQ=="MON") %>%
+  select(-FREQ) %>%
+  rename(MONTHYEAR=DATE)
+df_wyr <- filter(df_all, FREQ=="WYR") %>%
+  select(-FREQ) %>%
+  select(-MONTH)
+df_site <- filter(df_all, FREQ=="SITE") %>%
+  select(-FREQ) %>%
+  select(-MONTH, -DATE, -WYEAR)
 
 table(df_day$VAR, df_day$TERM)
 table(df_mon$VAR, df_mon$TERM)
