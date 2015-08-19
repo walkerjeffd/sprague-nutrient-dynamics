@@ -16,6 +16,7 @@ Hash: 096699d1ac1cf530acfc646a0c90ee5d
 Package: GGally
 Source: CRAN
 Version: 0.5.0
+Hash: 17567326f1d99b4a104283027dd1acea
 Requires: ggplot2, gtable, plyr, reshape, stringr
 
 Package: MASS
@@ -36,6 +37,7 @@ Hash: c0d56cd15034f395874c870141870c25
 Package: RJSONIO
 Source: CRAN
 Version: 1.3-0
+Hash: fb672e20eb6f3010a3639f855d8ef6de
 
 Package: Rcpp
 Source: CRAN
@@ -45,6 +47,7 @@ Hash: 9cad2f0525579d98b5ec2536febaf0da
 Package: RgoogleMaps
 Source: CRAN
 Version: 1.2.0.7
+Hash: 2f5d21dc8b212ee391899e88174c0d48
 Requires: RJSONIO, png
 
 Package: assertthat
@@ -66,6 +69,7 @@ Requires: dplyr, plyr, psych, stringr, tidyr
 Package: caTools
 Source: CRAN
 Version: 1.17.1
+Hash: 97cb6f6293cd18d17df77a6383cc6763
 Requires: bitops
 
 Package: colorspace
@@ -97,8 +101,8 @@ Requires: stringr
 
 Package: fluxr
 Source: source
-Version: 0.1.1
-Hash: 61233a173d8bbb421fd73bc6b33364ec
+Version: 0.1.2
+Hash: d083b0d0563a16e419903f7fab28afcc
 Requires: broom, dplyr, lubridate, zoo
 SourcePath: ~/Projects/R-Packages/fluxr
 
@@ -110,15 +114,18 @@ Hash: 09f7dd2e1b872801adeb902577eb0fde
 Package: formatR
 Source: CRAN
 Version: 1.2
+Hash: cce53206179a99ae5a8bcf154ab5abde
 
 Package: geosphere
 Source: CRAN
 Version: 1.4-3
+Hash: 6c9089bdc268e8d38f1033be9559e7e6
 Requires: sp
 
 Package: ggmap
 Source: CRAN
 Version: 2.4
+Hash: f71c01a5ef2f8fa1f4891a9e962fb4a6
 Requires: RgoogleMaps, digest, geosphere, ggplot2, jpeg, mapproj, plyr,
     png, proto, reshape2, rjson, scales
 
@@ -131,6 +138,7 @@ Requires: MASS, digest, gtable, plyr, proto, reshape2, scales
 Package: gpclib
 Source: CRAN
 Version: 1.5-5
+Hash: 194b84b1e4f183ef2f622804d01124da
 
 Package: gridExtra
 Source: CRAN
@@ -146,19 +154,23 @@ Hash: 38a0f066373a60824cd3ade2362af363
 Package: highr
 Source: CRAN
 Version: 0.5
+Hash: 25f9c02030b94c8154273699a7df9cf8
 
 Package: htmltools
 Source: CRAN
 Version: 0.2.6
+Hash: 595e7dea94f5f049dfc1ed739f5161af
 Requires: digest
 
 Package: jpeg
 Source: CRAN
 Version: 0.1-8
+Hash: 189af3df9864c6aa8546033f08ba9358
 
 Package: knitr
 Source: CRAN
 Version: 1.11
+Hash: 0a6d1006425040af05e29504af948535
 Requires: digest, evaluate, formatR, highr, markdown, stringr, yaml
 
 Package: labeling
@@ -194,20 +206,24 @@ Version: 1.0.1
 Package: mapproj
 Source: CRAN
 Version: 1.2-4
+Hash: e4c4eaf5289ffa74413a9cd71584cb1d
 Requires: maps
 
 Package: maps
 Source: CRAN
 Version: 2.3-11
+Hash: 804788140288d9ceaefd4350668bb13d
 
 Package: maptools
 Source: CRAN
 Version: 0.8-36
+Hash: 5b5d53bb8f8fd2e558d4ca520fdeddc5
 Requires: foreign, lattice, sp
 
 Package: markdown
 Source: CRAN
 Version: 0.7.7
+Hash: fea2343a1119d61b0cc5c0a950d103a3
 Requires: mime
 
 Package: memoise
@@ -246,6 +262,7 @@ Requires: Rcpp
 Package: png
 Source: CRAN
 Version: 0.1-7
+Hash: 421d7d6e0fb4bd885ecbd909b6456b8b
 
 Package: proto
 Source: CRAN
@@ -261,6 +278,7 @@ Requires: mnormt
 Package: reshape
 Source: CRAN
 Version: 0.8.5
+Hash: 08a3fc774cceaaec54edea9e9687a6c5
 Requires: plyr
 
 Package: reshape2
@@ -272,10 +290,12 @@ Requires: Rcpp, plyr, stringr
 Package: rjson
 Source: CRAN
 Version: 0.2.15
+Hash: def074f38d0cff3b597649ee6f976128
 
 Package: rmarkdown
 Source: CRAN
 Version: 0.7
+Hash: bf9c8cfc700d2417a309dd7a5ebd41d3
 Requires: caTools, htmltools, knitr, yaml
 
 Package: scales
@@ -287,6 +307,7 @@ Requires: RColorBrewer, Rcpp, dichromat, labeling, munsell, plyr
 Package: sp
 Source: CRAN
 Version: 1.1-1
+Hash: a6f7857b06c83649b8c6a4724b5b9233
 Requires: lattice
 
 Package: stringi
@@ -309,11 +330,13 @@ Requires: dplyr, lazyeval, reshape2, stringi
 Package: wq
 Source: CRAN
 Version: 0.4.4
+Hash: 12efcb78b9aeb081daf5fca971944376
 Requires: ggplot2, reshape2, zoo
 
 Package: yaml
 Source: CRAN
 Version: 2.1.13
+Hash: 4854ccabebc225e8a7309fb4a74980de
 
 Package: zoo
 Source: CRAN
