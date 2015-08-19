@@ -287,6 +287,12 @@ Version: 1.4.1
 Hash: 3131569136fc8988dd84ef57c9c28d5c
 Requires: Rcpp, plyr, stringr
 
+Package: rgeos
+Source: CRAN
+Version: 0.3-11
+Hash: 6fc7f3057e858f121231f81a9bce66ac
+Requires: sp
+
 Package: rjson
 Source: CRAN
 Version: 0.2.15
