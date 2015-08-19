@@ -12,9 +12,9 @@ load('loads.Rdata')
 
 dataset_levels <- names(loads)
 site_name_levels <- levels(stn.kt_sprague$SITE_NAME)
-term_colors <- c('L'='olivedrab3', 
-                 'L_AREA'='olivedrab3', 
-                 'C'='orangered', 
+term_colors <- c('L'='olivedrab3',
+                 'L_AREA'='olivedrab3',
+                 'C'='orangered',
                  'Q'='steelblue',
                  'Q_AREA'='steelblue')
 
@@ -92,12 +92,12 @@ for (dataset in c('POR', 'RECENT')) {
     scale_y_continuous(labels=scales::comma) +
     labs(x='Water Year', y='FWM Conc (ppb)',
          title=paste0('Annual FWM Concentration by Site and Variable  |  Dataset: ', dataset)) +
-    facet_grid(VAR~SITE_NAME, scales='free_y') + 
+    facet_grid(VAR~SITE_NAME, scales='free_y') +
     theme_bw() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=6),
           strip.text.x=element_text(size=8))
   print(p)
-  
+
   p <- filter(loads_df[['wyr']], DATASET==dataset, TERM=='L_AREA',
          SITE_NAME %in% site_name_levels) %>%
     ggplot(aes(factor(WYEAR), VALUE)) +
@@ -105,12 +105,12 @@ for (dataset in c('POR', 'RECENT')) {
     scale_y_continuous(labels=scales::comma) +
     labs(x='Water Year', y='Load per Area (kg/km2/yr)',
          title=paste0('Annual Load per Area by Site and Variable  |  Dataset: ', dataset)) +
-    facet_grid(VAR~SITE_NAME, scales='free_y') + 
+    facet_grid(VAR~SITE_NAME, scales='free_y') +
     theme_bw() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=6),
           strip.text.x=element_text(size=8))
   print(p)
-  
+
   p <- filter(loads_df[['wyr']], DATASET==dataset, TERM=='L',
          SITE_NAME %in% site_name_levels) %>%
     ggplot(aes(factor(WYEAR), VALUE)) +
@@ -118,12 +118,12 @@ for (dataset in c('POR', 'RECENT')) {
     scale_y_continuous(labels=scales::comma) +
     labs(x='Water Year', y='Load (kg/yr)',
          title=paste0('Annual Load by Site and Variable  |  Dataset: ', dataset)) +
-    facet_grid(VAR~SITE_NAME, scales='free_y') + 
+    facet_grid(VAR~SITE_NAME, scales='free_y') +
     theme_bw() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=6),
           strip.text.x=element_text(size=8))
   print(p)
-  
+
   p.q <- filter(loads_df[['wyr']], DATASET==dataset, VAR=='FLOW', TERM=='Q',
                 SITE_NAME %in% site_name_levels) %>%
     ggplot(aes(factor(WYEAR), VALUE)) +
@@ -131,7 +131,7 @@ for (dataset in c('POR', 'RECENT')) {
     scale_y_continuous(labels=scales::comma) +
     labs(x='Water Year', y='Flow (hm3/yr)',
          title=paste0('Annual Flow by Site  |  Dataset: ', dataset)) +
-    facet_grid(.~SITE_NAME, scales='free_y') + 
+    facet_grid(.~SITE_NAME, scales='free_y') +
     theme_bw() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=6),
           strip.text.x=element_text(size=8))
@@ -142,13 +142,13 @@ for (dataset in c('POR', 'RECENT')) {
     scale_y_continuous(labels=scales::comma) +
     labs(x='Water Year', y='Flow per Area (cm/yr)',
          title=paste0('Annual Flow per Area by Site  |  Dataset: ', dataset)) +
-    facet_grid(.~SITE_NAME, scales='free_y') + 
+    facet_grid(.~SITE_NAME, scales='free_y') +
     theme_bw() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=6),
           strip.text.x=element_text(size=8))
-  grid.arrange(p.q, p.q_area, nrow=3)
-  
-  dev.off()  
+  grid.arrange(grobs=list(p.q, p.q_area), nrow=3)
+
+  dev.off()
 }
 
 
@@ -161,7 +161,7 @@ for (dataset in c('POR', 'RECENT')) {
   }
   for (variable in variables) {
     cat('..', variable, '\n')
-    p <- filter(loads_df[['wyr']], DATASET==dataset, VAR %in% c(variable, 'FLOW'), 
+    p <- filter(loads_df[['wyr']], DATASET==dataset, VAR %in% c(variable, 'FLOW'),
            TERM %in% c('Q_AREA', 'L_AREA', 'C'),
            SITE_NAME %in% site_name_levels) %>%
       select(-VAR) %>%
@@ -199,7 +199,7 @@ for (dataset in c('RECENT', 'POR')) {
          title=paste0('Annual Flow per Area')) +
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
   # grid.arrange(p.q, p.q_area, nrow=2)
-  
+
   # p.l <- filter(loads_df[['site']], DATASET==dataset, TERM=='L',
   #        SITE_NAME %in% site_name_levels) %>%
   #   ggplot(aes(SITE_NAME, VALUE)) +
@@ -248,7 +248,7 @@ for (dataset in c('POR', 'RECENT')) {
       cat('....', site, '\n')
       plot_flux_summary(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
       plot_flux_monthly(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
-      plot_flux_residuals(loads[[dataset]][[variable]][[site]], site=site, variable=variable)  
+      plot_flux_residuals(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
     }
     dev.off()
   }
@@ -264,15 +264,9 @@ dataset_descriptions <- c('RAW'='Raw Dataset before Removing/Fixing Erroneous Da
 grid.arrange(gridExtra::tableGrob(data.frame(value=unname(dataset_descriptions)),
                                   rows=names(dataset_descriptions),
                                   cols=c('Dataset Descriptions'),
-                                  row.just='right',
-                                  core.just='left',
-                                  padding.h = grid::unit(2, "mm"),
-                                  gpar.rowtext = grid::gpar(col = "black", cex = 0.8, fontface='bold'),
-                                  gpar.coretext = grid::gpar(col = "black", cex = 0.8),
-                                  gpar.corefill = grid::gpar(fill = "white", col = "white"),
-                                  gpar.rowfill = grid::gpar(fill = "white", col = "white"),
-                                  gpar.colfill = grid::gpar(fill = "white", col = "white")),
-             main='\n\nComparison of Load Computations across Datasets')
+                                  theme=ttheme_minimal(rowhead=list(fg_params=list(fontface=2L, hjust=1)),
+                                                       core=list(fg_params=list(hjust=0, x=0.05, vjust=0, y=0)))),
+             top='\n\nComparison of Load Computations across Datasets')
 
 wq.kt_sprague[['CLEAN']] %>%
   filter(VAR %in% lower_limits$VAR) %>%
@@ -285,7 +279,7 @@ wq.kt_sprague[['CLEAN']] %>%
   labs(x='Date', y='Concentration (ppb)') +
   ggtitle('Concentration Data for Clean Dataset with Upper and Lower Detection Limits') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
-        legend.position='top') 
+        legend.position='top')
 
 wq.kt_sprague[['POR']] %>%
   filter(VAR %in% upper_limits$VAR) %>%
@@ -298,7 +292,7 @@ wq.kt_sprague[['POR']] %>%
   labs(x='Date', y='Concentration (ppb)') +
   ggtitle('Concentration Data for POR Dataset with Upper Detection Limit') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
-        legend.position='top') 
+        legend.position='top')
 
 wq.kt_sprague[['POR']] %>%
   filter(VAR %in% upper_limits$VAR) %>%
@@ -313,7 +307,7 @@ wq.kt_sprague[['POR']] %>%
   facet_grid(VAR~SITE_NAME) +
   ggtitle('Fraction of Samples Set to Upper Detection Limit in POR Dataset') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
-        legend.position='top') 
+        legend.position='top')
 
 wq.kt_sprague[['RECENT']] %>%
   filter(VAR %in% lower_limits$VAR) %>%
@@ -328,7 +322,7 @@ wq.kt_sprague[['RECENT']] %>%
   facet_grid(VAR~SITE_NAME) +
   ggtitle('Fraction of Samples Set to Lower Detection Limit in RECENT Dataset') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
-        legend.position='top') 
+        legend.position='top')
 
 ggplot(fits, aes(SITE_NAME, rse_L, fill=DATASET)) +
   geom_bar(stat='identity', position='dodge') +
@@ -363,103 +357,103 @@ ggplot(compare_dataset, aes(WYEAR, C, fill=DATASET)) +
   labs(x='Water Year', y='Annual FWM Conc (ppb)') +
   ggtitle('Annual FWM Concentration by Site, Variable and Dataset')
 
-# primary vs raw
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
-  spread(DATASET, L) %>%
-  mutate(DIFF=RAW-CLEAN,
-         REL_DIFF=DIFF/CLEAN,
-         REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>% 
-  ggplot(aes(WYEAR, REL_DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  scale_y_continuous(labels=scales::percent) +
-  labs(x='Water Year', y='Percent Change in Annual Load') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Percent Change in Annual Load: Clean Dataset vs. Raw Dataset')
-
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
-  spread(DATASET, L) %>%
-  mutate(DIFF=RAW-CLEAN,
-         DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>% 
-  ggplot(aes(WYEAR, DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  labs(x='Water Year', y='Change in Annual Load (kg/yr)') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Absolute Change in Annual Load: Clean Dataset vs. Raw Dataset')
-
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
-  spread(DATASET, C) %>%
-  mutate(DIFF=RAW-CLEAN,
-         REL_DIFF=DIFF/CLEAN,
-         REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>% 
-  ggplot(aes(WYEAR, REL_DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  scale_y_continuous(labels=scales::percent) +
-  labs(x='Water Year', y='Percent Change in Annual FWM Concentration') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Percent Change in Annual FWM Concentration: Clean Dataset vs. Raw Dataset')
-
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
-  spread(DATASET, C) %>%
-  mutate(DIFF=RAW-CLEAN,
-         DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>% 
-  ggplot(aes(WYEAR, DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  labs(x='Water Year', y='Change in Annual FWM Concentration (ppb)') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Absolute Change in Annual FWM Concentration: Clean Dataset vs. Raw Dataset')
-
-# primary vs limit
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
-  spread(DATASET, L) %>%
-  mutate(DIFF=POR-CLEAN,
-         REL_DIFF=DIFF/CLEAN,
-         REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>% 
-  ggplot(aes(WYEAR, REL_DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  scale_y_continuous(labels=scales::percent) +
-  labs(x='Water Year', y='Percent Change in Annual Load') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Percent Change in Annual Load: Clean Dataset vs. POR Dataset')
-
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
-  spread(DATASET, L) %>%
-  mutate(DIFF=POR-CLEAN,
-         DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>% 
-  ggplot(aes(WYEAR, DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  labs(x='Water Year', y='Change in Annual Load (kg/yr)') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Absolute Change in Annual Load: Clean Dataset vs. POR Dataset')
-
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
-  spread(DATASET, C) %>%
-  mutate(DIFF=POR-CLEAN,
-         REL_DIFF=DIFF/CLEAN,
-         REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>% 
-  ggplot(aes(WYEAR, REL_DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  scale_y_continuous(labels=scales::percent) +
-  labs(x='Water Year', y='Percent Change in Annual FWM Concentration') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Percent Change in Annual FWM Concentration: Clean Dataset vs. POR Dataset')
-
-select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
-  spread(DATASET, C) %>%
-  mutate(DIFF=POR-CLEAN,
-         DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>% 
-  ggplot(aes(WYEAR, DIFF)) +
-  geom_hline(yint=0, color='grey30') +
-  geom_bar(stat='identity', position='dodge') +
-  labs(x='Water Year', y='Change in Annual FWM Concentration (ppb)') +
-  facet_grid(VAR ~ SITE_NAME, scales='free_y') +
-  ggtitle('Absolute Change in Annual FWM Concentration: Clean Dataset vs. POR Dataset')
+# # primary vs raw
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
+#   spread(DATASET, L) %>%
+#   mutate(DIFF=RAW-CLEAN,
+#          REL_DIFF=DIFF/CLEAN,
+#          REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>%
+#   ggplot(aes(WYEAR, REL_DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   scale_y_continuous(labels=scales::percent) +
+#   labs(x='Water Year', y='Percent Change in Annual Load') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Percent Change in Annual Load: Clean Dataset vs. Raw Dataset')
+#
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
+#   spread(DATASET, L) %>%
+#   mutate(DIFF=RAW-CLEAN,
+#          DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>%
+#   ggplot(aes(WYEAR, DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   labs(x='Water Year', y='Change in Annual Load (kg/yr)') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Absolute Change in Annual Load: Clean Dataset vs. Raw Dataset')
+#
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
+#   spread(DATASET, C) %>%
+#   mutate(DIFF=RAW-CLEAN,
+#          REL_DIFF=DIFF/CLEAN,
+#          REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>%
+#   ggplot(aes(WYEAR, REL_DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   scale_y_continuous(labels=scales::percent) +
+#   labs(x='Water Year', y='Percent Change in Annual FWM Concentration') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Percent Change in Annual FWM Concentration: Clean Dataset vs. Raw Dataset')
+#
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
+#   spread(DATASET, C) %>%
+#   mutate(DIFF=RAW-CLEAN,
+#          DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>%
+#   ggplot(aes(WYEAR, DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   labs(x='Water Year', y='Change in Annual FWM Concentration (ppb)') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Absolute Change in Annual FWM Concentration: Clean Dataset vs. Raw Dataset')
+#
+# # primary vs limit
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
+#   spread(DATASET, L) %>%
+#   mutate(DIFF=POR-CLEAN,
+#          REL_DIFF=DIFF/CLEAN,
+#          REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>%
+#   ggplot(aes(WYEAR, REL_DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   scale_y_continuous(labels=scales::percent) +
+#   labs(x='Water Year', y='Percent Change in Annual Load') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Percent Change in Annual Load: Clean Dataset vs. POR Dataset')
+#
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
+#   spread(DATASET, L) %>%
+#   mutate(DIFF=POR-CLEAN,
+#          DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>%
+#   ggplot(aes(WYEAR, DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   labs(x='Water Year', y='Change in Annual Load (kg/yr)') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Absolute Change in Annual Load: Clean Dataset vs. POR Dataset')
+#
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
+#   spread(DATASET, C) %>%
+#   mutate(DIFF=POR-CLEAN,
+#          REL_DIFF=DIFF/CLEAN,
+#          REL_DIFF=ifelse(abs(REL_DIFF) < 1e-5, 0, REL_DIFF)) %>%
+#   ggplot(aes(WYEAR, REL_DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   scale_y_continuous(labels=scales::percent) +
+#   labs(x='Water Year', y='Percent Change in Annual FWM Concentration') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Percent Change in Annual FWM Concentration: Clean Dataset vs. POR Dataset')
+#
+# select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, C) %>%
+#   spread(DATASET, C) %>%
+#   mutate(DIFF=POR-CLEAN,
+#          DIFF=ifelse(abs(DIFF) < 1e-3, 0, DIFF)) %>%
+#   ggplot(aes(WYEAR, DIFF)) +
+#   geom_hline(yint=0, color='grey30') +
+#   geom_bar(stat='identity', position='dodge') +
+#   labs(x='Water Year', y='Change in Annual FWM Concentration (ppb)') +
+#   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
+#   ggtitle('Absolute Change in Annual FWM Concentration: Clean Dataset vs. POR Dataset')
 
 dev.off()
 
@@ -485,6 +479,8 @@ for (variable in unique(params$VAR)) {
     ggtitle(paste0('Parameter Std Error')) +
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
 #   print(p)
-  grid.arrange(p.mean, p.ste, ncol=2, main=paste0('\nVariable: ', variable))
+  grid.arrange(grobs=list(p.mean, p.ste),
+               ncol=2,
+               top=paste0('\nVariable: ', variable))
 }
 dev.off()
