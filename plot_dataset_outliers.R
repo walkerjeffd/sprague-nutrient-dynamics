@@ -37,16 +37,16 @@ site_ref <- list(Power=c('Lone_Pine', 'Godowa', 'Sycan'),
 
 # scales
 log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
-                       labels=log_labels(c(1, 5), 10^seq(-3, 3)))
+                       labels=log_labels(c(1, 3, 5), 10^seq(-3, 3)))
 log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
-                       labels=log_labels(c(1, 5), 10^seq(-3, 3)))
+                       labels=log_labels(c(1, 3, 5), 10^seq(-3, 3)))
 
 # functions ----
 merge_sites <- function(variable, site1, site2, range=3) {
   x.var <- filter(wq, VAR==variable)
   x.site1 <- filter(x.var, SITE_NAME==site1)
   x.site2 <- filter(x.var, SITE_NAME==site2)
-  
+
   x.site1$DATE2 <- NA
   x.site1$VALUE2 <- NA
   x.site1$FLAGGED2 <- NA
@@ -72,7 +72,7 @@ merge_variables <- function(var1, var2, site) {
   x.var <- filter(x.site, VAR==var1)
   x.var2 <- filter(x.site, VAR==var2) %>%
     select(DATE, VALUE2=VALUE, FLAGGED2=FLAGGED)
-  
+
   left_join(x.var, x.var2, by='DATE')
 }
 
@@ -153,7 +153,7 @@ plot_data <- function(variable, site, log.trans) {
     scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
     scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(variable, ' @ ', site_ref[[site]][3], ' (', get_units(variable), ')'), y=ylabel)
-  
+
   if (log.trans) {
     p.time <- p.time + log_y + theme(panel.grid.minor.y=element_blank(), axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
     p.jday <- p.jday + log_y + theme(panel.grid.minor.y=element_blank(), axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
@@ -166,17 +166,18 @@ plot_data <- function(variable, site, log.trans) {
     p.site3 <- p.site3 + log_x + log_y + theme(panel.grid.minor=element_blank(), axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
   }
 
-  grid.arrange(p.time, p.jday, p.flow,
-               p.var1, p.var2, p.var3,
-               p.site1, p.site2, p.site3,
-               ncol=3, main=paste0('\nOutlier Detection Plots\nVariable: ', variable, ', Site: ', site, '\nBlack = Not Outlier, Red = Outlier for this Site/Variable, Blue = Outlier for Comparison Site/Variable'))
+  grid.arrange(grobs=list(p.time, p.jday, p.flow,
+                          p.var1, p.var2, p.var3,
+                          p.site1, p.site2, p.site3),
+               ncol=3,
+               top=paste0('\nOutlier Detection Plots\nVariable: ', variable, ', Site: ', site, '\nBlack = Not Outlier, Red = Outlier for this Site/Variable, Blue = Outlier for Comparison Site/Variable'))
 }
 # plot_data(variable='TP', site='Power', log.trans=TRUE)
 
 # pdf plots ----
 for (variable in c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')) {
   cat(variable, '\n')
-  
+
   pdf(file.path('pdf', 'outliers', paste0('dataset-outliers-', tolower(variable), '.pdf')), width=11, height=8.5)
   p <- filter(wq, VAR==variable) %>%
     ggplot(aes(DATE, VALUE, color=FLAGGED, size=FLAGGED)) +
@@ -188,7 +189,7 @@ for (variable in c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')) {
     facet_wrap(~SITE_NAME, scales='free_x') +
     ggtitle(paste0('Outlier Summary\nVariable: ', variable))
   print(p)
-  
+
   for (site in levels(stn.kt_sprague$SITE_NAME)) {
     cat('..', site, '\n')
     plot_data(variable=variable, site=site, log.trans=TRUE)
