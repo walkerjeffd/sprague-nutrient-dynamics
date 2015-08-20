@@ -125,7 +125,9 @@ df.wyr <- left_join(ungroup(q.wyr), ungroup(prism.wyr), by=c('SITE_NAME', 'WYEAR
          SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)))
 
 # plots ----
-pdf(file.path('pdf', 'flow-precip-relationships.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'flow-precip-relationships.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 p.beatty <- df.beatty.wyr %>%
   mutate(GROUP=ifelse(WYEAR <= 2012, '1982-2012',
@@ -148,9 +150,11 @@ p.power <- df.power.wyr %>%
   xlim(0, NA) +
   ylim(0, NA)
 
-grid.arrange(grobs=list(p.beatty, p.power), ncol=2, nrow=2, main='\nLong Term Annual Precip vs Flow, 1982-2012')
+grid.arrange(grobs=list(p.beatty, p.power),
+             ncol=2, nrow=2,
+             top='Long Term Annual Precip vs Flow, 1982-2012')
 
-mutate(df.wyr, GROUP=ifelse(WYEAR <= 2012, '2001-2012',
+p <- mutate(df.wyr, GROUP=ifelse(WYEAR <= 2012, '2001-2012',
                         ifelse(WYEAR==2013, '2013', '2014'))) %>%
   ggplot(aes(PRCP_cm_yr, Q_cm_yr)) +
   geom_point(aes(color=GROUP), size=2) +
@@ -158,6 +162,7 @@ mutate(df.wyr, GROUP=ifelse(WYEAR <= 2012, '2001-2012',
   facet_wrap(~SITE_NAME, scales='free') +
   ggtitle('Annual Precip vs Flow (by Water Year)') +
   labs(x='Annual Precip (cm/yr)', y='Annual Flow per Area (cm/yr)')
+print(p)
 
 p.max <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_MAX), by='WYEAR') %>%
   filter(!is.na(SITE_NAME)) %>%
@@ -183,21 +188,25 @@ p.apr <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_
   theme(legend.position='top') +
   labs(x='Snow Water Equiv on Apr 1 (cm)', y='Flow per Area (cm/yr)')
 
-grid.arrange(grobs=list(p.max, p.apr), ncol=2, main='Annual Flow per Area vs Snow Water Equivalent')
+grid.arrange(grobs=list(p.max, p.apr),
+             ncol=2,
+             top='Annual Flow per Area vs Snow Water Equivalent')
 
-ggplot(df.wyr, aes(WYEAR, Q_PRCP)) +
+p <- ggplot(df.wyr, aes(WYEAR, Q_PRCP)) +
   geom_line() +
   ylim(0, NA) +
   labs(x='', y='Annual Flow:Precip Ratio') +
   ggtitle('Annual Flow:Precip Ratio by Site') +
   scale_x_continuous(breaks=scales::pretty_breaks(n=10)) +
   facet_wrap(~SITE_NAME)
+print(p)
 
-ggplot(df.wyr, aes(SITE_NAME, Q_PRCP)) +
+p <- ggplot(df.wyr, aes(SITE_NAME, Q_PRCP)) +
   geom_boxplot() +
   ylim(0, NA) +
   labs(x='', y='Annual Flow:Precip Ratio') +
   ggtitle('Distribution of Annual Flow:Precip Ratio by Site, 2001-2014')
+print(p)
 
 dev.off()
 

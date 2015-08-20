@@ -8,9 +8,17 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading KT WQ dataset...\n\n")
+
+source('functions.R')
+
 DATA_DIR <- getOption('UKL_DATA')
 
-df <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv'), stringsAsFactors=FALSE)
+filename <- file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
+cat('Loading file:', filename, '\n')
+
+df <- read.csv(filename, stringsAsFactors=FALSE)
 df <- rename(df,
              INDEX=INDEX,
              DATE=DATE,
@@ -308,34 +316,46 @@ filter(df.rpd, !RPD_PASS) %>%
   scale_x_continuous(labels=scales::percent)
 
 # pdf plots
-pdf(file.path('pdf', 'dataset-rpd-test.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'dataset-rpd-test.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 # Timeseries of raw data with RPD test results
-select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
+p <- select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
   gather(SAMPLE, VALUE, PRIMARY, DUP) %>%
   ggplot(aes(DATE, VALUE, color=RPD_PASS)) +
   geom_line(aes(y=HALF_DL), color='black', alpha=0.5) +
   geom_point(aes(size=RPD_PASS)) +
   scale_color_manual('Pass RPD?', values=c('TRUE'='grey50', 'FALSE'='orangered')) +
   scale_size_manual('Pass RPD?', values=c('TRUE'=1, 'FALSE'=2)) +
-  scale_y_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 3))) +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
+                labels=log_labels(c(1, 2, 3, 5, 7), 10^seq(-3, 3))) +
   labs(x='', y='Concentration (ppm)', title='Timeseries of RPD Test Results (All Sites)') +
   facet_wrap(~VAR, scales='free_y') +
-  theme(panel.grid.minor.y=element_blank())
+  theme(panel.grid.minor.y=element_blank(),
+        axis.text.x=element_text(size=8),
+        axis.text.y=element_text(size=8),
+        aspect.ratio=1)
+print(p)
 
 # PRIMARY vs DUP scatter plot, showing which values pass/fail RPD test
-select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
+p <- select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
   ggplot(aes(PRIMARY, DUP, color=RPD_PASS)) +
   geom_abline(linetype=2) +
   geom_point(aes(size=RPD_PASS)) +
-  scale_x_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 1))) +
-  scale_y_log10(breaks=fluxr::log_breaks(c(1, 2, 3, 4, 5, 7), 10^seq(-3, 1))) +
+  scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
+                labels=log_labels(c(1, 2, 3, 5, 7), 10^seq(-3, 3))) +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
+                labels=log_labels(c(1, 2, 3, 5, 7), 10^seq(-3, 3))) +
   labs(x='Primary Sample (ppm)', y='Duplicate Sample (ppm)', title='Comparison of Primary and Duplicate Concentrations (All Sites)') +
   scale_color_manual('Pass RPD?', values=c('TRUE'='grey50', 'FALSE'='orangered')) +
   scale_size_manual('Pass RPD?', values=c('TRUE'=1, 'FALSE'=2)) +
   facet_wrap(~VAR, scales='free') +
   theme(panel.grid.minor=element_blank(),
-        axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+        axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        axis.text.y=element_text(size=8),
+        aspect.ratio=1)
+print(p)
 dev.off()
 
 # add rpd results
@@ -369,10 +389,11 @@ df[idx.negative_tss, 'QAQC'] <- 'NEGATIVE'
 
 # add outliers (via load_outliers.R)
 outliers <- readRDS('outliers.Rdata')
-cat("Results identified as outliers\n")
+cat("Results identified as outliers:\n")
 select(outliers, SITE_NAME, VAR, DATE) %>%
   arrange(SITE_NAME, VAR, DATE) %>%
   print
+cat('\n\n')
 
 df <- left_join(df, outliers, by=c('DATE', 'SITE_NAME', 'VAR')) %>%
   mutate(FLAGGED=ifelse(is.na(FLAGGED), FALSE, FLAGGED))
@@ -397,8 +418,8 @@ df <- left_join(df, detection_limits, by='VAR') %>%
 df.raw <- df %>%
   mutate(SITE=ordered(SITE, levels=levels(stn$SITE)),
          SITE_NAME=ordered(SITE_NAME, levels=levels(stn$SITE_NAME)))
-cat("Summary of QAQC flags for RAW dataset")
-table(df.raw$VAR, df.raw$QAQC)
+cat("Summary of QAQC flags for RAW dataset\n")
+print(table(df.raw$VAR, df.raw$QAQC))
 
 # CLEAN dataset ----
 df.clean <- df.raw
@@ -411,7 +432,7 @@ df.clean <- filter(df.clean, VAR %in% c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23'
   mutate(VAR=ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')))
 df.clean <- droplevels(df.clean)
 cat("Summary of QAQC flags for CLEAN dataset")
-table(df.clean$VAR, df.clean$QAQC)
+print(table(df.clean$VAR, df.clean$QAQC))
 
 # POR dataset ----
 df.por <- df.clean
@@ -424,9 +445,9 @@ df.por <- df.por %>%
   mutate(LIMITED = ifelse(is.na(UPPERDL), FALSE, VALUE < UPPERDL),
          VALUE = ifelse(LIMITED, UPPERDL, VALUE))
 cat("Summary of variables set to detection limit for POR dataset\n")
-table(df.por$VAR, df.por$LIMITED)
+print(table(df.por$VAR, df.por$LIMITED))
 cat("Summary of sites set to detection limit for POR dataset\n")
-table(df.por$SITE_NAME, df.por$LIMITED)
+print(table(df.por$SITE_NAME, df.por$LIMITED))
 
 # check that all values are at or above upper dl
 df.por_check <- filter(df.por, VAR %in% detection_limits$VAR) %>%
@@ -447,9 +468,9 @@ df.recent <- df.recent %>%
 # start WY2009
 df.recent <- filter(df.recent, fluxr::wyear(DATETIME)>=2009)
 cat("Summary of variables set to detection limit for RECENT dataset\n")
-table(df.recent$VAR, df.recent$LIMITED)
+print(table(df.recent$VAR, df.recent$LIMITED))
 cat("Summary of sites set to detection limit for RECENT dataset\n")
-table(df.recent$SITE_NAME, df.recent$LIMITED)
+print(table(df.recent$SITE_NAME, df.recent$LIMITED))
 
 # check all values >= 1/2 lower DL
 df.recent_check <- filter(df.recent, VAR %in% detection_limits$VAR) %>%
@@ -468,7 +489,13 @@ wq.kt_sprague <- list(RAW=df.raw,
 stn.kt_sprague <- stn
 
 # save to csv
-write.csv(stn.kt_sprague, file=file.path('csv', 'stn_kt_sprague.csv'), row.names=FALSE)
+filename <- file.path('csv', 'stn_kt_sprague.csv')
+cat('Saving stations table to:', filename, '\n')
+write.csv(stn.kt_sprague, file=filename, row.names=FALSE)
 
 # save to rdata
-save(wq.kt_sprague.orig, wq.kt_sprague, stn.kt_sprague, file='kt_sprague.Rdata')
+filename <- 'kt_sprague.Rdata'
+cat('Saving datasets to:', filename, '\n')
+save(wq.kt_sprague.orig, wq.kt_sprague, stn.kt_sprague, file=filename)
+
+cat('\n\n')

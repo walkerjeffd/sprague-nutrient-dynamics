@@ -4,7 +4,7 @@ library(sp)
 library(ggplot2)
 library(ggmap)
 library(dplyr)
-gpclibPermit()
+# gpclibPermit()
 
 rm(list=ls())
 

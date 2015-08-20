@@ -261,8 +261,10 @@ stn.map <- rbind(select(stn.kt_sprague, SITE_NAME, REF_LABEL, LAT, LON) %>% muta
                  select(stn.ref, REF_LABEL, LAT, LON) %>% mutate(SITE_NAME=REF_LABEL, GROUP='Reference')) %>%
   arrange(desc(GROUP))
 
-pdf(file.path('pdf', 'flow-model.pdf'), width=11, height=8.5)
-ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+filename <- file.path('pdf', 'flow-model.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
                color = 'grey50', fill = NA, size = 0.2) +
   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
@@ -282,6 +284,7 @@ ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
                                                   'OWRD-11499100'='chartreuse3')) +
   guides(fill=guide_legend(override.aes=list(shape=21))) +
   ggtitle('KT and Reference Flow Stations')
+print(p)
 makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
 
 # ggplot(q.model, aes(DATE)) +
@@ -289,31 +292,38 @@ makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap
 #   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
 #   labs(x='', y='Flow (cfs)', title='KT Biweekly (red) and Daily Reference (gray) Flows') +
 #   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-ggplot(q.model, aes(DATE)) +
+p <- ggplot(q.model, aes(DATE)) +
   geom_line(aes(y=PRED), color='gray50') +
   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Daily Predicted Flows from Reference Station (gray)') +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-ggplot(q.model, aes(DATE)) +
+print(p)
+
+p <- ggplot(q.model, aes(DATE)) +
   geom_line(aes(y=PRED), color='gray50') +
   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Daily Predicted Flows from Reference Station (gray)\nLog Scale') +
   log_y +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-ggplot(q.model, aes(DATE)) +
+print(p)
+
+p <- ggplot(q.model, aes(DATE)) +
   geom_line(aes(y=PRED_RESID), color='gray50') +
   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Interpolated Daily Flows from Reference Station (gray)') +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-ggplot(q.model, aes(DATE)) +
+print(p)
+
+p <- ggplot(q.model, aes(DATE)) +
   geom_line(aes(y=PRED_RESID), color='gray50') +
   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Interpolated Daily Flows from Reference Station (gray)\nLog Scale') +
   log_y +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
   theme(panel.grid.minor.y=element_blank())
+print(p)
 
-filter(q.model, !is.na(FLOW)) %>%
+p <- filter(q.model, !is.na(FLOW)) %>%
   ggplot(aes(FLOW, LN_RESID)) +
   geom_hline(yint=0) +
   geom_point(size=1) +
@@ -322,15 +332,17 @@ filter(q.model, !is.na(FLOW)) %>%
   log_x +
   theme(panel.grid.minor.x=element_blank(),
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+print(p)
 
-filter(q.model, !is.na(FLOW)) %>%
+p <- filter(q.model, !is.na(FLOW)) %>%
   ggplot(aes(DATE, LN_RESID)) +
   geom_hline(yint=0) +
   geom_point(size=1) +
   labs(x='', y='log[ Flow Residual ]', title='Timeseries of Flow Residuals') +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+print(p)
 
-filter(q.model, !is.na(FLOW)) %>%
+p <- filter(q.model, !is.na(FLOW)) %>%
   mutate(WDAY=water_day(DATE),
          WDATE=ymd('2001-10-01') + days(WDAY)) %>%
   ggplot(aes(WDATE, LN_RESID)) +
@@ -339,8 +351,9 @@ filter(q.model, !is.na(FLOW)) %>%
   labs(x='Water Year Day', y='log[ Flow Residual ]', title='Seasonality of Flow Residuals') +
   scale_x_datetime(labels=scales::date_format('%b %d')) +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+print(p)
 
-filter(q.model) %>%
+p <- filter(q.model) %>%
   mutate(WDAY=water_day(DATE),
          WDATE=ymd('2001-10-01') + days(WDAY)) %>%
   select(SITE_NAME, WDATE, PRED, FLOW) %>%
@@ -356,8 +369,9 @@ filter(q.model) %>%
   guides(colour=guide_legend(override.aes = list(size=2))) +
   theme(panel.grid.minor.y=element_blank(),
         legend.position='top')
+print(p)
 
-filter(q.model, !is.na(FLOW)) %>%
+p <- filter(q.model, !is.na(FLOW)) %>%
   mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
   ggplot(aes(MONTH, RATIO)) +
   geom_hline(yint=1, color='gray50') +
@@ -366,6 +380,7 @@ filter(q.model, !is.na(FLOW)) %>%
   labs(x="Month", y="Flow Ratio [Measured/Reference]",
        title="Distributions of Flow Ratios used to Interpolate Measured Flows") +
   facet_wrap(~SITE_NAME, nrow=2)
+print(p)
 #
 # filter(q.model, !is.na(FLOW)) %>%
 #   mutate(WDAY=water_day(DATE)) %>%
@@ -386,7 +401,7 @@ filter(q.model, !is.na(FLOW)) %>%
 #        title="Seasonal Patterns in Flow Ratios") +
 #   facet_wrap(~SITE_NAME, nrow=2)
 
-ratios %>%
+p <- ratios %>%
   mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
   ggplot(aes(MONTH, RATIO)) +
   geom_hline(yint=1, color='gray50') +
@@ -395,6 +410,7 @@ ratios %>%
   labs(x="Month", y="Mean Flow Ratio [Measured/Reference]",
        title="Mean Monthly Flow Ratio used to Interpolate Measured Flows") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+print(p)
 #
 # ggplot(q.model, aes(DATE, RATIO_MONTH)) +
 #   geom_line() +
@@ -405,6 +421,7 @@ ratios %>%
 dev.off()
 
 # save ----
+cat('Saving flows to flows.Rdata...\n')
 list(ratios=ratios,
      model=q.model,
      df=q.out) %>%

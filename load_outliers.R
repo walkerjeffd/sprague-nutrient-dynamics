@@ -3,6 +3,9 @@ library(lubridate)
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading outliers...\n\n")
+
 outliers_list <- list(TP=list(Power=c('2013-09-05'),
                               Godowa=c('2003-12-22', '2012-07-25', '2013-07-09', '2013-07-23'),
                               Sycan=c('2003-12-22'),
@@ -27,4 +30,7 @@ outliers <- lapply(names(outliers_list), function(variable) {
   mutate(FLAGGED=TRUE,
          DATE=ymd(DATE))
 
+cat("Saving outliers.Rdata\n")
 saveRDS(outliers, file='outliers.Rdata')
+
+cat("\n\n")

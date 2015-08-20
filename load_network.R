@@ -2,6 +2,9 @@ library(dplyr)
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading network...\n\n")
+
 # create network ----
 network <- list(RECENT=data.frame(FROM =  c('Lone_Pine', 'Godowa+Sycan', 'Sycan',        'Godowa',       'SF_Ivory+NF_Ivory', 'NF_Ivory',          'SF_Ivory',          'NF',       'SF'),
                                   TO =  c(  'Power',     'Lone_Pine',    'Godowa+Sycan', 'Godowa+Sycan', 'Godowa',            'SF_Ivory+NF_Ivory', 'SF_Ivory+NF_Ivory', 'NF_Ivory', 'SF_Ivory'),
@@ -19,4 +22,7 @@ network <- lapply(names(network), function(d) {
   rbind_all
 
 # save ----
+cat("Saving network.Rdata\n")
 save(network, file='network.Rdata')
+
+cat("\n\n")

@@ -5,10 +5,16 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading GHCND dataset...\n\n")
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----
-ghcnd <- read.csv(file.path(DATA_DIR, 'sprague', 'ghcnd', 'ghcnd_sprague.csv'), stringsAsFactors=FALSE, na.strings='-9999') %>%
+filename <- file.path(DATA_DIR, 'sprague', 'ghcnd', 'ghcnd_sprague.csv')
+cat('Loading file:', filename, '\n')
+
+ghcnd <- read.csv(filename, stringsAsFactors=FALSE, na.strings='-9999') %>%
   select(STATION, STATION_NAME, ELEVATION, LATITUDE, LONGITUDE, DATE, TMIN, TMAX, PRCP, SNOW) %>%
   mutate(TMIN=TMIN/10, # degC
          TMAX=TMAX/10, # degC
@@ -37,4 +43,7 @@ group_by(ghcnd, STATION_NAME, WYEAR) %>%
        title="GHCND Daily Observation Count by Water Year")
 
 # save ----
+cat('Saving GHCND dataset: ghcnd.Rdata\n')
 save(ghcnd, stn.ghcnd, file='ghcnd.Rdata')
+
+cat('\n\n')

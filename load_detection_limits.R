@@ -3,6 +3,9 @@ library(tidyr)
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading detection limits...\n\n")
+
 detection_limits <- list(UPPERDL=c('TP'=0.002,
                                    'PO4'=0.001,
                                    'TN'=0.1,
@@ -25,4 +28,7 @@ detection_limits <- lapply(names(detection_limits), function(limit_name) {
   rbind_all() %>%
   spread(LIMIT_NAME, LIMIT)
 
+cat("Saving detection_limits.Rdata\n")
 saveRDS(detection_limits, file = "detection_limits.Rdata")
+
+cat("\n\n")
