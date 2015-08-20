@@ -177,7 +177,14 @@ names(loads) <- dataset_levels
 areas <- rbind(select(subbasin_area, SITE_NAME, AREA_KM2),
                select(incbasin_ivory_area, SITE_NAME=INC_SITE_NAME, AREA_KM2),
                select(incbasin_area, SITE_NAME=INC_SITE_NAME, AREA_KM2)) %>%
-  unique
+  unique %>%
+  mutate(IDX=1) %>%
+  spread(SITE_NAME, AREA_KM2) %>%
+  mutate('Godowa+Sycan' = Godowa + Sycan,
+         'SF+NF' = SF + NF,
+         'SF_Ivory+NF_Ivory' = SF_Ivory + NF_Ivory) %>%
+  gather(SITE_NAME, AREA_KM2, -IDX) %>%
+  select(-IDX)
 
 # daily data frame ----
 df_day <- lapply(names(loads), function(dataset) {
@@ -251,14 +258,25 @@ df_site <- df_day %>%
 df_all <- rbind(df_day, df_mon, df_wyr, df_site) %>%
   mutate(FREQ = ordered(FREQ, levels=c("DAY", "MON", "WYR", "SITE")))
 
+# compute summation nodes
+df_all <- df_all %>%
+  gather(TERM, VALUE, Q, L, C) %>%
+  spread(SITE_NAME, VALUE) %>%
+  mutate('Godowa+Sycan' = Godowa + Sycan,
+         'SF+NF' = SF + NF,
+         'SF_Ivory+NF_Ivory' = SF_Ivory + NF_Ivory) %>%
+  gather(SITE_NAME, VALUE, -FREQ, -DATASET, -VAR, -DATE, -MONTH, -WYEAR, -TERM,
+         na.rm=TRUE) %>%
+  spread(TERM, VALUE) %>%
+  mutate(C=L/Q)
 
 df_all <- df_all %>%
   gather(TERM, VALUE, Q, L, C) %>%
   spread(SITE_NAME, VALUE) %>%
   mutate('Power-Lone_Pine' = Power - Lone_Pine,
-         'Lone_Pine-Godowa-Sycan' = Lone_Pine - Sycan - Godowa,
-         'Godowa-SF-NF' = Godowa - SF - NF,
-         'Godowa-SF_Ivory-NF_Ivory' = Godowa - SF_Ivory - NF_Ivory,
+         'Lone_Pine-Godowa-Sycan' = Lone_Pine - `Godowa+Sycan`,
+         'Godowa-SF-NF' = Godowa - `SF+NF`,
+         'Godowa-SF_Ivory-NF_Ivory' = Godowa - `SF_Ivory+NF_Ivory`,
          'SF_Ivory-SF' = SF_Ivory - SF,
          'NF_Ivory-NF' = NF_Ivory - NF) %>%
   gather(SITE_NAME, VALUE, -FREQ, -DATASET, -VAR, -DATE, -MONTH, -WYEAR, -TERM, na.rm=TRUE) %>%
@@ -273,10 +291,13 @@ df_all <- left_join(df_all, areas, by="SITE_NAME") %>%
                                     "Power-Lone_Pine",
                                     "Lone_Pine",
                                     "Lone_Pine-Godowa-Sycan",
+                                    "Godowa+Sycan",
                                     "Godowa",
                                     "Godowa-SF-NF",
                                     "Godowa-SF_Ivory-NF_Ivory",
                                     "Sycan",
+                                    "SF_Ivory+NF_Ivory",
+                                    "SF+NF",
                                     "SF_Ivory",
                                     "SF_Ivory-SF",
                                     "SF",

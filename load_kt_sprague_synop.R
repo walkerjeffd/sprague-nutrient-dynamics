@@ -6,6 +6,8 @@ library(maptools)
 library(ggplot2)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----

@@ -6,6 +6,8 @@ library(maptools)
 library(ggplot2)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 DATA_DIR <- getOption('UKL_DATA')
 
 df <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv'), stringsAsFactors=FALSE)

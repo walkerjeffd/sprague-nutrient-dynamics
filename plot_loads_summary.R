@@ -84,6 +84,7 @@ params <- lapply(names(loads), function(dataset) {
 
 # pdf: summary ----
 for (dataset in c('POR', 'RECENT')) {
+  cat('Printing:', file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), '\n')
   pdf(file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), width=11, height=8.5)
   p <- filter(loads_df[['wyr']], DATASET==dataset, TERM=='C',
          SITE_NAME %in% site_name_levels) %>%
@@ -154,7 +155,9 @@ for (dataset in c('POR', 'RECENT')) {
 
 for (dataset in c('POR', 'RECENT')) {
   cat(dataset,'\n')
-  pdf(file.path('pdf', tolower(dataset), 'loads-summary.pdf'), width=11, height=8.5)
+  filename <- file.path('pdf', tolower(dataset), 'loads-summary.pdf')
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=11, height=8.5)
   variables <- setdiff(levels(loads_df[['wyr']]$VAR), 'FLOW')
   if (dataset == 'POR') {
     variables <- setdiff(variables, 'TSS')
@@ -181,7 +184,9 @@ for (dataset in c('POR', 'RECENT')) {
 }
 
 for (dataset in c('RECENT', 'POR')) {
-  pdf(file.path('pdf', tolower(dataset), 'loads-summary-site.pdf'), width=11, height=8.5)
+  filename <- file.path('pdf', tolower(dataset), 'loads-summary-site.pdf')
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=11, height=8.5)
   # p.q <- filter(loads_df[['site']], DATASET==dataset, VAR=='FLOW', TERM=='Q',
   #               SITE_NAME %in% site_name_levels) %>%
   #   ggplot(aes(SITE_NAME, VALUE)) +
@@ -243,7 +248,9 @@ for (dataset in c('POR', 'RECENT')) {
   cat(dataset, '\n')
   for (variable in variable_levels[[dataset]]) {
     cat('..', variable, '\n')
-    pdf(file.path('pdf', tolower(dataset), 'loads-model', paste0('loads-model-', tolower(variable), '.pdf')), width=11, height=8.5)
+    filename <- file.path('pdf', tolower(dataset), 'loads-model', paste0('loads-model-', tolower(variable), '.pdf'))
+    cat('Printing:', filename, '\n')
+    pdf(filename, width=11, height=8.5)
     for (site in site_levels[[dataset]]) {
       cat('....', site, '\n')
       plot_flux_summary(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
@@ -255,7 +262,9 @@ for (dataset in c('POR', 'RECENT')) {
 }
 
 # pdf: compare datasets ----
-pdf('pdf/loads-model-fits.pdf', width=11, height=8.5)
+filename <- 'pdf/loads-model-fits.pdf'
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 dataset_descriptions <- c('RAW'='Raw Dataset before Removing/Fixing Erroneous Data Points\nWY2002-2014',
                           'CLEAN'='Raw Dataset with Removed/Fixed Erroneous Data Points\nWY2002-2014',
@@ -268,7 +277,7 @@ grid.arrange(gridExtra::tableGrob(data.frame(value=unname(dataset_descriptions))
                                                        core=list(fg_params=list(hjust=0, x=0.05, vjust=0, y=0)))),
              top='\n\nComparison of Load Computations across Datasets')
 
-wq.kt_sprague[['CLEAN']] %>%
+p <- wq.kt_sprague[['CLEAN']] %>%
   filter(VAR %in% lower_limits$VAR) %>%
   ggplot() +
   geom_point(aes(DATE, VALUE*1000), size=1) +
@@ -280,8 +289,9 @@ wq.kt_sprague[['CLEAN']] %>%
   ggtitle('Concentration Data for Clean Dataset with Upper and Lower Detection Limits') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         legend.position='top')
+print(p)
 
-wq.kt_sprague[['POR']] %>%
+p <- wq.kt_sprague[['POR']] %>%
   filter(VAR %in% upper_limits$VAR) %>%
   ggplot() +
   geom_hline(aes(yintercept=DL*1000), data=upper_limits, color='red', linetype=2) +
@@ -293,8 +303,9 @@ wq.kt_sprague[['POR']] %>%
   ggtitle('Concentration Data for POR Dataset with Upper Detection Limit') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         legend.position='top')
+print(p)
 
-wq.kt_sprague[['POR']] %>%
+p <- wq.kt_sprague[['POR']] %>%
   filter(VAR %in% upper_limits$VAR) %>%
   mutate(WYEAR=wyear(DATE)) %>%
   group_by(SITE_NAME, VAR, WYEAR, LIMITED) %>%
@@ -308,8 +319,9 @@ wq.kt_sprague[['POR']] %>%
   ggtitle('Fraction of Samples Set to Upper Detection Limit in POR Dataset') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         legend.position='top')
+print(p)
 
-wq.kt_sprague[['RECENT']] %>%
+p <- wq.kt_sprague[['RECENT']] %>%
   filter(VAR %in% lower_limits$VAR) %>%
   mutate(WYEAR=wyear(DATE)) %>%
   group_by(SITE_NAME, VAR, WYEAR, LIMITED) %>%
@@ -323,8 +335,9 @@ wq.kt_sprague[['RECENT']] %>%
   ggtitle('Fraction of Samples Set to Lower Detection Limit in RECENT Dataset') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         legend.position='top')
+print(p)
 
-ggplot(fits, aes(SITE_NAME, rse_L, fill=DATASET)) +
+p <- ggplot(fits, aes(SITE_NAME, rse_L, fill=DATASET)) +
   geom_bar(stat='identity', position='dodge') +
   scale_y_continuous(labels=scales::percent) +
   scale_fill_brewer(palette=6, type = 'qual', labels=c('RAW'='Raw', 'CLEAN'='Clean', 'POR'='POR', 'RECENT'='Recent')) +
@@ -332,8 +345,9 @@ ggplot(fits, aes(SITE_NAME, rse_L, fill=DATASET)) +
   facet_grid(VAR~., scales='free_y') +
   ggtitle('Relative Standard Error of Load Model') +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
+print(p)
 
-ggplot(fits, aes(SITE_NAME, lm.adj.r.squared, fill=DATASET)) +
+p <- ggplot(fits, aes(SITE_NAME, lm.adj.r.squared, fill=DATASET)) +
   geom_bar(stat='identity', position='dodge') +
   geom_hline(yint=0, color='grey50') +
   scale_y_continuous(labels=scales::percent) +
@@ -342,20 +356,23 @@ ggplot(fits, aes(SITE_NAME, lm.adj.r.squared, fill=DATASET)) +
   facet_grid(VAR~., scales='free_y') +
   ggtitle('Adjusted R2 of Load Model') +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
+print(p)
 
-ggplot(compare_dataset, aes(WYEAR, L, fill=DATASET)) +
+p <- ggplot(compare_dataset, aes(WYEAR, L, fill=DATASET)) +
   geom_bar(stat='identity', position='dodge') +
   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
   scale_fill_brewer(palette=6, type = 'qual', labels=c('RAW'='Raw', 'CLEAN'='Clean', 'POR'='POR', 'RECENT'='Recent')) +
   labs(x='Water Year', y='Annual Load (kg/yr)') +
   ggtitle('Annual Loads by Site, Variable and Dataset')
+print(p)
 
-ggplot(compare_dataset, aes(WYEAR, C, fill=DATASET)) +
+p <- ggplot(compare_dataset, aes(WYEAR, C, fill=DATASET)) +
   geom_bar(stat='identity', position='dodge') +
   facet_grid(VAR ~ SITE_NAME, scales='free_y') +
   scale_fill_brewer(palette=6, type = 'qual', labels=c('RAW'='Raw', 'CLEAN'='Clean', 'POR'='POR', 'RECENT'='Recent')) +
   labs(x='Water Year', y='Annual FWM Conc (ppb)') +
   ggtitle('Annual FWM Concentration by Site, Variable and Dataset')
+print(p)
 
 # # primary vs raw
 # select(compare_dataset, SITE_NAME, WYEAR, VAR, DATASET, L) %>%
@@ -458,7 +475,9 @@ ggplot(compare_dataset, aes(WYEAR, C, fill=DATASET)) +
 dev.off()
 
 # pdf: parameter estimates ----
-pdf('pdf/loads-model-parameters.pdf', width=11, height=8.5)
+filename <- 'pdf/loads-model-parameters.pdf'
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 for (variable in unique(params$VAR)) {
   p.mean <- filter(params, VAR==variable) %>%
     ggplot(aes(SITE_NAME, estimate, fill=DATASET)) +

@@ -11,6 +11,8 @@ library(wq)
 library(zoo)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 load('loads.Rdata')
 load('kt_sprague.Rdata')
 
@@ -46,11 +48,13 @@ resid_limits <- filter(pred, !is.na(Cres)) %>%
 
 
 for (dataset in c('POR', 'RECENT')) {
+  filename <- file.path('pdf', tolower(dataset), 'loads-residuals.pdf')
+  cat('Printing:', filename, '\n')
   cat(dataset, '\n')
-  pdf(file.path('pdf', tolower(dataset), 'loads-residuals.pdf'), width=11, height=8.5)
-  
+  pdf(filename, width=11, height=8.5)
+
   dataset_limits <- filter(resid_limits, DATASET==dataset)
-  
+
   p.box <- filter(pred, DATASET==dataset, !is.na(Cres)) %>%
     ggplot(aes(SITE_NAME, Cres)) +
     geom_hline(yint=0) +
@@ -60,7 +64,7 @@ for (dataset in c('POR', 'RECENT')) {
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
     ggtitle(paste0('Distribution of Residuals | Dataset: ', dataset))
   print(p.box)
-  
+
   p.se <- dataset_limits %>%
     ggplot(aes(SITE_NAME, MEAN)) +
     geom_pointrange(aes(ymax=MEAN+SE, ymin=MEAN-SE)) +
@@ -73,9 +77,12 @@ for (dataset in c('POR', 'RECENT')) {
     facet_wrap(~VAR, nrow=1) +
     labs(x='', y='Mean Residual +/- 2 StdDev') +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
-  grid.arrange(p.se, p.sd, nrow=2,
-               main=paste0('Mean Residual +/- SE or 95% Distribution | Dataset: ', dataset))
+  grid.arrange(grobs=list(p.se, p.sd),
+               nrow=2,
+               top=paste0('Mean Residual +/- SE or 95% Distribution | Dataset: ', dataset))
+
   for (variable in setdiff(unique(pred$VAR), 'TSS')) {
+    cat('..', variable, '\n')
     p <- pred %>%
       filter(DATASET==dataset, VAR==variable) %>%
       ggplot(aes(DATE)) +
@@ -111,13 +118,13 @@ for (dataset in c('POR', 'RECENT')) {
       ggtitle(paste0('Log-Residuals | Dataset: ', dataset, ' | Variable: ', variable, '\nBlue Line = Mean, Red Lines = Mean +/- 2*SD'))
     print(p)
   }
-  dev.off()  
+  dev.off()
 }
 
 
 # plots of outliers based on distribution of residuals
 outliers <- select(pred, DATASET, VAR, SITE_NAME, DATE, Cobs, Cpred, Cres) %>%
-  left_join(resid_limits) %>%
+  left_join(resid_limits, by=c('DATASET', 'VAR', 'SITE_NAME')) %>%
   mutate(FLAG=(Cres < LOWER_T | Cres > UPPER_T))
 
 filter(outliers, DATASET=='POR', VAR=='TP') %>%

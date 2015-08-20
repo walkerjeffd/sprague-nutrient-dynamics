@@ -6,6 +6,8 @@ library(ggplot2)
 library(ggmap)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 load("kt_synoptic.Rdata")
 load("gis.Rdata")
 
@@ -31,23 +33,24 @@ makeFootnote <- function(footnoteText='Map tiles by Stamen Design, under CC BY 3
 
 pdf(file.path("pdf", "synoptic-data.pdf"), width=11, height=8.5)
 
-ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                color = 'black', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowlines,
+  geom_path(aes(x = long, y = lat, group = group), data = flowline,
             color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = incbasins_ivory,
+  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
                color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
   geom_point(aes(x = LONGITUDE, y = LATITUDE), data = filter(stn.kt_synoptic, SITE %in% synoptic_stn),
              shape=21, fill='deepskyblue', size=3) +
   geom_text(aes(x = LONGITUDE+0.02, y = LATITUDE, label = SITE_LABEL),
             data = (filter(stn.kt_synoptic, SITE %in% synoptic_stn) %>%
-                      mutate(SITE_LABEL=paste0(SITE_DESCRIPTION, " (", SITE, ")"))), 
+                      mutate(SITE_LABEL=paste0(SITE_DESCRIPTION, " (", SITE, ")"))),
             size=4, hjust=0) +
   ggtitle('Synoptic Stations')
+print(p)
 makeFootnote()
 
-filter(wq.kt_synoptic, SITE %in% synoptic_stn) %>%
+p <- filter(wq.kt_synoptic, SITE %in% synoptic_stn) %>%
   filter(VAR %in% c("TP", "PO4", "TN", "NO23", "NH4", "TSS")) %>%
   ggplot(aes(DATETIME, VALUE)) +
   geom_point() +
@@ -55,8 +58,9 @@ filter(wq.kt_synoptic, SITE %in% synoptic_stn) %>%
   scale_x_datetime(labels=scales::date_format("%m/%Y")) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x="Date", y="Concentration (ppm)", title="Synoptic WQ Data")
+print(p)
 
-filter(wq.kt_synoptic, SITE %in% synoptic_stn) %>%
+p <- filter(wq.kt_synoptic, SITE %in% synoptic_stn) %>%
   filter(VAR %in% c("TP", "PO4", "TN", "NO23", "NH4", "TSS")) %>%
   ggplot(aes(SITE_DESCRIPTION, VALUE)) +
   geom_boxplot() +
@@ -64,5 +68,6 @@ filter(wq.kt_synoptic, SITE %in% synoptic_stn) %>%
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   ylim(0, NA) +
   labs(x="", y="Concentration (ppm)", title="Distributions of Synoptic WQ Data")
+print(p)
 
 dev.off()

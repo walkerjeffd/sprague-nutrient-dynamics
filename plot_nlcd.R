@@ -3,6 +3,8 @@ library(tidyr)
 library(ggplot2)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 load('gis.Rdata')
 load('nlcd.Rdata')
 load('network.Rdata')
@@ -22,9 +24,9 @@ nlcd.subbasin <- filter(nlcd.subbasin.raw, SOURCE=="NLCD_CAT") %>%
   ungroup %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
   mutate(SITE_NAME=ordered(SITE_NAME,
-                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan', 
-                                    'Godowa', 'Sycan', 
-                                    'SF_Ivory+NF_Ivory', 'SF+NF', 
+                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan',
+                                    'Godowa', 'Sycan',
+                                    'SF_Ivory+NF_Ivory', 'SF+NF',
                                     'SF_Ivory', 'SF', 'NF_Ivory', 'NF')))
 stopifnot(all(table(nlcd.subbasin$EXTENT, nlcd.subbasin$SITE_NAME)==8))
 
@@ -36,10 +38,10 @@ group_by(nlcd.subbasin, EXTENT, SITE_NAME) %>%
 nlcd_segments_basin <- filter(network, DATASET=='RECENT') %>%
   select(-DATASET) %>%
   left_join(filter(nlcd.subbasin, EXTENT=='basin') %>%
-              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2), 
+              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
             by=c(FROM='SITE_NAME')) %>%
   left_join(filter(nlcd.subbasin, EXTENT=='basin') %>%
-              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2), 
+              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
             by=c(TO='SITE_NAME', 'LANDUSE')) %>%
   rename(AREA_KM2.FROM=AREA_KM2.x,
          TOTAL_AREA_KM2.FROM=TOTAL_AREA_KM2.x,
@@ -49,10 +51,10 @@ nlcd_segments_basin <- filter(network, DATASET=='RECENT') %>%
 nlcd_segments_valley <- filter(network, DATASET=='RECENT') %>%
   select(-DATASET) %>%
   left_join(filter(nlcd.subbasin, EXTENT=='valley') %>%
-              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2), 
+              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
             by=c(FROM='SITE_NAME')) %>%
   left_join(filter(nlcd.subbasin, EXTENT=='valley') %>%
-              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2), 
+              select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
             by=c(TO='SITE_NAME', 'LANDUSE')) %>%
   rename(AREA_KM2.FROM=AREA_KM2.x,
          TOTAL_AREA_KM2.FROM=TOTAL_AREA_KM2.x,
@@ -62,7 +64,7 @@ nlcd_segments_valley <- filter(network, DATASET=='RECENT') %>%
 
 # pdf ----
 pdf(file.path('pdf', 'land-use-nlcd.pdf'), width=11, height=8.5)
-nlcd.subbasin %>%
+p <- nlcd.subbasin %>%
   ggplot(aes(SITE_NAME, AREA_FRAC, fill=LANDUSE)) +
   geom_bar(position='fill', stat='identity') +
   labs(x='Subbasin', y='Fraction Area') +
@@ -78,8 +80,9 @@ nlcd.subbasin %>%
   scale_y_continuous(labels=scales::percent) +
   facet_wrap(~EXTENT) +
   ggtitle('NLCD Land Use Composition by Subbasin')
+print(p)
 
-nlcd.subbasin %>%
+p <- nlcd.subbasin %>%
   ggplot(aes(SITE_NAME, AREA_FRAC, fill=LANDUSE)) +
   geom_bar(stat='identity') +
   labs(x='Subbasin', y='Fraction Area') +
@@ -95,8 +98,9 @@ nlcd.subbasin %>%
                                          'Developed'='#E8D1D1')) +
   facet_grid(LANDUSE~EXTENT, scales='free_y') +
   ggtitle('NLCD Land Use Composition by Subbasin')
+print(p)
 
-nlcd.subbasin %>%
+p <- nlcd.subbasin %>%
   filter(EXTENT=='basin', SITE_NAME %in% union(nlcd_segments_basin$TO, nlcd_segments_basin$FROM)) %>%
   group_by(EXTENT, SITE_NAME, TOTAL_AREA_KM2, LANDUSE) %>%
   summarise(AREA_KM2=sum(AREA_KM2)) %>%
@@ -109,8 +113,9 @@ nlcd.subbasin %>%
   scale_size_manual(guide=FALSE, values=c('FALSE'=0.25, 'TRUE'=1)) +
   labs(x='Total Cumulative Drainage Area (km2)', y='Cumulative Land Use Area (km2)',
        title='Cumulative Land Use Area vs. Total Cumulative Drainage Area\nDataset: NLCD, Extent: Basin')
+print(p)
 
-nlcd.subbasin %>%
+p <- nlcd.subbasin %>%
   filter(EXTENT=='valley', SITE_NAME %in% union(nlcd_segments_valley$TO, nlcd_segments_valley$FROM)) %>%
   group_by(EXTENT, SITE_NAME, TOTAL_AREA_KM2, LANDUSE) %>%
   summarise(AREA_KM2=sum(AREA_KM2)) %>%
@@ -123,13 +128,14 @@ nlcd.subbasin %>%
   scale_size_manual(guide=FALSE, values=c('FALSE'=0.25, 'TRUE'=1)) +
   labs(x='Total Cumulative Drainage Area (km2)', y='Cumulative Land Use Area (km2)',
        title='Cumulative Land Use Area vs. Total Cumulative Valley Area\nDataset: NLCD, Extent: Valley')
+print(p)
 
 dev.off()
 
 
 # # pdf
 # pdf(file.path('pdf', 'land-use-gap.pdf'), width=11, height=8.5)
-# 
+#
 # gap %>%
 #   arrange(NVC_CLASS) %>%
 #   group_by(EXTENT, INC_SITE_ABBR, NVC_CLASS) %>%
@@ -151,7 +157,7 @@ dev.off()
 #                                          'Developed & Other Human Use'='#E8D1D1')) +
 #   facet_wrap(~EXTENT) +
 #   ggtitle('USGS GAP Dataset')
-# 
+#
 # gap %>%
 #   arrange(NVC_CLASS) %>%
 #   group_by(EXTENT, INC_SITE_ABBR, NVC_CLASS) %>%
@@ -173,5 +179,5 @@ dev.off()
 #                                          'Developed & Other Human Use'='#E8D1D1')) +
 #   facet_grid(NVC_CLASS~EXTENT, scales='free_y') +
 #   ggtitle('USGS GAP Dataset')
-# 
+#
 # dev.off()

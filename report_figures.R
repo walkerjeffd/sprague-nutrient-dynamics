@@ -3,16 +3,16 @@ library(tidyr)
 library(lubridate)
 library(fluxr)
 library(ggplot2)
-theme_set(theme_bw())
 library(gridExtra)
-
 library(ggmap)
 library(scales)
 library(maptools)
 library(gpclib)
 library(sp)
+theme_set(theme_bw())
 gpclibPermit()
 
+rm(list=ls())
 
 # load data ----
 load('kt_sprague.Rdata')
@@ -20,19 +20,19 @@ load('loads.Rdata')
 
 df_mon <- filter(loads_df[['mon']],
                      DATASET=="POR",
-                     SITE_NAME %in% c('Power', 'Lone_Pine', 'Sycan', 'Godowa', 
+                     SITE_NAME %in% c('Power', 'Lone_Pine', 'Sycan', 'Godowa',
                                       'SF', 'NF')) %>%
   filter(TERM %in% c("Q", "C")) %>%
   filter(VAR != "PP") %>%
   arrange(VAR, SITE_NAME) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME),
                            levels=c("Power", "Lone_Pine", "Godowa", "Sycan",
-                                    "SF", "NF")),
-         VAR_LABEL=ifelse(VAR=="FLOW", "Flow", paste0(VAR, " Conc")),
-         VAR_LABEL=ordered(VAR_LABEL, levels=unique(VAR_LABEL)))
+                                    "SF", "NF")))
+df_mon$VAR_LABEL <- ifelse(df_mon$VAR=="FLOW", "Flow", paste0(df_mon$VAR, " Conc"))
+df_mon$VAR_LABEL <- ordered(df_mon$VAR_LABEL, levels=unique(df_mon$VAR_LABEL))
 
 df_mon.tile <- mutate(df_mon,
-                      MONTH=ordered(MONTH, levels=rev(c(10:12, 1:9))), 
+                      MONTH=ordered(MONTH, levels=rev(c(10:12, 1:9))),
                       VALUE=log10(VALUE)) %>%
   group_by(VAR_LABEL) %>%
   mutate(VALUE=scale(VALUE)) %>%
@@ -44,9 +44,9 @@ wyr_labels[as.logical(wyr_labels %% 2)] <- ""
 df_mon.tile %>%
   ggplot(aes(factor(WYEAR), MONTH, fill=VALUE)) +
   geom_tile() +
-  facet_grid(VAR_LABEL~SITE_NAME) + 
+  facet_grid(VAR_LABEL~SITE_NAME) +
   scale_fill_gradientn('Std. Value',
-                       colours=rev(scales::brewer_pal(type = "seq", 
+                       colours=rev(scales::brewer_pal(type = "seq",
                                                       palette = 'GnBu')(9))) +
   scale_x_discrete(labels=wyr_labels) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=10),
@@ -67,8 +67,8 @@ df_seasons <- lapply(names(seasons), function(s) {
 
 df_wyr <- filter(loads_df[['mon']],
        DATASET=="POR",
-       SITE_NAME %in% c('Power', 'Lone_Pine', 'Sycan', 'Godowa', 
-                        'SF', 'NF'), 
+       SITE_NAME %in% c('Power', 'Lone_Pine', 'Sycan', 'Godowa',
+                        'SF', 'NF'),
        VAR != "PP") %>%
   filter(TERM %in% c("Q", "L")) %>%
   droplevels %>%
@@ -121,9 +121,9 @@ stopifnot(
 df_wyr.tile %>%
   ggplot(aes(factor(WYEAR), SITE_NAME, fill=VALUE_SCALE)) +
   geom_tile() +
-  facet_grid(VAR_LABEL~SEASON) + 
+  facet_grid(VAR_LABEL~SEASON) +
   scale_fill_gradientn('Std. Value',
-                       colours=rev(scales::brewer_pal(type = "seq", 
+                       colours=rev(scales::brewer_pal(type = "seq",
                                                       palette = 'GnBu')(9))) +
   # scale_x_discrete(labels=wyr_labels) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=10),
@@ -134,13 +134,13 @@ df_wyr.tile %>%
 df_wyr.tile %>%
   ggplot(aes(WYEAR, VALUE, color=SEASON)) +
   geom_line() +
-  facet_grid(VAR_LABEL~SITE_NAME, scales='free_y') + 
+  facet_grid(VAR_LABEL~SITE_NAME, scales='free_y') +
   scale_y_log10() +
   labs(x='Water Year', y='Value')
 df_wyr.tile %>%
   ggplot(aes(WYEAR, VALUE, color=SITE_NAME)) +
   geom_line() +
-  facet_grid(VAR_LABEL~SEASON, scales='free_y') + 
+  facet_grid(VAR_LABEL~SEASON, scales='free_y') +
   scale_x_continuous(breaks=seq(2002, 2014, by=2)) +
   scale_y_log10() +
   labs(x='Water Year', y='Value')
@@ -202,7 +202,7 @@ term <- 'C'
 map.c <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_polygon(aes(x = long, y = lat, group = group), data = select(incbasins[[dataset]], -SITE_NAME),
                color = 'grey50', fill = NA, size = 0.2) +
-  geom_polygon(aes(x = long, y = lat, fill = VALUE), 
+  geom_polygon(aes(x = long, y = lat, fill = VALUE),
                data = subbasins[[dataset]] %>%
                  left_join(filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels), by='SITE_NAME') %>%
                  mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels)),
@@ -225,7 +225,7 @@ term <- 'L_AREA'
 map.l <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_polygon(aes(x = long, y = lat, group = group), data = select(incbasins[[dataset]], -SITE_NAME),
                color = 'grey50', fill = NA, size = 0.2) +
-  geom_polygon(aes(x = long, y = lat, fill = VALUE), 
+  geom_polygon(aes(x = long, y = lat, fill = VALUE),
                data = subbasins[[dataset]] %>%
                  left_join(filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels), by='SITE_NAME') %>%
                  mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels)),
@@ -247,7 +247,7 @@ term <- 'Q_AREA'
 map.q <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_polygon(aes(x = long, y = lat, group = group), data = select(incbasins[[dataset]], -SITE_NAME),
                color = 'grey50', fill = NA, size = 0.2) +
-  geom_polygon(aes(x = long, y = lat, fill = VALUE), 
+  geom_polygon(aes(x = long, y = lat, fill = VALUE),
                data = subbasins[[dataset]] %>%
                  left_join(filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels), by='SITE_NAME') %>%
                  mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels)),

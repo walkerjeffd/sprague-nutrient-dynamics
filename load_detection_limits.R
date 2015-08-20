@@ -1,6 +1,8 @@
 library(dplyr)
 library(tidyr)
 
+rm(list=ls())
+
 detection_limits <- list(UPPERDL=c('TP'=0.002,
                                    'PO4'=0.001,
                                    'TN'=0.1,

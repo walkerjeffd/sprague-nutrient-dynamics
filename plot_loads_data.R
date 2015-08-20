@@ -6,6 +6,8 @@ library(ggplot2)
 theme_set(theme_bw())
 library(gridExtra)
 
+rm(list=ls())
+
 # load data ----
 load('kt_sprague.Rdata')
 load('loads.Rdata')
@@ -77,45 +79,49 @@ df_wyr <- filter(loads_df[['wyr']], VAR != 'FLOW') %>%
          VAR != 'PP') %>%
   droplevels
 
+cat('Printing:', file.path('pdf', 'loads-model-vs-obs.pdf'), '\n')
 pdf(file.path('pdf', 'loads-model-vs-obs.pdf'), width=11, height=8.5)
 
-ggplot(df_site, aes(SITE_NAME, C, fill=SOURCE)) +
+p <- ggplot(df_site, aes(SITE_NAME, C, fill=SOURCE)) +
   geom_bar(position='dodge', stat='identity') +
   facet_grid(VAR~DATASET, scales='free_y') +
   labs(x='', y='FWM Concentration (ppb)', title='FWM Concentrations by Site based on Load Model and Direct Observations') +
   scale_fill_manual('', values=c('MODEL'='gray20', 'OBS'='deepskyblue')) +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
+print(p)
 
-spread(df_site, SOURCE, C) %>%
+p <- spread(df_site, SOURCE, C) %>%
   filter(DATASET=='POR') %>%
   ggplot(aes(OBS, MODEL)) +
   geom_point() +
   geom_abline() +
   geom_hline(yint=0, alpha=0) +
   geom_vline(xint=0, alpha=0) +
-  labs(x='FWM Concentration from Direct Observations (ppb)', 
-       y='FWM Concentration from Daily Load Model (ppb)', 
+  labs(x='FWM Concentration from Direct Observations (ppb)',
+       y='FWM Concentration from Daily Load Model (ppb)',
        title='Comparison of FWM Concentrations between Daily Load Model and Direct Observations\nDataset: POR') +
   facet_wrap(~VAR, scales='free')
+print(p)
 
-spread(df_site, SOURCE, C) %>%
+p <- spread(df_site, SOURCE, C) %>%
   filter(DATASET=='RECENT') %>%
   ggplot(aes(OBS, MODEL)) +
   geom_point() +
   geom_abline() +
   geom_hline(yint=0, alpha=0) +
   geom_vline(xint=0, alpha=0) +
-  labs(x='FWM Concentration from Direct Observations (ppb)', 
-       y='FWM Concentration from Daily Load Model (ppb)', 
+  labs(x='FWM Concentration from Direct Observations (ppb)',
+       y='FWM Concentration from Daily Load Model (ppb)',
        title='Comparison of FWM Concentrations between Daily Load Model and Direct Observations\nDataset: RECENT') +
   facet_wrap(~VAR, scales='free')
+print(p)
 
 for (variable in c('TP', 'PO4', 'TN', 'NO23', 'NH4')) {
   p <- filter(df_wyr, VAR==variable, WYEAR>=2002) %>%
     ggplot(aes(factor(WYEAR), C, fill=SOURCE)) +
     geom_bar(position='dodge', stat='identity') +
     facet_grid(SITE_NAME~DATASET, scales='free_y') +
-    labs(x='Water Year', y='FWM Concentration (ppb)', 
+    labs(x='Water Year', y='FWM Concentration (ppb)',
          title=paste0('Annual FWM Concentrations by Site and Water Year\nbased on Load Model and Direct Observations\nVariable: ', variable)) +
     scale_fill_manual('', values=c('MODEL'='gray20', 'OBS'='deepskyblue')) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),

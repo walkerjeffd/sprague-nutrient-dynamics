@@ -6,6 +6,8 @@ library(gridExtra)
 theme_set(theme_bw())
 library(GGally)
 
+rm(list=ls())
+
 load('kt_sprague.Rdata')
 source('functions.R')
 
@@ -20,7 +22,7 @@ wq <- filter(wq.raw, !FLAGGED, QAQC %in% c('PASS', 'RPD')) %>%
   arrange(VAR, SITE_NAME, DATE) %>%
   mutate(VAR_UNITS=ordered(VAR_UNITS, levels=unique(VAR_UNITS))) %>%
   select(DATE, SITE, SITE_NAME, VAR, VAR_UNITS, VALUE)
-  
+
 idx <- which(wq$VAR == 'COND' & log10(wq$VALUE) < 1.2)
 wq <- wq[-idx, ]
 
@@ -75,19 +77,21 @@ log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
 pdf(file.path("pdf", "dataset-seasonal-patterns.pdf"), width=11, height=8.5)
-p <- mutate(wq, 
+p <- mutate(wq,
        WDAY=water_day(DATE),
        WDAY_DATE=ymd("2000-10-01") + days(WDAY)) %>%
   ggplot(aes(WDAY_DATE, VALUE)) +
   geom_point(size=0.7) +
-  geom_smooth(method="loess", se=FALSE, span=0.5) +  
+  geom_smooth(method="loess", se=FALSE, span=0.5) +
   scale_x_datetime(label=scales::date_format("%b %d")) +
   facet_grid(VAR_UNITS~SITE_NAME, scales='free_y') +
   theme(axis.text.y=element_text(size=6),
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=6),
         panel.grid.minor.y=element_blank(),
         strip.text=element_text(size=8))
-p + log_y +
+p <- p +
+  log_y +
   labs(x="Water Year Day", y="Value") +
   ggtitle("Seasonal Patterns by Site and Variable")
+print(p)
 dev.off()

@@ -6,6 +6,8 @@ theme_set(theme_bw())
 library(gridExtra)
 library(fluxr)
 
+rm(list=ls())
+
 load('kt_sprague.Rdata')
 
 tp.qaqc <- wq.kt_sprague.orig %>%
@@ -112,13 +114,13 @@ estimate_loads <- function(df) {
   dataset <- unique(df$DATASET)
   variable <- unique(df$VAR)
   site <- unique(df$SITE_NAME)
-  
+
   stopifnot(length(dataset)==1)
   stopifnot(length(variable)==1)
   stopifnot(length(site)==1)
-  
+
     loads <- flux_regression(select(df, DATE, Q, C), interp = TRUE, max_interval = 90, predict_wyear_range = c(2001,2014))
-  
+
   loads
 }
 # x <- filter(df, DATASET=='CLEAN', SITE=="SR0090", VAR=="TP") %>% estimate_loads(.)
@@ -222,13 +224,13 @@ grid.arrange(p.c, p.l, ncol=1, main='\nChange in Predicted TP Concentrations and
 p.c <- filter(df.wyr, VAR=='TP') %>%
   ggplot(aes(WYEAR, C, fill=SITE_NAME)) +
   geom_bar(stat='identity', position='dodge') +
-  scale_fill_manual(values=c('deepskyblue', 'orangered')) +  
+  scale_fill_manual(values=c('deepskyblue', 'orangered')) +
   labs(x='Water Year', y='Concentration (ppb)') +
   facet_grid(VAR~DATASET, scales='free_y')
 p.l <- filter(df.wyr, VAR=='TP') %>%
   ggplot(aes(WYEAR, L, fill=SITE_NAME)) +
   geom_bar(stat='identity', position='dodge') +
-  scale_fill_manual(values=c('deepskyblue', 'orangered')) +  
+  scale_fill_manual(values=c('deepskyblue', 'orangered')) +
   labs(x='Water Year', y='Load (kg/day)') +
   facet_grid(VAR~DATASET, scales='free_y')
 grid.arrange(p.c, p.l, ncol=1, main='\nChange in Annual TP Concentrations and Loads\nCLEAN = includes all samples, QAQC = removes samples failing duplicate QAQC')

@@ -6,6 +6,8 @@ library(ggplot2)
 theme_set(theme_bw())
 library(gridExtra)
 
+rm(list=ls())
+
 # load data ----
 load('kt_sprague.Rdata')
 load('loads.Rdata')
@@ -118,9 +120,9 @@ nlcd.subbasin <- spread(nlcd.subbasin, SITE_NAME, AREA_KM2) %>%
   mutate(AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2)) %>%
   arrange(EXTENT, SITE_NAME, LANDUSE) %>%
   mutate(SITE_NAME=ordered(SITE_NAME,
-                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan', 
-                                    'Godowa', 'Sycan', 
-                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory', 
+                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan',
+                                    'Godowa', 'Sycan',
+                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory',
                                     'SF+NF', 'SF', 'NF')))
 
 nlcd.subbasin <- nlcd.subbasin %>%
@@ -144,9 +146,9 @@ df_mon <- loads_df[['mon']] %>%
   rename(AREA_KM2_BASIN=AREA_KM2)
 
 # compute flows/loads/concs at junction locations
-df_mon_flow <- filter(df_mon, 
+df_mon_flow <- filter(df_mon,
                       DATASET %in% c('RECENT', 'POR'),
-                      TERM == 'Q', 
+                      TERM == 'Q',
                       SITE_NAME %in% stn_primary[['RECENT']]) %>%
   select(-TERM, -AREA_KM2_BASIN, -VAR) %>%
   spread(SITE_NAME, VALUE) %>%
@@ -155,13 +157,13 @@ df_mon_flow <- filter(df_mon,
          'SF_Ivory+NF_Ivory'=SF_Ivory+NF_Ivory) %>%
   gather(SITE_NAME, Q, -c(DATASET:WYEAR), na.rm=TRUE) %>%
   mutate(SITE_NAME=ordered(SITE_NAME,
-                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan', 
-                                    'Godowa', 'Sycan', 
-                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory', 
+                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan',
+                                    'Godowa', 'Sycan',
+                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory',
                                     'SF+NF', 'SF', 'NF')))
-df_mon_load <- filter(df_mon, 
+df_mon_load <- filter(df_mon,
                       DATASET %in% c('RECENT', 'POR'),
-                      TERM == 'L', 
+                      TERM == 'L',
                       SITE_NAME %in% stn_primary[['RECENT']]) %>%
   select(-TERM, -AREA_KM2_BASIN) %>%
   spread(SITE_NAME, VALUE) %>%
@@ -170,9 +172,9 @@ df_mon_load <- filter(df_mon,
          'SF_Ivory+NF_Ivory'=SF_Ivory+NF_Ivory) %>%
   gather(SITE_NAME, L, -c(DATASET:WYEAR), na.rm=TRUE) %>%
   mutate(SITE_NAME=ordered(SITE_NAME,
-                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan', 
-                                    'Godowa', 'Sycan', 
-                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory', 
+                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan',
+                                    'Godowa', 'Sycan',
+                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory',
                                     'SF+NF', 'SF', 'NF')))
 
 df_mon <- left_join(df_mon_load, df_mon_flow,
@@ -198,9 +200,9 @@ df_seasons <- lapply(names(seasons), function(s) {
 df_mon <- left_join(df_seasons, df_mon, by='MONTH') %>%
   left_join(filter(subbasin_area, EXTENT=="basin") %>% select(SITE_NAME, TOTAL_AREA_KM2), by='SITE_NAME') %>%
   mutate(SITE_NAME=ordered(SITE_NAME,
-                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan', 
-                                    'Godowa', 'Sycan', 
-                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory', 
+                           levels=c('Power', 'Lone_Pine', 'Godowa+Sycan',
+                                    'Godowa', 'Sycan',
+                                    'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory',
                                     'SF+NF', 'SF', 'NF')),
          SEASON=ordered(SEASON, levels=names(seasons)))
 
@@ -273,7 +275,9 @@ dataset <- "RECENT"
 extent <- "valley"
 for (dataset in c("POR", "RECENT")) {
   for (extent in c("basin", "valley")) {
-    pdf(file.path("pdf", tolower(dataset), paste0("loads-pou-irrigation-", extent, ".pdf")), width=8.5, height=11)
+    filename <- file.path("pdf", tolower(dataset), paste0("loads-pou-irrigation-", extent, ".pdf"))
+    cat('Printing:', filename, '\n')
+    pdf(filename, width=8.5, height=11)
     p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU") %>%
       mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
       ggplot(aes(AREA_FRAC, VALUE, color=SITE_NAME)) +
@@ -289,7 +293,7 @@ for (dataset in c("POR", "RECENT")) {
             strip.text.x=element_text(size=8),
             aspect.ratio=1)
     print(p)
-    
+
     p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU") %>%
       mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
       ggplot(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
@@ -304,7 +308,7 @@ for (dataset in c("POR", "RECENT")) {
             strip.text.x=element_text(size=8),
             axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
     print(p)
-    
+
     p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU") %>%
       mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
       ggplot(aes(TOTAL_AREA_KM2, VALUE, color=SITE_NAME)) +
@@ -319,13 +323,15 @@ for (dataset in c("POR", "RECENT")) {
             strip.text.x=element_text(size=8),
             axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
     print(p)
-    
+
     dev.off()
   }
 }
 
 # pou area pdf ----
-pdf(file.path("pdf", "land-use-pou-irrigation.pdf"), width=11, height=8.5)
+filename <- file.path("pdf", "land-use-pou-irrigation.pdf")
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 p.area <- pou %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME),
@@ -368,7 +374,8 @@ p.scatter <- pou %>%
        title="Cumulative POU Irrigation Area vs Total Cumulative Drainage Area") +
   theme(aspect.ratio=1)
 
-grid.arrange(p.area, p.area_total, p.area_frac, p.scatter, nrow=2)
+grid.arrange(grobs=list(p.area, p.area_total, p.area_frac, p.scatter),
+             nrow=2)
 
 dev.off()
 
@@ -381,10 +388,12 @@ for (dataset in c("POR", "RECENT")) {
   cat(dataset, '\n')
   variables <- filter(df_mon, DATASET==dataset) %>% (function(x) unique(x$VAR))
   for (variable in variables) {
+    filename <- file.path('pdf', tolower(dataset), 'loads-cumul-area',
+                          paste0('loads-cumul-area-', tolower(variable), '.pdf'))
+    cat('Printing:', filename, '\n')
     cat('..', variable, '\n')
+    pdf(filename, width=17, height=11)
 
-    pdf(file.path('pdf', tolower(dataset), 'loads-cumul-area', paste0('loads-cumul-area-', tolower(variable), '.pdf')), width=17, height=11)
-    
     # TERM vs WYEAR by WYEAR
     p1 <- filter(df_wyr_area, DATASET==dataset, VAR==variable, SEASON==season, EXTENT=='basin', LANDUSE=='Total') %>%
       filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
@@ -402,7 +411,7 @@ for (dataset in c("POR", "RECENT")) {
       theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
             aspect.ratio=1)
     # print(p1)
-    
+
     # SEASON vs TERM by SITE
     p2 <- filter(df_site_area, DATASET==dataset, VAR==variable, EXTENT=='basin', LANDUSE=='Total') %>%
       filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
@@ -420,8 +429,8 @@ for (dataset in c("POR", "RECENT")) {
       theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
             aspect.ratio=1)
     # print(p2)
-    grid.arrange(p1, p2, nrow=2)
-    
+    grid.arrange(grobs=list(p1, p2), nrow=2)
+
     # SEASON vs WYEAR by WYEAR
     for (term2 in c('C', 'L', 'Q')) {
       if (term2 == "Q") {
@@ -444,14 +453,14 @@ for (dataset in c("POR", "RECENT")) {
              title=paste0('Seasonal Mean by Water Year\nDataset: ', dataset,' | Period: ', periods[[dataset]],  ' | Variable: ', ylabel)) +
         theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
               aspect.ratio=1)
-      
+
       if (dataset == "POR") {
         p3 <- p3 + theme(strip.text.y=element_text(size=8))
       }
-      
+
       print(p3)
     }
-    
+
     dev.off()
   }
 }
@@ -459,12 +468,14 @@ for (dataset in c("POR", "RECENT")) {
 # cumul-area summary pdfs ----
 dataset <- 'RECENT'
 for (dataset in c("POR", "RECENT")) {
+  filename <- file.path('pdf', tolower(dataset), 'loads-cumul-area-summary.pdf')
+  cat('Printing:', filename, '\n')
   cat(dataset, '\n')
-  
-  pdf(file.path('pdf', tolower(dataset), 'loads-cumul-area-summary.pdf'), width=11, height=8.5)
-  
+
+  pdf(filename, width=11, height=8.5)
+
   for (term in c('C', 'L')) {
-    p <- filter(df_site_area, DATASET==dataset, TERM==term, 
+    p <- filter(df_site_area, DATASET==dataset, TERM==term,
                 VAR %in% c('TP', 'PO4', 'PP', 'TN', 'TSS'),
                 EXTENT=='basin', LANDUSE=='Total') %>%
       filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
@@ -472,7 +483,7 @@ for (dataset in c("POR", "RECENT")) {
       geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
       geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
                    data=filter(df_segments_site, DATASET==dataset, TERM==term,
-                               VAR %in% c('TP', 'PO4', 'PP', 'TN', 'TSS'), 
+                               VAR %in% c('TP', 'PO4', 'PP', 'TN', 'TSS'),
                                EXTENT=='basin', LANDUSE=='Total'),
                    alpha=0.5) +
       geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
@@ -484,9 +495,9 @@ for (dataset in c("POR", "RECENT")) {
       theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
             aspect.ratio=1)
     print(p)
-  }  
+  }
   term <- 'Q'
-  p <- filter(df_site_area, DATASET==dataset, TERM==term, 
+  p <- filter(df_site_area, DATASET==dataset, TERM==term,
               VAR %in% c('TP'),
               EXTENT=='basin', LANDUSE=='Total') %>%
     mutate(VAR='FLOW') %>%
@@ -495,7 +506,7 @@ for (dataset in c("POR", "RECENT")) {
     geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
     geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
                  data=filter(df_segments_site, DATASET==dataset, TERM==term,
-                             VAR %in% c('TP'), 
+                             VAR %in% c('TP'),
                              EXTENT=='basin', LANDUSE=='Total') %>%
                    mutate(VAR='FLOW'),
                  alpha=0.5) +
@@ -522,10 +533,12 @@ for (dataset in c('POR', 'RECENT')) {
   cat(dataset, '\n')
   variables <- filter(df_mon, DATASET==dataset) %>% (function(x) unique(x$VAR))
   for (extent in c('basin', 'valley')) {
+    filename <- file.path('pdf', tolower(dataset), paste0('loads-nlcd-', extent, '.pdf'))
+    cat('Printing:', filename, '\n')
     cat('..', extent, '\n')
-    pdf(file.path('pdf', tolower(dataset), paste0('loads-nlcd-', extent, '.pdf')), width=11, height=8.5)
-    
-    p <- filter(df_site_area, DATASET==dataset, TERM==term, 
+    pdf(filename, width=11, height=8.5)
+
+    p <- filter(df_site_area, DATASET==dataset, TERM==term,
                 EXTENT==extent, !(LANDUSE %in% c("POU", "Total")),
                 SEASON=="Annual") %>%
       filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
@@ -537,7 +550,7 @@ for (dataset in c('POR', 'RECENT')) {
       scale_color_discrete('') +
       scale_x_continuous(labels=scales::percent) +
       labs(x='Fraction Cumulative Land Use Area (%)', y=paste0(term_labels[[term]]),
-           title=paste0('Annual FWM Concentration vs Fraction Cumulative Land Use Area\nDataset: ', 
+           title=paste0('Annual FWM Concentration vs Fraction Cumulative Land Use Area\nDataset: ',
                         dataset,' | Period: ', periods[[dataset]],  ' | Extent: ', extent)) +
       theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
             axis.text.y=element_text(size=8),
@@ -545,8 +558,8 @@ for (dataset in c('POR', 'RECENT')) {
             strip.text.y=element_text(size=8),
             aspect.ratio=1)
     print(p)
-    
-#     p <- filter(df_site_area, DATASET==dataset, TERM==term, 
+
+#     p <- filter(df_site_area, DATASET==dataset, TERM==term,
 #                 EXTENT==extent, !(LANDUSE %in% c("POU", "Total")),
 #                 SEASON=="Summer (Jul-Sep)") %>%
 #       filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
@@ -558,17 +571,17 @@ for (dataset in c('POR', 'RECENT')) {
 #       scale_color_discrete('') +
 #       scale_x_continuous(labels=scales::percent) +
 #       labs(x='Fraction Cumulative Land Use Area (%)', y=paste0(term_labels[[term]]),
-#            title=paste0('Summer (Jul-Sep) FWM Concentration vs Fraction Cumulative Land Use Area\nDataset: ', 
-#                         dataset,' | Period: ', periods[[dataset]],  ' | Extent: ', extent,  
+#            title=paste0('Summer (Jul-Sep) FWM Concentration vs Fraction Cumulative Land Use Area\nDataset: ',
+#                         dataset,' | Period: ', periods[[dataset]],  ' | Extent: ', extent,
 #                         ' | Season: Summer (Jul-Sep)')) +
 #       theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
 #             aspect.ratio=1)
 #     print(p)
-    
+
     for (variable in variables) {
       cat('....', variable, '\n')
       # cumulative fraction land use area
-      p <- filter(df_site_area, DATASET==dataset, VAR==variable, TERM==term, 
+      p <- filter(df_site_area, DATASET==dataset, VAR==variable, TERM==term,
                   EXTENT==extent, !(LANDUSE %in% c("POU", "Total"))) %>%
         filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
         filter(TOTAL_AREA_KM2>0) %>%
@@ -586,32 +599,32 @@ for (dataset in c('POR', 'RECENT')) {
               strip.text.y=element_text(size=6),
               aspect.ratio=1)
       print(p)
-      
-#       p <- filter(df_site_area, DATASET==dataset, VAR==variable, TERM==term, 
+
+#       p <- filter(df_site_area, DATASET==dataset, VAR==variable, TERM==term,
 #                   EXTENT==extent, !(LANDUSE %in% c("POU"))) %>%
 #         filter(SITE_NAME %in% stn_primary[[dataset]]) %>%
 #         ggplot() +
 #         geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
-#         geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, 
-#                          y=VALUE.FROM, yend=VALUE.TO, 
+#         geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO,
+#                          y=VALUE.FROM, yend=VALUE.TO,
 #                          size=MAINSTEM),
-#                      data=filter(df_segments_site, DATASET==dataset, VAR==variable, 
+#                      data=filter(df_segments_site, DATASET==dataset, VAR==variable,
 #                                  TERM==term, EXTENT==extent, !(LANDUSE %in% c("POU"))),
 #                      alpha=0.5) +
 #         geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
 #         facet_grid(SEASON~LANDUSE, scales='free') +
 #         scale_color_discrete('') +
 #         scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
-#         labs(x='Cumulative Land Use Area (km2)', y=paste0(variable, " ", 
+#         labs(x='Cumulative Land Use Area (km2)', y=paste0(variable, " ",
 #                                                           term_labels[[term]]),
-#              title=paste0('Seasonal Mean vs Cumulative Land Use Area\nDataset: ', 
-#                           dataset,' | Period: ', periods[[dataset]],  ' | Extent: ', 
+#              title=paste0('Seasonal Mean vs Cumulative Land Use Area\nDataset: ',
+#                           dataset,' | Period: ', periods[[dataset]],  ' | Extent: ',
 #                           extent, ' | Variable: ', variable, ' | Term: ', term)) +
 #         theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
 #               aspect.ratio=1)
 #       print(p)
     }
-    
+
     dev.off()
   }
 }
@@ -648,7 +661,7 @@ for (dataset in c('POR', 'RECENT')) {
 #        title=paste0("FWM Concentrations vs. Fraction Drainage Area with POU Irrigation Water Right\n",
 #                     "Dataset: ", dataset, " | Extent: ", extent))
 # print(p)
-# 
+#
 # p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU", VAR=="TP",
 #             !(SEASON %in% c("Annual", "Dec-Feb", "Mar-May", "Jun-Sep"))) %>%
 #   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
@@ -661,8 +674,8 @@ for (dataset in c('POR', 'RECENT')) {
 #        title=paste0("FWM Concentrations vs. Fraction Drainage Area with POU Irrigation Water Right\n",
 #                     "Dataset: ", dataset, " | Extent: ", extent))
 # print(p)
-# 
-# 
+#
+#
 # p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU", SEASON %in% c("Annual", "Dec-Feb", "Mar-May", "Jun-Sep"),
 #             VAR %in% c("TP", "PO4", "PP", "TSS")) %>%
 #   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
@@ -674,7 +687,7 @@ for (dataset in c('POR', 'RECENT')) {
 #        title=paste0("FWM Concentrations vs. Cumulative Area with POU Irrigation Water Right\n",
 #                     "Dataset: ", dataset, " | Extent: ", extent))
 # print(p)
-# 
+#
 # p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU", VAR=="TP",
 #             !(SEASON %in% c("Annual", "Dec-Feb", "Mar-May", "Jun-Sep"))) %>%
 #   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
@@ -686,8 +699,8 @@ for (dataset in c('POR', 'RECENT')) {
 #        title=paste0("FWM Concentrations vs. Cumulative Area with POU Irrigation Water Right\n",
 #                     "Dataset: ", dataset, " | Extent: ", extent))
 # print(p)
-# 
-# 
+#
+#
 # p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU", SEASON %in% c("Annual", "Dec-Feb", "Mar-May", "Jun-Sep"),
 #             VAR %in% c("TP", "PO4", "PP", "TSS")) %>%
 #   ggplot(aes(TOTAL_AREA_KM2, VALUE, color=SITE_NAME)) +
@@ -698,7 +711,7 @@ for (dataset in c('POR', 'RECENT')) {
 #        title=paste0("FWM Concentrations vs. Total Cumulative Area\n",
 #                     "Dataset: ", dataset, " | Extent: ", extent))
 # print(p)
-# 
+#
 # p <- filter(df_site_area, DATASET==dataset, TERM=="C", EXTENT==extent, LANDUSE=="POU", VAR=="TP",
 #             !(SEASON %in% c("Annual", "Dec-Feb", "Mar-May", "Jun-Sep"))) %>%
 #   ggplot(aes(TOTAL_AREA_KM2, VALUE, color=SITE_NAME)) +
@@ -709,6 +722,6 @@ for (dataset in c('POR', 'RECENT')) {
 #        title=paste0("FWM Concentrations vs. Total Cumulative Area\n",
 #                     "Dataset: ", dataset, " | Extent: ", extent))
 # print(p)
-# 
-# 
+#
+#
 # dev.off()

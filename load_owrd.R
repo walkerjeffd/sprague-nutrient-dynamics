@@ -4,10 +4,12 @@ library(lubridate)
 library(ggplot2)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load stn ----
-stn.owrd <- read.csv(file.path(DATA_DIR, 'sprague', 'owrd', 'owrd_stations.csv'), 
+stn.owrd <- read.csv(file.path(DATA_DIR, 'sprague', 'owrd', 'owrd_stations.csv'),
                      stringsAsFactors=FALSE)
 
 stn.owrd <- mutate(stn.owrd,
@@ -27,8 +29,8 @@ stn.owrd <- select(stn.owrd, STATION_ID, DESCRIPTION, LAT, LON, DRAINAGE_AREA_SQ
 
 # load ----
 q.owrd <- lapply(stn.owrd$STATION_ID, function(site) {
-  df <- read.table(file.path(DATA_DIR, 'sprague', 'owrd', 
-                             paste0('Station_', site, '_mean_daily_flow.txt')), 
+  df <- read.table(file.path(DATA_DIR, 'sprague', 'owrd',
+                             paste0('Station_', site, '_mean_daily_flow.txt')),
                    sep='\t',
                    header=TRUE,
                    as.is=TRUE)
@@ -36,7 +38,7 @@ q.owrd <- lapply(stn.owrd$STATION_ID, function(site) {
 }) %>%
   do.call(rbind, .)
 
-q.owrd <- mutate(q.owrd, 
+q.owrd <- mutate(q.owrd,
                  STATION_ID=station_nbr,
                  DATE=mdy(record_date),
                  FLOW=mean_daily_flow_cfs) %>%

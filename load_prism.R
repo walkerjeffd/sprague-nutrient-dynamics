@@ -3,6 +3,8 @@ library(tidyr)
 library(lubridate)
 library(fluxr)
 
+rm(list=ls())
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----

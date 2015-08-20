@@ -1,5 +1,7 @@
 library(dplyr)
 
+rm(list=ls())
+
 # create network ----
 network <- list(RECENT=data.frame(FROM =  c('Lone_Pine', 'Godowa+Sycan', 'Sycan',        'Godowa',       'SF_Ivory+NF_Ivory', 'NF_Ivory',          'SF_Ivory',          'NF',       'SF'),
                                   TO =  c(  'Power',     'Lone_Pine',    'Godowa+Sycan', 'Godowa+Sycan', 'Godowa',            'SF_Ivory+NF_Ivory', 'SF_Ivory+NF_Ivory', 'NF_Ivory', 'SF_Ivory'),

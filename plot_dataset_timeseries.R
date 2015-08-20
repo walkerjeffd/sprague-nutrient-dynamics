@@ -6,6 +6,8 @@ library(maptools)
 library(ggplot2)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 source('functions.R')
 load('kt_sprague.Rdata')
 
@@ -19,7 +21,7 @@ log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
 
 # timeseries plots ----
 pdf(file.path('pdf', 'dataset-timeseries.pdf'), width=11, height=8.5)
-filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
+p <- filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
   filter(QAQC != 'NEGATIVE') %>%
   mutate(VAR = ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS'))) %>%
   arrange(QAQC) %>%
@@ -35,8 +37,9 @@ filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
   labs(x='', y='Concentration (ppm)', title="Timeseries by Variable, Dataset: RAW") +
   facet_wrap(~VAR, scales='free_y', ncol=2) +
   theme(panel.grid.minor.y=element_blank())
+print(p)
 
-filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
+p <- filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
   filter(QAQC != 'NEGATIVE') %>%
   mutate(VAR = ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS'))) %>%
   arrange(QAQC) %>%
@@ -52,6 +55,7 @@ filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
   facet_grid(VAR~SITE_NAME, scales='free_y') +
   theme(panel.grid.minor.y=element_blank(),
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8))
+print(p)
 
 # filter(wq.kt_sprague$CLEAN, VAR %in% detection_limits$VAR) %>%
 #   gather(DL_GRP, DL_VALUE, DL, HALF_DL) %>%
@@ -86,7 +90,7 @@ filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
 #   theme(panel.grid.minor.y=element_blank(),
 #         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
-filter(wq.kt_sprague$POR, VAR %in% detection_limits$VAR) %>%
+p <- filter(wq.kt_sprague$POR, VAR %in% detection_limits$VAR) %>%
   ggplot(aes(DATE)) +
   geom_line(aes(y=UPPERDL, linetype='Detection\nLimit'), color='black') +
   geom_point(aes(y=VALUE, color=LIMITED), size=1) +
@@ -96,8 +100,9 @@ filter(wq.kt_sprague$POR, VAR %in% detection_limits$VAR) %>%
   labs(x='', y='Concentration (ppm)', title="Timeseries by Variable, Dataset: POR") +
   facet_wrap(~VAR, scales='free_y', ncol=2) +
   theme(panel.grid.minor.y=element_blank())
+print(p)
 
-filter(wq.kt_sprague$POR, VAR %in% detection_limits$VAR) %>%
+p <- filter(wq.kt_sprague$POR, VAR %in% detection_limits$VAR) %>%
   ggplot(aes(DATE)) +
   geom_line(aes(y=UPPERDL, linetype='Detection\nLimit'), color='black') +
   geom_point(aes(y=VALUE, color=LIMITED), size=1) +
@@ -108,8 +113,9 @@ filter(wq.kt_sprague$POR, VAR %in% detection_limits$VAR) %>%
   facet_grid(VAR~SITE_NAME, scales='free_y') +
   theme(panel.grid.minor.y=element_blank(),
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8))
+print(p)
 
-filter(wq.kt_sprague$RECENT, VAR %in% detection_limits$VAR) %>%
+p <- filter(wq.kt_sprague$RECENT, VAR %in% detection_limits$VAR) %>%
   ggplot(aes(DATE)) +
   geom_line(aes(y=LOWERDL, linetype='Detection\nLimit'), color='black') +
   geom_point(aes(y=VALUE), size=1) +
@@ -119,8 +125,9 @@ filter(wq.kt_sprague$RECENT, VAR %in% detection_limits$VAR) %>%
   labs(x='', y='Concentration (ppm)', title="Timeseries by Variable, Dataset: RECENT") +
   facet_wrap(~VAR, scales='free_y', ncol=2) +
   theme(panel.grid.minor.y=element_blank())
+print(p)
 
-filter(wq.kt_sprague$RECENT, VAR %in% detection_limits$VAR) %>%
+p <- filter(wq.kt_sprague$RECENT, VAR %in% detection_limits$VAR) %>%
   ggplot(aes(DATE)) +
   geom_line(aes(y=LOWERDL, linetype='Detection\nLimit'), color='black') +
   geom_point(aes(y=VALUE, color=LIMITED), size=1) +

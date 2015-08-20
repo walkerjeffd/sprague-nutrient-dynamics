@@ -6,6 +6,8 @@ theme_set(theme_bw())
 library(fluxr)
 library(gridExtra)
 
+rm(list=ls())
+
 source('functions.R')
 load('usgs.Rdata')
 
@@ -28,8 +30,8 @@ q.ciy <- filter(q.day, YEAR %in% ciy_years) %>%
   summarise(FLOW=mean(FLOW)) %>%
   mutate(MONTH=month(WDATE))
 
-filter(q.day, WYEAR %in% ciy_years, MONTH %in% seq(5, 9)) %>% 
-  ggplot(aes(WDATE, FLOW)) + 
+filter(q.day, WYEAR %in% ciy_years, MONTH %in% seq(5, 9)) %>%
+  ggplot(aes(WDATE, FLOW)) +
   geom_line(aes(color=factor(YEAR), group=YEAR)) +
   geom_line(data=filter(q.day, WYEAR %in% 2013, MONTH %in% seq(5, 9)), color='red', size=1) +
   geom_line(data=filter(q.ciy, MONTH %in% seq(5, 9)), color='black', size=1) +
@@ -93,9 +95,9 @@ s.day <- filter(snotel, SITE_NAME=='SUMMER RIM') %>%
 
 pdf(file.path('pdf', 'flow-ciy-method.pdf'), width=11, height=8.5)
 
-filter(q.day, WYEAR %in% c(ciy_years, 2013, 2014), MONTH %in% seq(5, 9)) %>% 
+filter(q.day, WYEAR %in% c(ciy_years, 2013, 2014), MONTH %in% seq(5, 9)) %>%
   filter(WYEAR >= 1981) %>%
-  ggplot(aes(WDATE, FLOW, color=factor(WYEAR))) + 
+  ggplot(aes(WDATE, FLOW, color=factor(WYEAR))) +
   geom_line(aes(size=WYEAR %in% c(2013, 2014))) +
   geom_line(data=filter(q.ciy, MONTH %in% seq(5, 9)) %>% mutate(YEAR='CIY'), color='black', size=1) +
   scale_x_date(labels = scales::date_format("%b"), breaks=scales::date_breaks('1 month')) +
@@ -103,9 +105,9 @@ filter(q.day, WYEAR %in% c(ciy_years, 2013, 2014), MONTH %in% seq(5, 9)) %>%
   scale_size_manual('', values=c('TRUE'=1, 'FALSE'=0.5), guide=FALSE) +
   labs(x='', y='Flow (cfs)', title='Daily Summer Flows for 2013, 2014 and Reference CIY Years\nBlack Line is Average CIY Daily Flow')
 
-p.q.day <- filter(q.day, WYEAR %in% c(ciy_years, 2013, 2014)) %>% 
+p.q.day <- filter(q.day, WYEAR %in% c(ciy_years, 2013, 2014)) %>%
   filter(WYEAR >= 1981) %>%
-  ggplot(aes(WDATE, FLOW, color=factor(WYEAR))) + 
+  ggplot(aes(WDATE, FLOW, color=factor(WYEAR))) +
   geom_line(aes(size=WYEAR %in% c(2013, 2014))) +
   geom_line(data=filter(q.ciy) %>% mutate(YEAR='CIY'), color='black', size=1) +
   scale_x_date(labels = scales::date_format("%b"), breaks=scales::date_breaks('1 month')) +
@@ -113,16 +115,16 @@ p.q.day <- filter(q.day, WYEAR %in% c(ciy_years, 2013, 2014)) %>%
   scale_size_manual('', values=c('TRUE'=1, 'FALSE'=0.5), guide=FALSE) +
   labs(x='', y='Flow (cfs)', title='Daily Flow for 2013, 2014 and Reference CIY Years')
 
-p.p.mon <- filter(p.mon, WYEAR %in% c(ciy_years, c(2013, 2014))) %>% 
-  ggplot(aes(WDATE+days(15), PRCP, group=WYEAR, color=factor(WYEAR))) + 
+p.p.mon <- filter(p.mon, WYEAR %in% c(ciy_years, c(2013, 2014))) %>%
+  ggplot(aes(WDATE+days(15), PRCP, group=WYEAR, color=factor(WYEAR))) +
   stat_summary(fun.y=sum, geom="line") +
   stat_summary(aes(color=factor(WYEAR)), fun.y=sum, geom="line", data=filter(p.mon, WYEAR %in% c(2013, 2014)), size=1) +
   scale_x_date(labels = scales::date_format("%b"), breaks=scales::date_breaks('1 month'), limits=c(as.Date('2001-10-15'), as.Date('2002-09-15')), expand=c(0.1,1)) +
   labs(x="Month", y="Monthly Precip (mm)", title="Monthly Precip for 2013, 2014 and Reference CIY Years") +
   scale_color_discrete('Water Year')
 
-p.s.day <- filter(s.day, WYEAR %in% ciy_years) %>% 
-  ggplot(aes(WDATE, SWE_in, color=factor(WYEAR))) + 
+p.s.day <- filter(s.day, WYEAR %in% ciy_years) %>%
+  ggplot(aes(WDATE, SWE_in, color=factor(WYEAR))) +
   geom_line() +
   geom_line(data=filter(s.day, WYEAR %in% c(2013, 2014)), size=1) +
   scale_x_date(labels = scales::date_format("%b"), breaks=scales::date_breaks('1 month')) +

@@ -23,7 +23,7 @@ end_date_ivory <- as.Date('2014-09-30')
 
 # load usgs ----
 load('usgs.Rdata')
-stn.usgs <- mutate(stn.usgs, 
+stn.usgs <- mutate(stn.usgs,
                    SOURCE="USGS",
                    SITE=as.character(STATION_ID),
                    SITE_NAME=as.character(SITE_NAME)) %>%
@@ -46,7 +46,7 @@ load('kt_sprague.Rdata')
 stn_order <- levels(stn.kt_sprague$SITE_NAME)
 q.kt_sprague <- filter(wq.kt_sprague[['RAW']], VAR=='FLOW') %>%
   select(DATE, SITE, SITE_NAME, FLOW=VALUE) %>%
-  mutate(SOURCE="KT") %>% 
+  mutate(SOURCE="KT") %>%
   select(SOURCE, SITE_NAME, SITE, DATE, FLOW)
 stn.area <- select(stn.kt_sprague, SITE_NAME, DRAINAGE_AREA_SQKM)
 stn.kt_sprague <- stn.kt_sprague %>%
@@ -59,8 +59,8 @@ stn <- rbind(stn.usgs, stn.kt_sprague, stn.owrd)
 stn.ref <- filter(stn, (SOURCE=="USGS" & SITE_NAME=="Power") | (SOURCE=="OWRD" & SITE_NAME=="Sycan") | (SOURCE=="OWRD" & SITE_NAME=="Beatty")) %>%
   mutate(REF_LABEL=paste(SOURCE, SITE, sep='-'))
 stn.kt_sprague <- stn.kt_sprague %>%
-  left_join(data.frame(SITE_NAME=stn.kt_sprague$SITE_NAME, 
-                       REF_LABEL=plyr::revalue(stn.kt_sprague$SITE_NAME, 
+  left_join(data.frame(SITE_NAME=stn.kt_sprague$SITE_NAME,
+                       REF_LABEL=plyr::revalue(stn.kt_sprague$SITE_NAME,
                                                c('Power'='USGS-11501000',
                                                  'Lone_Pine'='USGS-11501000',
                                                  'Godowa'='OWRD-11497500',
@@ -86,7 +86,7 @@ por.kt <- group_by(q.kt_sprague, SITE_NAME) %>%
 q.kt.power <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Power", "Lone_Pine")) %>%
   spread(SITE_NAME, FLOW)
-q.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Power") %>% 
+q.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Power") %>%
   mutate(REF_SITE_NAME="Power",
          REF_SOURCE="USGS") %>%
   select(DATE, REF_FLOW=FLOW, REF_SITE_NAME, REF_SOURCE) %>%
@@ -109,10 +109,10 @@ q.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SI
 #   scale_y_log10()
 
 # sycan dataset ----
-q.kt.sycan <- select(q.kt_sprague, -SITE, -SOURCE) %>% 
+q.kt.sycan <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME=="Sycan") %>%
   spread(SITE_NAME, FLOW)
-q.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Sycan") %>% 
+q.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Sycan") %>%
   mutate(REF_SITE_NAME="Sycan",
          REF_SOURCE="OWRD") %>%
   select(REF_SITE_NAME, REF_SOURCE, DATE, REF_FLOW=FLOW) %>%
@@ -120,19 +120,19 @@ q.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SI
   gather(SITE_NAME, FLOW, Sycan) %>%
   mutate(DATE=with_tz(DATE, tzone="UTC"),
          RATIO=FLOW/REF_FLOW)
- 
+
 # ggplot(q.sycan, aes(DATE)) +
 #   geom_line(aes(y=REF_FLOW)) +
 #   geom_point(aes(y=FLOW), color='red') +
 #   facet_wrap(~SITE_NAME) +
 #   scale_y_log10()
-# 
+#
 # beatty dataset ----
 q.kt.beatty <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Godowa", "SF_Ivory",
                           "SF", "NF_Ivory", "NF")) %>%
   spread(SITE_NAME, FLOW)
-q.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Beatty") %>% 
+q.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Beatty") %>%
   mutate(REF_SITE_NAME="Beatty",
          REF_SOURCE="OWRD") %>%
   select(REF_SITE_NAME, REF_SOURCE, DATE, REF_FLOW=FLOW) %>%
@@ -208,7 +208,7 @@ interpolate <- function(x) {
   return(x)
 }
 
-q.model <- mutate(q, 
+q.model <- mutate(q,
             PRED=REF_FLOW*RATIO_MONTH,
             LN_RESID=log(FLOW/PRED)) %>%
   arrange(SITE_NAME, DATE) %>%
@@ -233,28 +233,28 @@ filter(q.model, CUMISNA>0) %>%
   geom_histogram() +
   facet_wrap(~SITE_NAME)
 
-library(manipulate)
-
-plot_flow <- function(site, start_year, end_year, log_trans=FALSE) {
-  p <- filter(q.model, SITE_NAME==site) %>%
-    filter(wyear(DATE)>=start_year, wyear(DATE)<=end_year) %>%
-    ggplot(aes(DATE)) +
-    geom_line(aes(y=PRED), size=0.5, color='deepskyblue') +
-    geom_line(aes(y=PRED_RESID), size=0.5) +
-    geom_point(aes(y=FLOW), color='red', size=2)
-  if (log_trans) {
-    p <- p + scale_y_log10()
-  } else {
-    p <- p + ylim(0, NA)
-  }
-  p
-}
-
-manipulate(plot_flow(site, start_year, end_year, log_trans),
-           site=do.call(picker, as.list(unique(as.character(q$SITE_NAME)))),
-           start_year=slider(2001, 2014),
-           end_year=slider(2001, 2014, initial=2014),
-           log_trans=checkbox())
+# library(manipulate)
+#
+# plot_flow <- function(site, start_year, end_year, log_trans=FALSE) {
+#   p <- filter(q.model, SITE_NAME==site) %>%
+#     filter(wyear(DATE)>=start_year, wyear(DATE)<=end_year) %>%
+#     ggplot(aes(DATE)) +
+#     geom_line(aes(y=PRED), size=0.5, color='deepskyblue') +
+#     geom_line(aes(y=PRED_RESID), size=0.5) +
+#     geom_point(aes(y=FLOW), color='red', size=2)
+#   if (log_trans) {
+#     p <- p + scale_y_log10()
+#   } else {
+#     p <- p + ylim(0, NA)
+#   }
+#   p
+# }
+#
+# manipulate(plot_flow(site, start_year, end_year, log_trans),
+#            site=do.call(picker, as.list(unique(as.character(q$SITE_NAME)))),
+#            start_year=slider(2001, 2014),
+#            end_year=slider(2001, 2014, initial=2014),
+#            log_trans=checkbox())
 
 # pdf ----
 stn.map <- rbind(select(stn.kt_sprague, SITE_NAME, REF_LABEL, LAT, LON) %>% mutate(GROUP='KT'),
@@ -267,23 +267,23 @@ ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
                color = 'grey50', fill = NA, size = 0.2) +
   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                color = 'black', fill = NA, size = 0.2) +
-  geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP), 
+  geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
              data = stn.map) +
-  geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)), 
+  geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
             data = stn.ref, fontface='bold', hjust=1.1, size=4) +
-  geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME), 
+  geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
             data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=4, hjust=1) +
-  geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME), 
+  geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
             data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=4, hjust=0) +
   scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
   scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
-  scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered', 
-                                                  'OWRD-11497500'='deepskyblue', 
+  scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
+                                                  'OWRD-11497500'='deepskyblue',
                                                   'OWRD-11499100'='chartreuse3')) +
   guides(fill=guide_legend(override.aes=list(shape=21))) +
   ggtitle('KT and Reference Flow Stations')
 makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
-  
+
 # ggplot(q.model, aes(DATE)) +
 #   geom_line(aes(y=REF_FLOW), color='gray50') +
 #   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
@@ -314,28 +314,28 @@ ggplot(q.model, aes(DATE)) +
   theme(panel.grid.minor.y=element_blank())
 
 filter(q.model, !is.na(FLOW)) %>%
-  ggplot(aes(FLOW, LN_RESID)) + 
+  ggplot(aes(FLOW, LN_RESID)) +
   geom_hline(yint=0) +
-  geom_point(size=1) + 
+  geom_point(size=1) +
   labs(x='log[ Measured KT Flow (cfs) ]', y='log[ Flow Residual (cfs) ]\nMeasured KT - Scaled Reference', title='Flow Residuals vs KT Measured') +
   facet_wrap(~SITE_NAME, scales='free', nrow=2) +
   log_x +
   theme(panel.grid.minor.x=element_blank(),
-        axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) 
+        axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
 filter(q.model, !is.na(FLOW)) %>%
-  ggplot(aes(DATE, LN_RESID)) + 
+  ggplot(aes(DATE, LN_RESID)) +
   geom_hline(yint=0) +
-  geom_point(size=1) + 
+  geom_point(size=1) +
   labs(x='', y='log[ Flow Residual ]', title='Timeseries of Flow Residuals') +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
 
 filter(q.model, !is.na(FLOW)) %>%
   mutate(WDAY=water_day(DATE),
          WDATE=ymd('2001-10-01') + days(WDAY)) %>%
-  ggplot(aes(WDATE, LN_RESID)) + 
+  ggplot(aes(WDATE, LN_RESID)) +
   geom_hline(yint=0) +
-  geom_point(size=1) + 
+  geom_point(size=1) +
   labs(x='Water Year Day', y='log[ Flow Residual ]', title='Seasonality of Flow Residuals') +
   scale_x_datetime(labels=scales::date_format('%b %d')) +
   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
@@ -345,7 +345,7 @@ filter(q.model) %>%
          WDATE=ymd('2001-10-01') + days(WDAY)) %>%
   select(SITE_NAME, WDATE, PRED, FLOW) %>%
   gather(TERM, VALUE, PRED, FLOW) %>%
-  ggplot(aes(WDATE, VALUE, color=TERM)) + 
+  ggplot(aes(WDATE, VALUE, color=TERM)) +
   geom_point(size=1) +
   scale_color_manual('', values=c('PRED'='deepskyblue', 'FLOW'='orangered'),
                      labels=c(PRED='Scaled Reference', FLOW='Measured')) +
@@ -366,7 +366,7 @@ filter(q.model, !is.na(FLOW)) %>%
   labs(x="Month", y="Flow Ratio [Measured/Reference]",
        title="Distributions of Flow Ratios used to Interpolate Measured Flows") +
   facet_wrap(~SITE_NAME, nrow=2)
-# 
+#
 # filter(q.model, !is.na(FLOW)) %>%
 #   mutate(WDAY=water_day(DATE)) %>%
 #   (function(x) {
@@ -395,9 +395,9 @@ ratios %>%
   labs(x="Month", y="Mean Flow Ratio [Measured/Reference]",
        title="Mean Monthly Flow Ratio used to Interpolate Measured Flows") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
-# 
-# ggplot(q.model, aes(DATE, RATIO_MONTH)) + 
-#   geom_line() + 
+#
+# ggplot(q.model, aes(DATE, RATIO_MONTH)) +
+#   geom_line() +
 #   geom_hline(yint=0, alpha=0) +
 #   labs(x='', y='Monthly Flow Ratio', title='Monthly Ratios of KT Flow to Reference Flow') +
 #   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)

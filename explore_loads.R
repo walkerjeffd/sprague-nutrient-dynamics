@@ -7,6 +7,8 @@ theme_set(theme_bw())
 library(gridExtra)
 library(manipulate)
 
+rm(list=ls())
+
 # load data ----
 load('kt_sprague.Rdata')
 load('loads.Rdata')
@@ -57,7 +59,7 @@ plot_loads <- function(dataset, variable, plot.type, site_ds, log.trans=FALSE) {
   } else {
     sites_us <- site_network[[site_ds]]
   }
-  
+
   if (plot.type == 'wyr') {
     p <- filter(df_wyr, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('Q', 'L', 'C')) %>%
       mutate(DATE=ymd(paste(WYEAR-1, 10, 1, sep='-'))) %>%
@@ -65,7 +67,7 @@ plot_loads <- function(dataset, variable, plot.type, site_ds, log.trans=FALSE) {
       geom_step() +
       geom_point(data=filter(df_obs, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('C'))) +
       facet_wrap(~TERM, scales='free_y', ncol=1) +
-      labs(x='', y='')  
+      labs(x='', y='')
   } else if (plot.type == 'monyr') {
     p <- filter(df_mon, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('Q', 'L', 'C')) %>%
       mutate(DATE=MONTHYEAR) %>%
@@ -73,14 +75,14 @@ plot_loads <- function(dataset, variable, plot.type, site_ds, log.trans=FALSE) {
       geom_line() +
       geom_point(data=filter(df_obs, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('C'))) +
       facet_wrap(~TERM, scales='free_y', ncol=1) +
-      labs(x='', y='')  
+      labs(x='', y='')
   } else if (plot.type == 'day') {
     p <- filter(df_day, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('Q', 'L', 'C')) %>%
       ggplot(aes(DATE, VALUE, color=SITE_NAME)) +
       geom_line() +
       geom_point(data=filter(df_obs, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('C'))) +
       facet_wrap(~TERM, scales='free_y', ncol=1) +
-      labs(x='', y='')  
+      labs(x='', y='')
   } else if (plot.type == 'mon') {
     p <- filter(df_mon, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('Q', 'L', 'C')) %>%
       mutate(MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
@@ -91,7 +93,7 @@ plot_loads <- function(dataset, variable, plot.type, site_ds, log.trans=FALSE) {
                        mutate(MONTH=ordered(month(DATE), levels=c(10:12, 1:9))),
                   alpha=0.5) +
       facet_wrap(~TERM, scales='free_y', ncol=1) +
-      labs(x='', y='')  
+      labs(x='', y='')
   } else if (plot.type == 'wday') {
     p <- filter(df_day, DATASET==dataset, VAR %in% c('FLOW', variable), SITE_NAME %in% c(site_ds, sites_us), TERM %in% c('Q', 'L', 'C')) %>%
       mutate(WDAY=ifelse(yday(DATE)-leap_year(DATE)>=274,
@@ -148,9 +150,9 @@ plot_dmc <- function(dataset, variable, term, site1, site2) {
   x.wide <- x %>%
     spread(SITE_NAME, CUMSUM) %>%
     as.data.frame
-  
+
   slope <- x.max[[site2]]/x.max[[site1]]
-  
+
   x.wide$DIFF <- x.wide[, site2] - x.wide[, site1]
   x.wide$RESID <- x.wide[, site2] - x.wide[, site1]*slope
   p1 <- ggplot(x.wide, aes_string(site1, site2)) +

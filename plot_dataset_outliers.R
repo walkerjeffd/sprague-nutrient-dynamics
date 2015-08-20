@@ -5,6 +5,8 @@ library(ggplot2)
 library(gridExtra)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 load('kt_sprague.Rdata')
 outliers <- readRDS('outliers.Rdata')
 source('functions.R')

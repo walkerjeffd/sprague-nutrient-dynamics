@@ -6,13 +6,15 @@ library(ggmap)
 library(dplyr)
 gpclibPermit()
 
+rm(list=ls())
+
 # stations ----
 load('kt_sprague.Rdata')
 
 stn <- select(stn.kt_sprague, SITE, SITE_NAME, SITE_ABBR)
 
 stn_incbasin_ivory <- stn %>%
-  mutate(INC_SITE=plyr::revalue(SITE, 
+  mutate(INC_SITE=plyr::revalue(SITE,
            c('SR0090'='SR0090-SR0080',
              'SR0080'='SR0080-SR0060-SR0070',
              'SR0060'='SR0060-SR0150-SR0140',
@@ -44,7 +46,7 @@ stn_incbasin_ivory <- stn %>%
          INC_SITE_ABBR=ordered(INC_SITE_ABBR, levels=INC_SITE_ABBR))
 
 stn_incbasin <- stn %>%
-  mutate(INC_SITE=plyr::revalue(SITE, 
+  mutate(INC_SITE=plyr::revalue(SITE,
            c('SR0090'='SR0090-SR0080',
              'SR0080'='SR0080-SR0060-SR0070',
              'SR0060'='SR0060-SR0050-SR0040',
@@ -74,14 +76,14 @@ GIS_DIR <- file.path(DATA_DIR, '../gis/sprague/r_wgs84')
 stopifnot(file.exists(GIS_DIR))
 
 # basin ----
-basin_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_basin.shp'), 
+basin_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_basin.shp'),
                               proj4string = CRS("+proj=longlat +datum=WGS84"))
 basin <- fortify(basin_shp)
 basin_area <- basin_shp@data %>%
   select(HUC8, NAME=Name, AREA_KM2=AreaSqKm)
 
 # subbasins ----
-subbasin_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_subbasins.shp'), 
+subbasin_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_subbasins.shp'),
                                  proj4string = CRS("+proj=longlat +datum=WGS84"))
 subbasin <- fortify(subbasin_shp, region="SITE") %>%
   filter(id != 'WR1000') %>%
@@ -96,7 +98,7 @@ subbasin_area <- subbasin_shp@data %>%
   arrange(SITE)
 
 # incbasins w/ ivory ----
-incbasin_ivory_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_incbasins_ivory.shp'), 
+incbasin_ivory_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_incbasins_ivory.shp'),
                                        proj4string = CRS("+proj=longlat +datum=WGS84"))
 incbasin_ivory <- fortify(incbasin_ivory_shp, region="SITE") %>%
   filter(id != 'WR1000') %>%
@@ -112,7 +114,7 @@ incbasin_ivory_area <- incbasin_ivory_shp@data %>%
   arrange(SITE)
 
 # incbasins w/o ivory ----
-incbasin_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_incbasins.shp'), 
+incbasin_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_incbasins.shp'),
                                  proj4string = CRS("+proj=longlat +datum=WGS84"))
 incbasin <- fortify(incbasin_shp, region="SITE") %>%
   filter(id != 'WR1000') %>%
@@ -128,7 +130,7 @@ incbasin_area <- incbasin_shp@data %>%
   arrange(SITE)
 
 #flowlines ----
-flowline_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_flowlines.shp'), 
+flowline_shp <- readShapeSpatial(file.path(GIS_DIR, 'sprague_flowlines.shp'),
                                  proj4string = CRS("+proj=longlat +datum=WGS84"))
 flowline <- fortify(flowline_shp)
 
@@ -136,6 +138,6 @@ flowline <- fortify(flowline_shp)
 map <- get_stamenmap(bbox=c(-122.1, 42.15, -120.6, 43), zoom=10)
 
 # save ----
-save(basin, subbasin, incbasin, incbasin_ivory, flowline, 
+save(basin, subbasin, incbasin, incbasin_ivory, flowline,
      basin_area, subbasin_area, incbasin_area, incbasin_ivory_area,
      map, file='gis.Rdata')
