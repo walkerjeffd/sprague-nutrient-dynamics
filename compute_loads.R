@@ -6,6 +6,8 @@ library(ggplot2)
 theme_set(theme_bw())
 library(gridExtra)
 
+rm(list=ls())
+
 load('kt_sprague.Rdata')
 load('gis.Rdata')
 
@@ -212,9 +214,9 @@ df_day_p <- filter(df_day, VAR %in% c('TP', 'PO4')) %>%
   mutate(PP = TP - PO4) %>%
   gather(VAR, VALUE, TP, PO4, PP) %>%
   filter(VAR=='PP') %>%
-  spread(TERM, VALUE) %>%
-  mutate(C=ifelse(C<=1, 1, C),
-         L=Q*C)
+  spread(TERM, VALUE)
+df_day_p$C <- ifelse(df_day_p$C<=1, 1, df_day_p$C)
+df_day_p$L <- df_day_p$Q*df_day_p$C
 
 df_day <- rbind(df_day, df_day_p) %>%
   arrange(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
@@ -244,11 +246,13 @@ df_wyr <- df_day %>%
   mutate(FREQ="WYR") %>%
   select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
 
+# compute site
 df_site <- df_day %>%
   group_by(DATASET, VAR, SITE_NAME) %>%
-  summarise(DATE=min(DATE),
-            Q=sum(Q),
-            L=sum(L),
+  summarise(N_YEAR=length(unique(WYEAR)),
+            DATE=min(DATE),
+            Q=sum(Q)/N_YEAR,
+            L=sum(L)/N_YEAR,
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup %>%
   mutate(MONTH=month(DATE), WYEAR=wyear(DATE),
@@ -283,8 +287,8 @@ df_all <- df_all %>%
   spread(TERM, VALUE)
 
 df_all <- left_join(df_all, areas, by="SITE_NAME") %>%
-  mutate(L_AREA=L/AREA_KM2,                 # kg/km2/mon
-         Q_AREA=Q/AREA_KM2*100) %>%         # cm/mon
+  mutate(L_AREA=L/AREA_KM2,                 # kg/km2/time
+         Q_AREA=Q/AREA_KM2*100) %>%         # cm/time
   gather(TERM, VALUE, Q, L, C, L_AREA, Q_AREA) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME),
                            levels=c("Power",
@@ -333,6 +337,13 @@ table(df_day$VAR, df_day$TERM)
 table(df_mon$VAR, df_mon$TERM)
 table(df_wyr$VAR, df_wyr$TERM)
 table(df_site$VAR, df_site$TERM)
+
+table(df_day$VAR, df_day$TERM)
+table(df_mon$VAR, df_mon$TERM)
+table(df_wyr$VAR, df_wyr$TERM)
+table(df_site$VAR, df_site$TERM)
+
+print(str(df_all))
 
 loads_df <- list('day'=df_day,
                  'mon'=df_mon,

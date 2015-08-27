@@ -29,7 +29,7 @@ stn <- select(stn.kt_sprague, SITE, SITE_NAME, LAT, LON) %>%
   #   rbind(data.frame(SITE='WR1000', SITE_NAME='Sprague_Kirchers', LAT=42.567806, LON=-121.864472), .) %>%
   mutate(SITE=ordered(SITE, levels=SITE),
          SITE_NAME=ordered(SITE_NAME, levels=SITE_NAME))
-stn <- left_join(stn, select(subbasin_area, SITE, AREA_KM2))
+stn <- left_join(stn, select(subbasin_area, SITE, AREA_KM2), by='SITE')
 
 dataset_levels <- names(loads)
 subbasin_levels <- levels(subbasin_area$SITE_NAME)
@@ -354,8 +354,8 @@ for (dataset in c('POR', 'RECENT')) {
                   paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: ', dataset,'   |   Variable: ', variable, '\n'))
     dash_subbasin(dataset, variable, 'L_AREA',
                   paste0('Mean Annual Load per Unit Area', '   |   ', 'Dataset: ', dataset,'   |   Variable: ', variable, '\n'))
-#     dash_subbasin(dataset, 'FLOW', 'Q_AREA',
-#                   paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
+    dash_subbasin(dataset, 'FLOW', 'Q_AREA',
+                  paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
 #     dash_subbasin(dataset, variable, 'L',
 #                   paste0('Mean Annual Load', '   |   ', 'Dataset: ', dataset,'   |   Variable: ', variable, '\n'))
 #     dash_subbasin(dataset, 'FLOW', 'Q',
@@ -376,8 +376,8 @@ for (dataset in c('POR', 'RECENT')) {
                   paste0('Change in Annual FWM Concentration', '   |   ', 'Dataset: ', dataset, '   |   Variable: ', variable, '\n'))
     dash_incbasin(dataset, variable, 'L_AREA',
                   paste0('Mean Annual Load per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: ', variable, '\n'))
-#     dash_incbasin(dataset, 'FLOW', 'Q_AREA',
-#                   paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
+    dash_incbasin(dataset, 'FLOW', 'Q_AREA',
+                  paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
 #     dash_incbasin(dataset, variable, 'L',
 #                   paste0('Mean Annual Load', '   |   ', 'Dataset: ', dataset, '   |   Variable: ', variable, '\n'))
 #     dash_incbasin(dataset, 'FLOW', 'Q',
@@ -491,7 +491,7 @@ for (dataset in c('POR', 'RECENT')) {
   grid.arrange(grobs=maps.l, nrow=2,
                top=paste0('\nNet Load per Unit Area by Incremental Subbasin\nDataset: ', dataset))
   makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
-  grid.arrange(arrangeGrob(maps.q, nrow=2, ncol=3),
+  grid.arrange(grobs=arrangeGrob(maps.q, nrow=2, ncol=3),
                top=paste0('\nNet Flow per Unit Area by Incremental Subbasin\nDataset: ', dataset))
   makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
   dev.off()
