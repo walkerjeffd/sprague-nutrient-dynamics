@@ -53,6 +53,34 @@ group_by(prism_incbasin, INC_SITE_NAME, AREA_KM2, WYEAR) %>%
   filter(N_MONTH == 12) %>%
   summarise(PRCP=mean(PRCP))
 
+# report figures
+png("report/prism-annual-precip.png", width=6, height=4, res=200, units="in")
+filter(prism_subbasin, SITE_NAME=="Power") %>%
+  group_by(WYEAR) %>%
+  summarise(SUM=sum(PRCP/10), # mm/mon -> cm/mon
+            N=n()) %>%
+  filter(N==12) %>%
+  ggplot(aes(WYEAR, SUM)) +
+  geom_bar(stat="identity") +
+  labs(x="Water Year", y="Annual Precipitation (cm/yr)") +
+  scale_y_continuous(breaks=seq(0, 100, 10)) +
+  scale_x_continuous(breaks=seq(1980, 2015, 5))
+dev.off()
+
+png("report/prism-monthly-precip.png", width=6, height=4, res=200, units="in")
+filter(prism_subbasin, SITE_NAME=="Power") %>%
+  group_by(WYEAR) %>%
+  mutate(N=n()) %>%
+  filter(N==12) %>%
+  mutate(MONTH=month(MONTHYEAR),
+         MONTH=ordered(as.character(MONTH), levels=as.character(c(10:12, 1:9))),
+         PRCP=PRCP/10) %>%
+  ggplot(aes(MONTH, PRCP)) +
+  geom_boxplot(fill="grey80") +
+  labs(x="Month", y="Monthly Precipitation (cm/mon)")
+dev.off()
+
+
 # save ----
 save(prism_subbasin, prism_incbasin, file='prism.Rdata')
 
