@@ -12,6 +12,7 @@ source('load_kt_sprague_synop.R')
 
 source('load_gis.R')
 source('load_nlcd.R')
+source('load_pou.R')
 
 source('load_ghcnd.R')
 source('load_snotel.R')

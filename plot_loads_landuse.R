@@ -14,6 +14,7 @@ load('loads.Rdata')
 load('nlcd.Rdata')
 load('gis.Rdata')
 load('network.Rdata')
+load('pou.Rdata')
 
 units <- c(Q='hm3/d', L='kg/d', C='ppb')
 term_labels <- c(Q='Flow (hm3/d)', L='Load (kg/d)', C='Conc (ppb)')
@@ -59,35 +60,6 @@ valley_subbasin_area <- spread(valley_incbasin_area, SITE_NAME, TOTAL_AREA_KM2) 
 subbasin_area <- rbind(basin_subbasin_area, valley_subbasin_area)
 
 # load pou ----
-pou.basin <- read.csv('~/Dropbox/Work/klamath/gis/sprague/water-rights/pou_irrigation_basin.csv', stringsAsFactors=FALSE) %>%
-  select(SITE, AREA_KM2=AreaSqKM) %>%
-  mutate(EXTENT="basin")
-pou.valley <- read.csv('~/Dropbox/Work/klamath/gis/sprague/water-rights/pou_irrigation_valley.csv', stringsAsFactors=FALSE) %>%
-  select(SITE, AREA_KM2=AreaSqKM) %>%
-  mutate(EXTENT="valley")
-pou <- rbind(pou.basin, pou.valley) %>%
-  left_join(select(stn.kt_sprague, SITE, SITE_NAME), by="SITE") %>%
-  filter(!is.na(SITE_NAME)) %>%
-  rbind(data.frame(EXTENT=c('basin', 'valley', 'valley'),
-                   SITE_NAME=c(rep('NF', 2), 'SF'),
-                   SITE=c(rep('SR0040', 2), 'SR0050'),
-                   AREA_KM2=rep(0, 3))) %>%
-  select(-SITE) %>%
-  arrange(EXTENT, SITE_NAME)
-
-pou <- spread(pou, SITE_NAME, AREA_KM2) %>%
-  mutate(SF_Ivory=SF_Ivory+SF,
-         NF_Ivory=NF_Ivory+NF,
-         Godowa=Godowa+NF_Ivory+SF_Ivory,
-         Lone_Pine=Lone_Pine+Godowa+Sycan,
-         Power=Power+Lone_Pine,
-         'Godowa+Sycan'=Godowa+Sycan,
-         'SF+NF'=SF+NF,
-         'SF_Ivory+NF_Ivory'=SF_Ivory+NF_Ivory) %>%
-  gather(SITE_NAME, AREA_KM2, -EXTENT) %>%
-  mutate(LANDUSE="POU", SOURCE="POU") %>%
-  select(SOURCE, EXTENT, SITE_NAME, LANDUSE, AREA_KM2)
-
 pou <- left_join(pou, subbasin_area, by=c("SITE_NAME", "EXTENT")) %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2))
 
@@ -183,8 +155,8 @@ df_mon <- left_join(df_mon_load, df_mon_flow,
   mutate(C=L/Q)
 
 # remove SF+NF from RECENT
-table(df_mon$SITE_NAME, df_mon$DATASET)
 df_mon <- df_mon[-which(df_mon$DATASET=="RECENT" & df_mon$SITE_NAME=="SF+NF"),]
+table(df_mon$SITE_NAME, df_mon$DATASET)
 
 # compute seasonal loads
 seasons <- list(Annual=1:12,
