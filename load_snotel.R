@@ -50,5 +50,7 @@ snotel.wyr <- snotel %>%
   left_join(snotel.wyr, by=c('SITE_NAME', 'WYEAR')) %>%
   select(SITE_NAME, WYEAR, N, SWE_APR, SWE_MEAN, SWE_MAX)
 
+write.csv(stn.snotel, file='csv/stn_snotel.csv', row.names=FALSE)
+
 # save ----
 save(snotel, snotel.wyr, stn.snotel, file='snotel.Rdata')
