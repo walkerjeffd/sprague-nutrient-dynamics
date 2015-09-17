@@ -8,6 +8,8 @@ library(scales)
 library(fluxr)
 theme_set(theme_bw())
 
+rm(list=ls())
+
 source("functions.R")
 load('gis.Rdata')
 
@@ -86,55 +88,38 @@ por.kt <- group_by(q.kt_sprague, SITE_NAME) %>%
 q.kt.power <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Power", "Lone_Pine")) %>%
   spread(SITE_NAME, FLOW)
-q.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Power") %>%
-  mutate(REF_SITE_NAME="Power",
-         REF_SOURCE="USGS") %>%
+q.ref.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Power")
+q.power <- mutate(q.ref.power, REF_SITE_NAME="Power",
+                  REF_SOURCE="USGS") %>%
   select(DATE, REF_FLOW=FLOW, REF_SITE_NAME, REF_SOURCE) %>%
   left_join(q.kt.power, by='DATE') %>%
   gather(SITE_NAME, FLOW, Power:Lone_Pine) %>%
   mutate(DATE=with_tz(DATE, tzone="UTC"),
          RATIO=FLOW/REF_FLOW)
 
-# ggplot(q.power, aes(DATE)) +
-#   geom_line(aes(y=REF_FLOW)) +
-#   geom_point(aes(y=FLOW), color='red') +
-#   facet_wrap(~SITE_NAME) +
-#   scale_y_log10()
-
-# filter(q.power, wyear(DATE)==2006) %>%
-#   ggplot(aes(DATE)) +
-#   geom_line(aes(y=REF_FLOW)) +
-#   geom_point(aes(y=FLOW), color='red') +
-#   facet_wrap(~SITE_NAME) +
-#   scale_y_log10()
-
 # sycan dataset ----
 q.kt.sycan <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME=="Sycan") %>%
   spread(SITE_NAME, FLOW)
-q.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Sycan") %>%
-  mutate(REF_SITE_NAME="Sycan",
-         REF_SOURCE="OWRD") %>%
+q.ref.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Sycan")
+q.sycan <- mutate(q.ref.sycan,
+                  REF_SITE_NAME="Sycan",
+                  REF_SOURCE="OWRD") %>%
   select(REF_SITE_NAME, REF_SOURCE, DATE, REF_FLOW=FLOW) %>%
   left_join(q.kt.sycan, by='DATE') %>%
   gather(SITE_NAME, FLOW, Sycan) %>%
   mutate(DATE=with_tz(DATE, tzone="UTC"),
          RATIO=FLOW/REF_FLOW)
 
-# ggplot(q.sycan, aes(DATE)) +
-#   geom_line(aes(y=REF_FLOW)) +
-#   geom_point(aes(y=FLOW), color='red') +
-#   facet_wrap(~SITE_NAME) +
-#   scale_y_log10()
-#
 # beatty dataset ----
 q.kt.beatty <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Godowa", "SF_Ivory",
                           "SF", "NF_Ivory", "NF")) %>%
   spread(SITE_NAME, FLOW)
-q.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Beatty") %>%
-  mutate(REF_SITE_NAME="Beatty",
-         REF_SOURCE="OWRD") %>%
+q.ref.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Beatty")
+q.beatty <- mutate(q.ref.beatty,
+                   REF_SITE_NAME="Beatty",
+                   REF_SOURCE="OWRD") %>%
   select(REF_SITE_NAME, REF_SOURCE, DATE, REF_FLOW=FLOW) %>%
   left_join(q.kt.beatty, by='DATE') %>%
   gather(SITE_NAME, FLOW, Godowa:NF) %>%
@@ -144,45 +129,40 @@ q.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, S
 # drop reference flows before 10/2008 for Ivory sites
 q.beatty <- filter(q.beatty, SITE_NAME %in% c("Godowa", "SF", "NF") | as.Date(DATE) >= start_date_ivory)
 
-# ggplot(q.beatty, aes(DATE)) +
-#   geom_line(aes(y=REF_FLOW)) +
-#   geom_point(aes(y=FLOW), color='red') +
-#   facet_wrap(~SITE_NAME) +
-#   scale_y_log10()
-
 # combine reference datasets
-q.ref <- rbind(q.power, q.sycan, q.beatty) %>%
+q.ref <- rbind(select(q.ref.power, -FLAG), q.ref.sycan, q.ref.beatty)
+q <- rbind(q.power, q.sycan, q.beatty) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=stn_order))
 
-ggplot(q.ref, aes(REF_FLOW, FLOW)) +
+ggplot(q, aes(REF_FLOW, FLOW)) +
   geom_point(size=1) +
   geom_smooth(method='loess') +
   facet_wrap(~SITE_NAME, scales='free')
 
-ggplot(q.ref, aes(REF_FLOW, FLOW)) +
+ggplot(q, aes(REF_FLOW, FLOW)) +
   geom_point(size=1) +
   geom_smooth(method='loess') +
   log_y +
   log_x +
   facet_wrap(~SITE_NAME, scales='free')
 
-mutate(q.ref, WDAY=water_day(DATE)) %>%
+mutate(q, WDAY=water_day(DATE)) %>%
   ggplot(aes(WDAY, RATIO)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME, scales='free')
 
-mutate(q.ref, WDAY=water_day(DATE)) %>%
+mutate(q, WDAY=water_day(DATE)) %>%
   ggplot(aes(WDAY, RATIO/REF_FLOW)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME, scales='free')
 
-mutate(q.ref, WDAY=water_day(DATE)) %>%
+mutate(q, WDAY=water_day(DATE)) %>%
   ggplot(aes(REF_FLOW, RATIO)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME, scales='free')
 
 # compute ----
-ratios <- q.ref %>%
+ratios <- q %>%
   filter(!is.na(FLOW), !is.na(REF_FLOW)) %>%
   group_by(SITE_NAME, REF_SOURCE, REF_SITE_NAME, MONTH=month(DATE)) %>%
   summarise(N=n(),
@@ -199,7 +179,7 @@ mutate(ratios, MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
   facet_wrap(~SITE_NAME)
 
 # merge flows with ratios
-q <- mutate(q.ref, MONTH=month(DATE)) %>%
+q <- mutate(q, MONTH=month(DATE)) %>%
   left_join(select(ratios, SITE_NAME, MONTH, RATIO_MONTH=RATIO), by=c('SITE_NAME', 'MONTH'))
 
 # compute predicted flows and interpolate residuals
@@ -261,6 +241,36 @@ stn.map <- rbind(select(stn.kt_sprague, SITE_NAME, REF_LABEL, LAT, LON) %>% muta
                  select(stn.ref, REF_LABEL, LAT, LON) %>% mutate(SITE_NAME=REF_LABEL, GROUP='Reference')) %>%
   arrange(desc(GROUP))
 
+# flow data ----
+filename <- file.path('pdf', 'flow-data.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
+               color = 'grey50', fill = NA, size = 0.2) +
+  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+            color='deepskyblue', size=0.2) +
+  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+               color = 'black', fill = NA, size = 0.2) +
+  geom_point(aes(x = LON, y = LAT),
+             data = stn.ref, shape = 17, size = 3, color='red') +
+  geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
+            data = mutate(stn.ref, REF_LABEL=paste0(REF_LABEL, "-", SITE_NAME)), fontface='bold', hjust=-0.1, size=4)
+print(p)
+makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.   ')
+
+p <- q.ref %>%
+  mutate(DATE=as.Date(DATE)) %>%
+  ggplot(aes(DATE, FLOW)) +
+  geom_line() +
+  labs(x="", y="Flow (cfs)\n ") +
+  scale_x_date(breaks=scales::date_breaks(width = "1 year"), labels=scales::date_format('%Y')) +
+  facet_wrap(~SOURCE+SITE+SITE_NAME, scales='free_y', ncol=1)
+print(p)
+
+dev.off()
+
+# flow model ----
 filename <- file.path('pdf', 'flow-model.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
