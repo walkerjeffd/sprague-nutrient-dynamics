@@ -63,20 +63,22 @@ nlcd_segments_valley <- filter(network, DATASET=='RECENT') %>%
   droplevels
 
 # pdf ----
+scale_fill_nlcd <- scale_fill_manual('Land Use',
+                                     values=c('Shrubland'='#AF963C',
+                                              'Herbaceous'='#FDE9AA',
+                                              'Forest'='#85C77E',
+                                              'Barren'='#D3CDC0',
+                                              'Wetlands'='#C8E6F8',
+                                              'Water'='#5475A8',
+                                              'Planted/Cultivated'='red',
+                                              'Developed'='#E8D1D1'))
 pdf(file.path('pdf', 'land-use-nlcd.pdf'), width=11, height=8.5)
 p <- nlcd.subbasin %>%
   ggplot(aes(SITE_NAME, AREA_FRAC, fill=LANDUSE)) +
   geom_bar(position='fill', stat='identity') +
   labs(x='Subbasin', y='Fraction Area') +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
-  scale_fill_manual('Land Use', values=c('Shrubland'='#AF963C',
-                                         'Herbaceous'='#FDE9AA',
-                                         'Forest'='#85C77E',
-                                         'Barren'='#D3CDC0',
-                                         'Wetlands'='#C8E6F8',
-                                         'Water'='#5475A8',
-                                         'Planted/Cultivated'='red',
-                                         'Developed'='#E8D1D1')) +
+  scale_fill_nlcd +
   scale_y_continuous(labels=scales::percent) +
   facet_wrap(~EXTENT) +
   ggtitle('NLCD Land Use Composition by Subbasin')
@@ -88,14 +90,7 @@ p <- nlcd.subbasin %>%
   labs(x='Subbasin', y='Fraction Area') +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   scale_y_continuous(labels=scales::percent) +
-  scale_fill_manual('Land Use', values=c('Shrubland'='#AF963C',
-                                         'Herbaceous'='#FDE9AA',
-                                         'Forest'='#85C77E',
-                                         'Barren'='#D3CDC0',
-                                         'Wetlands'='#C8E6F8',
-                                         'Water'='#5475A8',
-                                         'Planted/Cultivated'='red',
-                                         'Developed'='#E8D1D1')) +
+  scale_fill_nlcd +
   facet_grid(LANDUSE~EXTENT, scales='free_y') +
   ggtitle('NLCD Land Use Composition by Subbasin')
 print(p)
@@ -132,6 +127,22 @@ print(p)
 
 dev.off()
 
+# report ----
+
+png("report/nlcd-subbasin-composition.png", width=8, height=4, res=200, units="in")
+p <- nlcd.subbasin %>%
+  filter(SITE_NAME %in% c("Power", "Lone_Pine", "Godowa", "Sycan", "SF_Ivory", "SF", "NF_Ivory", "NF")) %>%
+  mutate(EXTENT=plyr::revalue(EXTENT, c("basin"="Total Basin", "valley"="Lower Valley"))) %>%
+  arrange(desc(LANDUSE)) %>%
+  ggplot(aes(SITE_NAME, AREA_FRAC, fill=LANDUSE)) +
+  geom_bar(position='fill', stat='identity') +
+  labs(x='Station', y='Fraction of Drainage Area (%)') +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  scale_fill_nlcd +
+  scale_y_continuous(labels=scales::percent) +
+  facet_wrap(~EXTENT)
+print(p)
+dev.off()
 
 # # pdf
 # pdf(file.path('pdf', 'land-use-gap.pdf'), width=11, height=8.5)
