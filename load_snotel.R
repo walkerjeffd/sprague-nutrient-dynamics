@@ -2,6 +2,8 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(fluxr)
+library(ggplot2)
+theme_set(theme_bw())
 
 rm(list=ls())
 
@@ -50,7 +52,17 @@ snotel.wyr <- snotel %>%
   left_join(snotel.wyr, by=c('SITE_NAME', 'WYEAR')) %>%
   select(SITE_NAME, WYEAR, N, SWE_APR, SWE_MEAN, SWE_MAX)
 
-write.csv(stn.snotel, file='csv/stn_snotel.csv', row.names=FALSE)
+png(filename="report/snotel-daily-ts.png", res=200, width=10, height=8, units = 'in')
+mutate(snotel, SWE_cm=SWE_in*2.54) %>%
+  ggplot(aes(DATE, SWE_cm)) +
+  geom_line() +
+  labs(x="Date", y="Snow Water Equivalent (cm)") +
+  facet_wrap(~SITE_NAME, ncol=1) +
+  scale_x_datetime(breaks=scales::date_breaks('5 years'),
+                   labels=scales::date_format('%Y'),
+                   limits=c(as.POSIXct('1981-12-31'), as.POSIXct('2014-09-30')))
+dev.off()
 
 # save ----
+write.csv(stn.snotel, file='csv/stn_snotel.csv', row.names=FALSE)
 save(snotel, snotel.wyr, stn.snotel, file='snotel.Rdata')

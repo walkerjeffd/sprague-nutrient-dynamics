@@ -2,6 +2,8 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(fluxr)
+library(ggplot2)
+theme_set(theme_bw())
 
 rm(list=ls())
 
@@ -39,29 +41,36 @@ prism_subbasin <- mutate(prism_incbasin, PRCP_AREA=PRCP*AREA_KM2) %>%
   mutate(PRCP=PRCP_AREA/AREA_KM2) %>%
   select(MONTHYEAR, WYEAR, SITE, SITE_NAME, AREA_KM2, PRCP)
 
-# overall mean annual precip (in/yr) by subbasin
-group_by(prism_subbasin, SITE_NAME, AREA_KM2, WYEAR) %>%
+# mean annual precip
+prism_subbasin_wyr <- group_by(prism_subbasin, SITE_NAME, AREA_KM2, WYEAR) %>%
   summarise(N_MONTH=n(),
-            PRCP=sum(PRCP)/25.4) %>%
-  filter(N_MONTH == 12) %>%
-  summarise(PRCP=mean(PRCP))
+            PRCP=sum(PRCP)/10) %>% # mm/yr -> cm/yr
+  ungroup %>%
+  filter(N_MONTH == 12)
 
-# overall mean annual precip (in/yr) by incbasin
+# overall mean annual precip (cm/yr) by subbasin
+prism_subbasin_site <- prism_subbasin_wyr %>%
+  group_by(SITE_NAME, AREA_KM2) %>%
+  summarise(PRCP=mean(PRCP))
+prism_subbasin_site
+mean_annual_precip <- filter(prism_subbasin_site, SITE_NAME=="Power")$PRCP
+mean_annual_precip
+
+# overall mean annual precip (cm/yr) by incbasin
 group_by(prism_incbasin, INC_SITE_NAME, AREA_KM2, WYEAR) %>%
   summarise(N_MONTH=n(),
-            PRCP=sum(PRCP)/25.4) %>%
+            PRCP=sum(PRCP)/10) %>% # mm/yr -> cm/yr
   filter(N_MONTH == 12) %>%
   summarise(PRCP=mean(PRCP))
 
 # report figures
 png("report/prism-annual-precip.png", width=6, height=4, res=200, units="in")
-filter(prism_subbasin, SITE_NAME=="Power") %>%
-  group_by(WYEAR) %>%
-  summarise(SUM=sum(PRCP/10), # mm/mon -> cm/mon
-            N=n()) %>%
-  filter(N==12) %>%
-  ggplot(aes(WYEAR, SUM)) +
+prism_subbasin_wyr %>%
+  filter(SITE_NAME=="Power") %>%
+  ggplot(aes(WYEAR, PRCP)) +
   geom_bar(stat="identity") +
+  geom_hline(yint=mean_annual_precip, color='black', linetype=2) +
+  geom_text(x=2013, y=mean_annual_precip+2, label="Mean", hjust=0, vjust=0, size=4) +
   labs(x="Water Year", y="Annual Precipitation (cm/yr)") +
   scale_y_continuous(breaks=seq(0, 100, 10)) +
   scale_x_continuous(breaks=seq(1980, 2015, 5))
