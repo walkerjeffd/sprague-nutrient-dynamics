@@ -13,6 +13,7 @@ load('kt_sprague.Rdata')
 load('loads.Rdata')
 load('nlcd.Rdata')
 load('gis.Rdata')
+load('geomorph.Rdata')
 load('network.Rdata')
 load('pou.Rdata')
 
@@ -36,15 +37,13 @@ basin_subbasin_area <- select(subbasin_area, SITE_NAME, AREA_KM2) %>%
   select(-GROUP) %>%
   mutate(EXTENT="basin")
 
-valley_incbasin_area <- read.csv('~/Dropbox/Work/klamath/data/sprague/gis/incremental_basins_geomorphology_clip.csv', stringsAsFactors=FALSE) %>%
+valley_incbasin_area <- geomorph_incbasin %>%
+  filter(INC_SITE_NAME != "Godowa-SF-NF") %>%
+  left_join(select(incbasin_ivory_area, SITE_NAME, INC_SITE),
+            by="INC_SITE") %>%
+  select(SITE_NAME, TOTAL_AREA_KM2=VALLEY_AREA_KM2) %>%
   mutate(EXTENT="valley") %>%
-  rename(TOTAL_AREA_KM2=AreaSqKM) %>%
-  left_join(select(stn.kt_sprague, SITE, SITE_NAME), by="SITE") %>%
-  select(-SITE) %>%
-  filter(!is.na(SITE_NAME)) %>%
-  spread(SITE_NAME, TOTAL_AREA_KM2) %>%
-  mutate(NF=0) %>%
-  gather(SITE_NAME, TOTAL_AREA_KM2, -EXTENT)
+  select(EXTENT, SITE_NAME, TOTAL_AREA_KM2)
 
 valley_subbasin_area <- spread(valley_incbasin_area, SITE_NAME, TOTAL_AREA_KM2) %>%
   mutate(SF_Ivory=SF_Ivory+SF,
@@ -64,7 +63,6 @@ pou <- left_join(pou, subbasin_area, by=c("SITE_NAME", "EXTENT")) %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2))
 
 # load nlcd ----
-load('nlcd.Rdata')
 nlcd.subbasin <- filter(nlcd.subbasin, SOURCE=="NLCD_CAT") %>%
   droplevels %>%
   select(-TOTAL_AREA_KM2, -AREA_FRAC)
