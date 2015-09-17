@@ -430,6 +430,65 @@ print(p)
 
 dev.off()
 
+# report ----
+png('report/method-flow-station-map.png', width=8, height=5, res=200, units='in')
+p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
+               color = 'grey50', fill = NA, size = 0.2) +
+  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+               color = 'black', fill = NA, size = 0.2) +
+  geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
+             data = stn.map) +
+  geom_text(aes(x = LON-ifelse(SITE!='11497500', 0, 0.02),
+                y = LAT, label = REF_LABEL,
+                hjust = ifelse(SITE!='11497500', 0.5, 1),
+                vjust = ifelse(SITE!='11497500', -1, 1)),
+            data = stn.ref, fontface='bold', size=4) +
+  geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
+            data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=4, hjust=1) +
+  geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
+            data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=4, hjust=0) +
+  scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
+  scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
+  scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
+                                                  'OWRD-11497500'='deepskyblue',
+                                                  'OWRD-11499100'='chartreuse3')) +
+  guides(fill=guide_legend(override.aes=list(shape=21))) +
+  geom_text(x=-120.61, y=42.17,
+            label='Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.',
+            size=3,
+            hjust=1,
+            color='grey50')
+print(p)
+dev.off()
+
+png('report/results-flow-daily-ts.png', width=8, height=6, res=200, units='in')
+p <- ggplot(q.model, aes(DATE)) +
+  geom_line(aes(y=PRED_RESID, color="Estimated Daily\nFlows")) +
+  geom_point(aes(y=FLOW, color='Measured Biweekly\nFlow'), size=1) +
+  scale_color_manual('', values=c('grey50', 'orangered')) +
+  labs(x='Date', y='Flow (cfs)') +
+  facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
+  guides(colour = guide_legend(override.aes=list(linetype=c('solid', 'blank'),
+                                                 shape=c(NA, 16)))) +
+  theme(legend.position='top')
+print(p)
+dev.off()
+
+png('report/results-flow-annual-ts.png', width=8, height=6, res=200, units='in')
+p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(N=n(),
+            Q=mean(Q)) %>%
+  ungroup %>%
+  filter(N>=365) %>%
+  ggplot(aes(WYEAR, Q)) +
+  geom_bar(stat='identity') +
+  labs(x='Water Year', y='Annual Mean Flow (cfs)') +
+  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+print(p)
+dev.off()
+
 # save ----
 cat('Saving flows to flows.Rdata...\n')
 list(ratios=ratios,
