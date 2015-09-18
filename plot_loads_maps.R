@@ -35,63 +35,6 @@ dataset_levels <- names(loads)
 subbasin_levels <- levels(subbasin_area$SITE_NAME)
 incbasin_levels <- list(RECENT=unique(incbasin_ivory_area$INC_SITE_NAME),
                         POR=unique(incbasin_area$INC_SITE_NAME))
-#
-# # compute junction flows and loads
-# df <- filter(df_site, SITE_NAME %in% stn.kt_sprague$SITE_NAME, TERM %in% c('Q', 'L')) %>%
-#   select(DATASET, VAR, SITE_NAME, TERM, VALUE) %>%
-#   spread(SITE_NAME, VALUE) %>%
-#   mutate(`Godowa+Sycan`=Godowa+Sycan,
-#          `SF_Ivory+NF_Ivory`=SF_Ivory+NF_Ivory,
-#          `SF+NF`=SF+NF) %>%
-#   gather(SITE_NAME, VALUE, Power:`SF+NF`)
-#
-# # compute concentration
-# df_flow <- filter(df, VAR=="FLOW") %>% select(-VAR) %>% spread(TERM, VALUE)
-# df <- filter(df, VAR!="FLOW") %>%
-#   spread(TERM, VALUE) %>%
-#   left_join(df_flow, by=c("DATASET", "SITE_NAME")) %>%
-#   mutate(C=L/Q) %>%
-#   gather(TERM, VALUE, L:C)
-#
-# # compute net change
-# df <- spread(df, SITE_NAME, VALUE) %>%
-#   mutate(`Power-Lone_Pine`=Power-Lone_Pine,
-#          `Lone_Pine-Godowa-Sycan`=Lone_Pine-`Godowa+Sycan`,
-#          `Godowa-SF-NF`=Godowa-`SF+NF`,
-#          `Godowa-SF_Ivory-NF_Ivory`=Godowa-`SF_Ivory+NF_Ivory`,
-#          `SF_Ivory-SF`=SF_Ivory-SF,
-#          `NF_Ivory-NF`=NF_Ivory-NF) %>%
-#   gather(SITE_NAME, VALUE, Power:`NF_Ivory-NF`)
-#
-# # add areas
-# areas <- rbind(select(subbasin_area, SITE_NAME, AREA_KM2),
-#                select(incbasin_area, SITE_NAME=INC_SITE_NAME, AREA_KM2),
-#                select(incbasin_ivory_area, SITE_NAME=INC_SITE_NAME, AREA_KM2)) %>%
-#   unique %>%
-#   mutate(GROUP=1) %>%
-#   spread(SITE_NAME, AREA_KM2) %>%
-#   mutate(`Godowa+Sycan`=Godowa+Sycan,
-#          `SF_Ivory+NF_Ivory`=SF_Ivory+NF_Ivory,
-#          `SF+NF`=SF+NF) %>%
-#   gather(SITE_NAME, AREA_KM2, -GROUP) %>%
-#   select(-GROUP)
-# stopifnot(any(!duplicated(areas$SITE_NAME)))
-# stopifnot(all(unique(df$SITE_NAME) %in% areas$SITE_NAME))
-# stopifnot(all(areas$SITE_NAME %in% unique(df$SITE_NAME)))
-#
-# # add areas and compute flow/load per area
-# df <- left_join(df, areas, by="SITE_NAME") %>%
-#   spread(TERM, VALUE) %>%
-#   mutate(L_AREA=L/AREA_KM2,
-#          Q_AREA=Q/AREA_KM2*100) %>%
-#   gather(TERM, VALUE, Q, Q_AREA, L, L_AREA, C)
-#
-# # move flow to variable
-# df.flow <- filter(df, TERM %in% c("Q", "Q_AREA")) %>%
-#   mutate(VAR="FLOW")
-# df <- filter(df, TERM %in% c("C", "L", "L_AREA")) %>%
-#   rbind(df.flow)
-# table(df$VAR, df$TERM)
 
 # separate gis by dataset
 stn <- list(RECENT=stn,
@@ -124,33 +67,6 @@ scale_fill_term_inc <- list(
                          high='orangered', mid='white', low='black',
                          space='rgb')
 )
-
-# variable <- 'TP'
-# term <- 'Q_AREA'
-# dataset <- 'RECENT'
-# ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-#   geom_polygon(aes(x = long, y = lat, group = group),
-#                data = incbasin[[dataset]] %>%
-#                  select(-SITE_NAME),
-#                color = 'grey50', fill = NA, size = 0.2) +
-#   geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-#                data = filter(incbasin[[dataset]], !(SITE_NAME %in% c("Sycan", "NF", "SF"))) %>%
-#                  left_join(filter(df, DATASET==dataset, VAR==variable, TERM==term,
-#                                   SITE_NAME %in% incbasin_levels[[dataset]]) %>%
-#                              mutate(VALUE=ifelse(SITE_NAME %in% c("Sycan", "NF", "SF"), 0, VALUE)),
-#                            by=c('INC_SITE_NAME'='SITE_NAME')),
-#                colour = 'black', size = 0.2) +
-#   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-#                color = 'black', fill = NA, size = 0.2) +
-#   geom_point(aes(x = LON, y = LAT), data = stn[[dataset]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
-#   geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-#             data=incbasin[[dataset]] %>%
-#               group_by(INC_SITE_NAME) %>%
-#               summarise(long=mean(c(min(long), max(long))),
-#                         lat=mean(c(min(lat), max(lat)))),
-#             fontface='bold', size=3) +
-#   scale_fill_gradient2(high='orangered', mid='white', low='deepskyblue', space='rgb')
-
 
 # subbasin functions ----
 map_subbasin <- function(dataset, variable, term, title=NULL) {
@@ -269,6 +185,11 @@ map_incbasin <- function(dataset, variable, term, title=NULL) {
   }
   p <- p + theme(strip.background=element_blank(),
                  strip.text.x=element_text(face='bold'))
+  p <- p + geom_text(x=-120.61, y=42.17,
+                     label='Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.',
+                     size=3,
+                     hjust=1,
+                     color='grey50')
   p
 }
 # map_incbasin(dataset='POR', variable='FLOW', term='Q_AREA',
@@ -331,7 +252,7 @@ dash_incbasin <- function(dataset, variable, term, title=NULL) {
     theme(plot.margin = grid::unit(c(1,0,1,0), "cm"))
   grid.arrange(grobs=list(p.map, arrangeGrob(p.bar, p.tile, ncol=2)),
                heights=c(2/3, 1/3), ncol=1)
-  makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
+  # makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
 }
 # dash_incbasin('POR', 'FLOW', 'Q_AREA',
 #               paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: POR   |   Variable: Flow\n'))
@@ -503,14 +424,29 @@ for (dataset in c('POR', 'RECENT')) {
 
 # report ----
 
-png('report/results-load-map-tp-conc.png', width=10, height=8, res=200, units='in')
-dash_subbasin('POR', 'TP', 'C', '')
+# subbasin
+png('report/results-load-map-subbasin-recent-tp-conc.png', width=10, height=8, res=200, units='in')
+dash_subbasin('RECENT', 'TP', 'C', '')
 dev.off()
 
-png('report/results-load-map-tp-load.png', width=10, height=8, res=200, units='in')
-dash_subbasin('POR', 'TP', 'L_AREA', '')
+png('report/results-load-map-subbasin-recent-tp-load.png', width=10, height=8, res=200, units='in')
+dash_subbasin('RECENT', 'TP', 'L_AREA', '')
 dev.off()
 
-png('report/results-load-map-tp-flow.png', width=10, height=8, res=200, units='in')
-dash_subbasin('POR', 'FLOW', 'Q_AREA', '')
+png('report/results-load-map-subbasin-recent-flow.png', width=10, height=8, res=200, units='in')
+dash_subbasin('RECENT', 'FLOW', 'Q_AREA', '')
 dev.off()
+
+# incbasin
+png('report/results-load-map-incbasin-recent-tp-conc.png', width=10, height=8, res=200, units='in')
+dash_incbasin('RECENT', 'TP', 'C', '')
+dev.off()
+
+png('report/results-load-map-incbasin-recent-tp-load.png', width=10, height=8, res=200, units='in')
+dash_incbasin('RECENT', 'TP', 'L_AREA', '')
+dev.off()
+
+png('report/results-load-map-incbasin-recent-flow.png', width=10, height=8, res=200, units='in')
+dash_incbasin('RECENT', 'FLOW', 'Q_AREA', '')
+dev.off()
+
