@@ -804,7 +804,7 @@ p <- filter(df_site_area, DATASET=='RECENT', VAR=='TP', EXTENT=='basin', LANDUSE
 print(p)
 dev.off()
 
-png('report/results-loads-cumarea-conc-recent-basin.png', width=10, height=5, res=200, units='in')
+png('report/results-loads-cumarea-conc-recent-basin.png', height=10, width=10, res=200, units='in')
 p <- filter(df_site_area, DATASET=='RECENT', TERM=='C', EXTENT=='basin', LANDUSE=='Total') %>%
   filter(SITE_NAME %in% stn_primary[['RECENT']]) %>%
   ggplot() +
