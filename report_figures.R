@@ -23,7 +23,7 @@ df_mon <- filter(loads_df[['mon']],
                      SITE_NAME %in% c('Power', 'Lone_Pine', 'Sycan', 'Godowa',
                                       'SF', 'NF')) %>%
   filter(TERM %in% c("Q", "C")) %>%
-  filter(VAR != "PP") %>%
+  # filter(VAR != "PP") %>%
   arrange(VAR, SITE_NAME) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME),
                            levels=c("Power", "Lone_Pine", "Godowa", "Sycan",

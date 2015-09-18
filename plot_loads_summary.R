@@ -6,6 +6,8 @@ library(ggplot2)
 theme_set(theme_bw())
 library(gridExtra)
 
+rm(list=ls())
+
 # load data ----
 load('kt_sprague.Rdata')
 load('loads.Rdata')
@@ -502,4 +504,44 @@ for (variable in unique(params$VAR)) {
                ncol=2,
                top=paste0('\nVariable: ', variable))
 }
+dev.off()
+
+# report ----
+
+loads_wyr <- lapply(names(loads[['POR']][['TP']]), function (site_name) {
+  x <- loads[['POR']][['TP']][[site_name]][['out']][['wyr']]
+  x$SITE_NAME <- site_name
+  x
+}) %>%
+  rbind_all %>%
+  left_join(select(subbasin_area, SITE_NAME, AREA_KM2)) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels)) %>%
+  droplevels %>%
+  select(SITE_NAME, AREA_KM2, WYEAR, Q_mean=Q, L_mean=L, C_mean=C, L_se, C_se) %>%
+  mutate(Q_mean=Q_mean/AREA_KM2*100, # m/yr -> cm/yr
+         L_mean=L_mean/AREA_KM2,
+         L_se=L_se/AREA_KM2) %>%
+  gather(TERM_STAT, VALUE, Q_mean:C_se) %>%
+  separate(TERM_STAT, c('TERM', 'STAT')) %>%
+  spread(STAT, VALUE)
+  # mutate(se=ifelse(is.na(se), 0, se))
+
+png('report/results-load-annual-tp.png', width=10, height=6, res=200, units='in')
+p <- ggplot(loads_wyr, aes(factor(WYEAR), mean, fill=TERM)) +
+  geom_bar(stat='identity', width=0.6) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=0.2) +
+  scale_fill_manual('', values=c(C='orangered', L='olivedrab3', Q='steelblue')) +
+  facet_grid(TERM~SITE_NAME, scales='free_y') +
+  scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014)) +
+  guides(fill='none') +
+  labs(x='Water Year',
+       y=paste(c('Flow per Area (cm/yr)',
+                 'TP Load per Area (kg/km2/yr)',
+                 'FWM TP Conc (ppb)'),
+               collapse='     ')) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        axis.title.y=element_text(size=10),
+        strip.background=element_blank(),
+        strip.text.y=element_blank())
+print(p)
 dev.off()
