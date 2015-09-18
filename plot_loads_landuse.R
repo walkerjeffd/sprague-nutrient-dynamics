@@ -695,3 +695,129 @@ for (dataset in c('POR', 'RECENT')) {
 #
 #
 # dev.off()
+
+
+# report ----
+png('report/results-loads-pou-recent-valley.png', width=8, height=8, res=200, units='in')
+p <- filter(df_site_area, DATASET=='RECENT', TERM=="C", EXTENT=='valley', LANDUSE=="POU") %>%
+  mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
+  ggplot(aes(AREA_FRAC, VALUE, color=SITE_NAME)) +
+  geom_point(size=2) +
+  facet_grid(VAR ~ SEASON, scales="free_y") +
+  scale_x_continuous(labels=scales::percent) +
+  scale_color_discrete('') +
+  labs(x="Cumulative Fraction POU Irrigation Area (%)\nLower Valley Only",
+       y="Concentration (ppb)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        strip.text.x=element_text(size=8),
+        aspect.ratio=1)
+print(p)
+dev.off()
+
+png('report/results-loads-pou-por-valley.png', width=8, height=8, res=200, units='in')
+p <- filter(df_site_area, DATASET=='POR', TERM=="C", EXTENT=='valley', LANDUSE=="POU") %>%
+  mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
+  ggplot(aes(AREA_FRAC, VALUE, color=SITE_NAME)) +
+  geom_point(size=2) +
+  facet_grid(VAR ~ SEASON, scales="free_y") +
+  scale_x_continuous(labels=scales::percent) +
+  scale_color_discrete('') +
+  labs(x="Cumulative Fraction POU Irrigation Area (%)\nLower Valley Only",
+       y="Concentration (ppb)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        strip.text.x=element_text(size=8),
+        aspect.ratio=1)
+print(p)
+dev.off()
+
+png('report/results-loads-pou-recent-basin.png', width=8, height=8, res=200, units='in')
+p <- filter(df_site_area, DATASET=='RECENT', TERM=="C", EXTENT=='basin', LANDUSE=="POU") %>%
+  mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
+  ggplot(aes(AREA_FRAC, VALUE, color=SITE_NAME)) +
+  geom_point(size=2) +
+  facet_grid(VAR ~ SEASON, scales="free_y") +
+  scale_x_continuous(labels=scales::percent) +
+  scale_color_discrete('') +
+  labs(x="Cumulative Fraction POU Irrigation Area (%)",
+       y="Concentration (ppb)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        strip.text.x=element_text(size=8),
+        aspect.ratio=1)
+print(p)
+dev.off()
+
+png('report/results-loads-pou-por-basin.png', width=8, height=8, res=200, units='in')
+p <- filter(df_site_area, DATASET=='POR', TERM=="C", EXTENT=='basin', LANDUSE=="POU") %>%
+  mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
+  ggplot(aes(AREA_FRAC, VALUE, color=SITE_NAME)) +
+  geom_point(size=2) +
+  facet_grid(VAR ~ SEASON, scales="free_y") +
+  scale_x_continuous(labels=scales::percent) +
+  scale_color_discrete('') +
+  labs(x="Cumulative Fraction POU Irrigation Area (%)",
+       y="Concentration (ppb)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        strip.text.x=element_text(size=8),
+        aspect.ratio=1)
+print(p)
+dev.off()
+
+# nlcd
+png('report/results-loads-nlcd-recent-basin.png', width=12, height=8, res=200, units='in')
+p <- filter(df_site_area, DATASET=="RECENT", TERM=="C",
+            EXTENT=="basin", !(LANDUSE %in% c("POU", "Total")),
+            SEASON=="Annual") %>%
+  filter(SITE_NAME %in% stn_primary[["RECENT"]]) %>%
+  filter(TOTAL_AREA_KM2>0) %>%
+  ggplot() +
+  geom_smooth(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE), method='lm', se=FALSE, color='grey50') +
+  geom_point(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE, color=SITE_NAME), size=2) +
+  facet_grid(VAR~LANDUSE, scales='free') +
+  scale_color_discrete('') +
+  scale_x_continuous(labels=scales::percent) +
+  labs(x='Fraction Cumulative Land Use Area (%)', y='Concentration (ppb)') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        axis.text.y=element_text(size=8),
+        strip.text.x=element_text(size=6),
+        strip.text.y=element_text(size=8),
+        aspect.ratio=1)
+print(p)
+dev.off()
+
+# cumulative area
+png('report/results-loads-cumarea-tp-recent-basin.png', width=10, height=5, res=200, units='in')
+p <- filter(df_site_area, DATASET=='RECENT', VAR=='TP', EXTENT=='basin', LANDUSE=='Total') %>%
+  filter(SITE_NAME %in% stn_primary[['RECENT']]) %>%
+  ggplot() +
+  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
+  geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
+               data=filter(df_segments_site, DATASET=='RECENT', VAR=='TP', EXTENT=='basin', LANDUSE=='Total'),
+               alpha=0.5) +
+  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
+  facet_grid(TERM~SEASON, scales='free_y') +
+  scale_color_discrete('') +
+  scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
+  labs(x='Cumulative Drainage Area (km2)', y=paste(c('Flow (hm3/d)', 'Load (kg/d)', 'Conc (ppb)'),
+                                                   collapse='         ')) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        aspect.ratio=1)
+print(p)
+dev.off()
+
+png('report/results-loads-cumarea-conc-recent-basin.png', width=10, height=5, res=200, units='in')
+p <- filter(df_site_area, DATASET=='RECENT', TERM=='C', EXTENT=='basin', LANDUSE=='Total') %>%
+  filter(SITE_NAME %in% stn_primary[['RECENT']]) %>%
+  ggplot() +
+  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
+  geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
+               data=filter(df_segments_site, DATASET=='RECENT', TERM=='C', EXTENT=='basin', LANDUSE=='Total'),
+               alpha=0.5) +
+  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
+  facet_grid(VAR~SEASON, scales='free_y') +
+  scale_color_discrete('') +
+  scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
+  labs(x='Cumulative Drainage Area (km2)', y='Concentration (ppb)') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        aspect.ratio=1)
+print(p)
+dev.off()
