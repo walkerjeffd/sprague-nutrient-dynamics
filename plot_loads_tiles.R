@@ -255,7 +255,7 @@ p <- df_wyr_report.tile %>%
   scale_fill_gradientn('Std. Value',
                        colours=rev(scales::brewer_pal(type = "seq",
                                                       palette = 'GnBu')(9))) +
-  # scale_x_discrete(labels=wyr_labels) +
+  scale_x_discrete(labels=wyr_labels) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=10),
         axis.text.y=element_text(size=10),
         panel.grid=element_blank()) +
