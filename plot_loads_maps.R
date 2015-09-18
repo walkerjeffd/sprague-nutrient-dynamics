@@ -167,7 +167,9 @@ map_subbasin <- function(dataset, variable, term, title=NULL) {
     geom_point(aes(x = LON, y = LAT), data = stn[[dataset]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
     scale_fill_term[[term]] +
     facet_wrap(~SITE_NAME, nrow=2) +
-    ggtitle(title)
+    ggtitle(title) +
+    theme(strip.background=element_blank(),
+          strip.text.x=element_text(face='bold'))
 }
 # map_subbasin(dataset='POR', variable='FLOW', term='Q_AREA')
 # map_subbasin(dataset='POR', variable='TP', term='C')
@@ -204,13 +206,13 @@ tile_subbasin <- function(dataset, variable, term, title=NULL) {
 
 dash_subbasin <- function(dataset, variable, term, title=NULL) {
   p.map <- map_subbasin(dataset=dataset, variable=variable, term=term, title=title)
-  p.bar <- bar_subbasin(dataset=dataset, variable=variable, term=term) +
-    theme(aspect.ratio=1)
-  p.tile <- tile_subbasin(dataset=dataset, variable=variable, term=term) +
-    theme(plot.margin = grid::unit(c(1,0,1,0), "cm")) +
-    theme(aspect.ratio=1)
+  p.bar <- bar_subbasin(dataset=dataset, variable=variable, term=term)
+    # theme(aspect.ratio=1)
+  p.tile <- tile_subbasin(dataset=dataset, variable=variable, term=term)
+    # theme(plot.margin = grid::unit(c(1,0,1,0), "cm")) +
+    # theme(aspect.ratio=1)
   grid.arrange(p.map, arrangeGrob(p.bar, p.tile, ncol=2), heights=c(2/3, 1/3), ncol=1)
-  makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
+  # makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
 }
 # dash_subbasin('POR', 'FLOW', 'Q_AREA',
 #               paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: POR   |   Variable: Flow\n'))
@@ -218,8 +220,8 @@ dash_subbasin <- function(dataset, variable, term, title=NULL) {
 #               paste0('Mean Annual Load', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
 # dash_subbasin('POR', 'TP', 'L_AREA',
 #               paste0('Mean Annual Load per Unit Area', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
-# dash_subbasin('RECENT', 'TP', 'C',
-#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
+dash_subbasin('POR', 'TP', 'C',
+              paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
 
 map_incbasin <- function(dataset, variable, term, title=NULL) {
   if (term == 'C') {
@@ -265,6 +267,8 @@ map_incbasin <- function(dataset, variable, term, title=NULL) {
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   }
+  p <- p + theme(strip.background=element_blank(),
+                 strip.text.x=element_text(face='bold'))
   p
 }
 # map_incbasin(dataset='POR', variable='FLOW', term='Q_AREA',
@@ -496,3 +500,17 @@ for (dataset in c('POR', 'RECENT')) {
   makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
   dev.off()
 }
+
+# report ----
+
+png('report/results-load-map-tp-conc.png', width=10, height=8, res=200, units='in')
+dash_subbasin('POR', 'TP', 'C', '')
+dev.off()
+
+png('report/results-load-map-tp-load.png', width=10, height=8, res=200, units='in')
+dash_subbasin('POR', 'TP', 'L_AREA', '')
+dev.off()
+
+png('report/results-load-map-tp-flow.png', width=10, height=8, res=200, units='in')
+dash_subbasin('POR', 'FLOW', 'Q_AREA', '')
+dev.off()
