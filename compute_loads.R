@@ -8,6 +8,9 @@ library(gridExtra)
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Running water quality model...\n\n")
+
 load('kt_sprague.Rdata')
 load('gis.Rdata')
 
@@ -15,9 +18,11 @@ dataset_levels <- c("POR", "RECENT")
 site_name_levels <- levels(stn.kt_sprague$SITE_NAME)
 wyear_ranges <- list(POR=c(2001, 2014),
                      RECENT=c(2009, 2014),
+                     IVORY=c(2009, 2014),
                      TSS=c(2010, 2014))
 predict_wyear_ranges <- list(POR=c(2002, 2014),
-                             RECENT=c(2009, 2014),
+                             RECENT=c(2010, 2014),
+                             IVORY=c(2010, 2014),
                              TSS=c(2011, 2014))
 
 # load flow data ----
@@ -105,20 +110,24 @@ q <- lapply(names(wq.kt_sprague), function(dataset) {
     filter(SITE_NAME %in% dataset_sites[[dataset]])
 }) %>%
   rbind_all(.)
-# table(q$SITE_NAME, q$DATASET)
+table(q$SITE_NAME, q$DATASET)
 
 wq <- select(wq, DATASET, SITE, SITE_NAME, DATE, VAR, Qs, C)
 wq.wide <- spread(wq, VAR, C)
 
-df <- left_join(q, wq.wide, by=c('SITE_NAME', 'DATE', 'SITE', 'DATASET')) %>%
+df <- left_join(mutate(q, SITE=as.character(SITE)),
+                mutate(wq.wide,
+                       SITE=as.character(SITE),
+                       SITE_NAME=as.character(SITE_NAME)),
+                by=c('SITE_NAME', 'DATE', 'SITE', 'DATASET')) %>%
   gather(VAR, C, NH4, NO23, PO4, TN, TP, TSS) %>%
-  arrange(DATASET, SITE, VAR, DATE)
-df$WYEAR <- wyear(df$DATE)
-df$SAMPLED <- !is.na(df$C)
-df$L <- df$Q*df$C
-df$SITE <- ordered(df$SITE, levels=levels(stn.kt_sprague$SITE))
-df$SITE_NAME <- ordered(df$SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME))
-df <- df[, c('DATASET', 'SITE', 'SITE_NAME', 'DATE', 'WYEAR', 'VAR', 'Q', 'Qs', 'C', 'L', 'SAMPLED')]
+  arrange(DATASET, SITE, VAR, DATE) %>%
+  mutate(WYEAR=wyear(DATE),
+         SAMPLED=!is.na(C),
+         L=Q*C,
+         SITE=ordered(SITE, levels=levels(stn.kt_sprague$SITE)),
+         SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME))) %>%
+  select(DATASET, SITE, SITE_NAME, DATE, WYEAR, VAR, Q, Qs, C, L, SAMPLED)
 str(df)
 
 # table(df$SITE_NAME, df$DATASET)
@@ -140,6 +149,9 @@ estimate_loads <- function(df, dataset, variable, site) {
   if (variable == 'TSS') {
     x <- filter(df, WYEAR %in% seq(wyear_ranges[['TSS']][1], wyear_ranges[['TSS']][2]))
     predict_wyear_range <- predict_wyear_ranges[['TSS']]
+  } else if (site %in% c('SF_Ivory', 'NF_Ivory')) {
+    x <- filter(df, WYEAR %in% seq(wyear_ranges[['IVORY']][1], wyear_ranges[['IVORY']][2]))
+    predict_wyear_range <- predict_wyear_ranges[['IVORY']]
   } else {
     x <- filter(df, WYEAR %in% seq(wyear_ranges[[dataset]][1], wyear_ranges[[dataset]][2]))
     predict_wyear_range <- predict_wyear_ranges[[dataset]]
@@ -152,9 +164,9 @@ estimate_loads <- function(df, dataset, variable, site) {
 
   loads
 }
-# x <- filter(df, DATASET=='RECENT', SITE=="SR0090", VAR=="TP") %>% estimate_loads(.)
-x <- filter(df, DATASET=='POR', SITE=="SR0090", VAR=="TP") %>% estimate_loads(., 'POR', 'SR0090', 'TP')
-str(df)
+# x <- filter(df, DATASET=='RECENT', SITE_NAME=="Power", VAR=="TP") %>% estimate_loads(.)
+# x <- filter(df, DATASET=='POR', SITE_NAME=="Power", VAR=="TP") %>% estimate_loads(., 'POR', 'TP', 'Power')
+# x <- filter(df, DATASET=='POR', SITE_NAME=="SF_Ivory", VAR=="TP") %>% estimate_loads(., 'POR', 'TP', 'SF_Ivory')
 
 loads <- lapply(dataset_levels, function(dataset) {
   cat(dataset, '\n')
@@ -177,15 +189,17 @@ loads <- lapply(dataset_levels, function(dataset) {
 names(loads) <- dataset_levels
 
 areas <- rbind(select(subbasin_area, SITE_NAME, AREA_KM2),
-               select(incbasin_ivory_area, SITE_NAME=INC_SITE_NAME, AREA_KM2),
                select(incbasin_area, SITE_NAME=INC_SITE_NAME, AREA_KM2)) %>%
   unique %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
+  arrange(SITE_NAME) %>%
   mutate(IDX=1) %>%
   spread(SITE_NAME, AREA_KM2) %>%
   mutate('Godowa+Sycan' = Godowa + Sycan,
          'SF+NF' = SF + NF,
          'SF_Ivory+NF_Ivory' = SF_Ivory + NF_Ivory) %>%
   gather(SITE_NAME, AREA_KM2, -IDX) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   select(-IDX)
 
 # daily data frame ----
@@ -220,57 +234,127 @@ df_day_p$L <- df_day_p$Q*df_day_p$C
 
 df_day <- rbind(df_day, df_day_p) %>%
   arrange(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
-  mutate(FREQ="DAY") %>%
-  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+  mutate(FREQ="DAY",
+         START_DATE=DATE,
+         END_DATE=DATE) %>%
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, START_DATE, END_DATE, Q, L, C) %>%
+  mutate(DATASET=as.character(DATASET),
+         VAR=as.character(VAR),
+         SITE_NAME=as.character(SITE_NAME))
 
 # compute month
 df_mon <- df_day %>%
-  mutate(DATE=floor_date(DATE, 'month')) %>%
-  group_by(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
-  summarise(Q=sum(Q),
+  mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
+  group_by(DATASET, VAR, SITE_NAME, MONTHYEAR, MONTH, WYEAR) %>%
+  summarise(START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            Q=sum(Q),
             L=sum(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup %>%
   mutate(FREQ="MON") %>%
-  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE=MONTHYEAR, MONTH, WYEAR, START_DATE, END_DATE, Q, L, C)
 
 # compute wyr
-df_wyr <- df_day %>%
+seasons <- list(Annual=1:12,
+                'Fall (Oct-Dec)'=c(10:12),
+                'Winter (Jan-Mar)'=c(1:3),
+                'Spring (Apr-Jun)'=c(4:6),
+                'Summer (Jul-Sep)'=c(7:9))
+df_seasons <- lapply(names(seasons), function(s) {
+  data.frame(MONTH=seasons[[s]], SEASON=s, stringsAsFactors=FALSE)
+}) %>%
+  rbind_all %>%
+  mutate(SEASON=ordered(SEASON, levels=names(seasons)))
+
+df_wyr <- left_join(df_seasons, df_day, by="MONTH") %>%
   mutate(MONTH=10,
-         DATE=ymd(paste(WYEAR-1, MONTH, 1, sep='-'))) %>%
-  group_by(DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR) %>%
-  summarise(Q=sum(Q),
+         WYEARDATE=ymd(paste(WYEAR-1, MONTH, 1, sep='-'))) %>%
+  group_by(DATASET, VAR, SITE_NAME, WYEARDATE, MONTH, WYEAR, SEASON) %>%
+  summarise(N_DAY=n(),
+            START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            Q=sum(Q),
             L=sum(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup %>%
   mutate(FREQ="WYR") %>%
-  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+  select(FREQ, DATASET, VAR, SITE_NAME, DATE=WYEARDATE, MONTH, WYEAR, SEASON, START_DATE, END_DATE, N_DAY, Q, L, C)
 
 # compute site
-df_site <- df_day %>%
-  group_by(DATASET, VAR, SITE_NAME) %>%
+df_site_tss <- filter(df_wyr, VAR=="TSS") %>%
+  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
   summarise(N_YEAR=length(unique(WYEAR)),
+            N_DAY=sum(N_DAY),
+            PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
+            START_DATE=min(DATE),
+            END_DATE=max(DATE),
             DATE=min(DATE),
             Q=sum(Q)/N_YEAR,
             L=sum(L)/N_YEAR,
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
-  ungroup %>%
-  mutate(MONTH=month(DATE), WYEAR=wyear(DATE),
-         FREQ="SITE") %>%
-  select(FREQ, DATASET, VAR, SITE_NAME, DATE, MONTH, WYEAR, Q, L, C)
+  ungroup
 
-df_all <- rbind(df_day, df_mon, df_wyr, df_site) %>%
-  mutate(FREQ = ordered(FREQ, levels=c("DAY", "MON", "WYR", "SITE")))
+df_site_por_2002 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
+                           !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
+  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  summarise(N_YEAR=length(unique(WYEAR)),
+            N_DAY=sum(N_DAY),
+            PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
+            START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            DATE=min(DATE),
+            Q=sum(Q)/N_YEAR,
+            L=sum(L)/N_YEAR,
+            C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
+  ungroup
+stopifnot(all(df_site_por_2002$PERIOD == '2002-2014'))
 
-# compute summation nodes
+df_site_por_2010 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
+                           WYEAR >= 2010) %>%
+  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  summarise(N_YEAR=length(unique(WYEAR)),
+            N_DAY=sum(N_DAY),
+            PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
+            START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            DATE=min(DATE),
+            Q=sum(Q)/N_YEAR,
+            L=sum(L)/N_YEAR,
+            C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
+  ungroup
+stopifnot(all(df_site_por_2010$PERIOD == '2010-2014'))
+
+df_site_recent <- filter(df_wyr, DATASET=="RECENT", VAR!="TSS") %>%
+  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  summarise(N_YEAR=length(unique(WYEAR)),
+            N_DAY=sum(N_DAY),
+            PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
+            START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            DATE=min(DATE),
+            Q=sum(Q)/N_YEAR,
+            L=sum(L)/N_YEAR,
+            C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
+  ungroup
+stopifnot(all(df_site_recent$PERIOD == '2010-2014'))
+
+df_site <- rbind(df_site_tss, df_site_por_2002, df_site_por_2010, df_site_recent) %>%
+  mutate(PERIOD=factor(PERIOD),
+         FREQ="SITE")
+
+# combine all and compute summation and incremental nodes
+df_all <- bind_rows(df_mon, df_wyr, df_site)
+
 df_all <- df_all %>%
   gather(TERM, VALUE, Q, L, C) %>%
+  filter(TERM != "C") %>%
   spread(SITE_NAME, VALUE) %>%
   mutate('Godowa+Sycan' = Godowa + Sycan,
          'SF+NF' = SF + NF,
          'SF_Ivory+NF_Ivory' = SF_Ivory + NF_Ivory) %>%
-  gather(SITE_NAME, VALUE, -FREQ, -DATASET, -VAR, -DATE, -MONTH, -WYEAR, -TERM,
-         na.rm=TRUE) %>%
+  gather(SITE_NAME, VALUE, Godowa:`SF_Ivory+NF_Ivory`, na.rm=TRUE) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   spread(TERM, VALUE) %>%
   mutate(C=L/Q)
 
@@ -283,10 +367,13 @@ df_all <- df_all %>%
          'Godowa-SF_Ivory-NF_Ivory' = Godowa - `SF_Ivory+NF_Ivory`,
          'SF_Ivory-SF' = SF_Ivory - SF,
          'NF_Ivory-NF' = NF_Ivory - NF) %>%
-  gather(SITE_NAME, VALUE, -FREQ, -DATASET, -VAR, -DATE, -MONTH, -WYEAR, -TERM, na.rm=TRUE) %>%
+  gather(SITE_NAME, VALUE, Godowa:`NF_Ivory-NF`, na.rm=TRUE) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   spread(TERM, VALUE)
 
-df_all <- left_join(df_all, areas, by="SITE_NAME") %>%
+df_all <- left_join(df_all,
+                    mutate(areas, SITE_NAME=as.character(SITE_NAME)),
+                    by="SITE_NAME") %>%
   mutate(L_AREA=L/AREA_KM2,                 # kg/km2/time
          Q_AREA=Q/AREA_KM2*100) %>%         # cm/time
   gather(TERM, VALUE, Q, L, C, L_AREA, Q_AREA) %>%
@@ -320,30 +407,46 @@ df_all <- filter(df_all, !(TERM %in% c('Q', 'Q_AREA'))) %>%
   mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')),
          VAR=ordered(as.character(VAR), levels=c('FLOW','TP','PO4','PP','TN','NH4','NO23','TSS')))
 
+df_day <- gather(df_day, TERM, VALUE, Q:C)
+df_day_flow <- filter(df_day, VAR=='TP') %>%
+  filter(TERM %in% c('Q', 'Q_AREA')) %>%
+  mutate(VAR='FLOW')
+df_day <- filter(df_day, !(TERM %in% c('Q', 'Q_AREA'))) %>%
+  rbind(df_day_flow) %>%
+  mutate(TERM=ordered(as.character(TERM), levels=c('Q','Q_AREA','L','L_AREA','C')),
+         VAR=ordered(as.character(VAR), levels=c('FLOW','TP','PO4','PP','TN','NH4','NO23','TSS')))
 
-df_day <- filter(df_all, FREQ=="DAY") %>%
-  select(-FREQ)
 df_mon <- filter(df_all, FREQ=="MON") %>%
-  select(-FREQ) %>%
+  select(-FREQ, -PERIOD, -START_DATE, -END_DATE, -SEASON, -N_DAY, -N_YEAR) %>%
   rename(MONTHYEAR=DATE)
 df_wyr <- filter(df_all, FREQ=="WYR") %>%
-  select(-FREQ) %>%
-  select(-MONTH)
+  select(-FREQ, -PERIOD, -START_DATE, -END_DATE, -MONTH, -N_YEAR)
 df_site <- filter(df_all, FREQ=="SITE") %>%
-  select(-FREQ) %>%
-  select(-MONTH, -DATE, -WYEAR)
+  select(-FREQ, -MONTH, -DATE, -WYEAR)
 
-table(df_day$VAR, df_day$TERM)
-table(df_mon$VAR, df_mon$TERM)
-table(df_wyr$VAR, df_wyr$TERM)
-table(df_site$VAR, df_site$TERM)
+# check df_day
+group_by(df_day, DATASET, VAR, TERM, SITE_NAME, DATE) %>%
+  summarise(N=n()) %>%
+  (function(x) { stopifnot(all(x$N==1)) })
 
-table(df_day$VAR, df_day$TERM)
-table(df_mon$VAR, df_mon$TERM)
-table(df_wyr$VAR, df_wyr$TERM)
-table(df_site$VAR, df_site$TERM)
+group_by(df_mon, DATASET, VAR, TERM, SITE_NAME, MONTHYEAR) %>%
+  summarise(N=n()) %>%
+  (function(x) { stopifnot(all(x$N==1)) })
 
-print(str(df_all))
+group_by(df_wyr, DATASET, VAR, TERM, SITE_NAME, WYEAR, SEASON) %>%
+  summarise(N=n()) %>%
+  (function(x) { stopifnot(all(x$N==1)) })
+
+group_by(df_site, DATASET, VAR, TERM, SITE_NAME, PERIOD, SEASON) %>%
+  summarise(N=n()) %>%
+  (function(x) { stopifnot(all(x$N==1)) })
+
+table(df_site$SEASON, df_site$PERIOD, df_site$DATASET)
+
+filter(df_site, DATASET=="POR", TERM=="C", SITE_NAME %in% subbasin_area$SITE_NAME) %>%
+  ggplot(aes(SITE_NAME, VALUE, fill=PERIOD)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_grid(VAR~SEASON, scales='free_y')
 
 loads_df <- list('day'=df_day,
                  'mon'=df_mon,
@@ -352,16 +455,21 @@ loads_df <- list('day'=df_day,
 loads_input <- df
 
 # save ----
-loads_df[['mon']] %>%
-  write.csv(file=file.path('csv', 'loads_mon.csv'), row.names=FALSE)
+cat('\n')
+lapply(list('mon', 'wyr', 'site'), function (term) {
+  filename <- file.path('csv', paste0('loads_', term,'.csv'))
+  cat('Saving load results to:', filename, '\n')
+  loads_df[[term]] %>%
+    write.csv(file=filename, row.names=FALSE)
+})
 
-loads_df[['wyr']] %>%
-  write.csv(file=file.path('csv', 'loads_wyr.csv'), row.names=FALSE)
-
-loads_df[['site']] %>%
-  write.csv(file=file.path('csv', 'loads_site.csv'), row.names=FALSE)
-
+filename <- file.path('csv', 'areas.csv')
+cat('Saving areas to:', filename, '\n')
 areas %>%
-  write.csv(file=file.path('csv', 'areas.csv'), row.names=FALSE)
+  write.csv(file=filename, row.names=FALSE)
 
-save(loads, loads_input, loads_df, file='loads.Rdata')
+filename <- 'loads.Rdata'
+cat('\nSaving load results to:', filename, '\n')
+save(loads, loads_input, loads_df, file=filename)
+
+cat('\n\n')

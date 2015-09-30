@@ -15,91 +15,50 @@ rm(list=ls())
 
 term_labs <- c('C'='FWM Conc', 'L'='Load', 'Q'='Flow')
 term_units <- c('C'='ppb', 'L'='kg/d', 'Q'='hm3/d')
-
+dataset <- "POR"
 load('loads.Rdata')
 load('kt_sprague.Rdata')
 load('prism.Rdata')
 
 source('functions.R')
 
-dataset_levels <- c('POR')
-
-
 df_wyr <- loads_df[['wyr']] %>%
-  filter(DATASET %in% dataset_levels,
+  filter(DATASET=="POR",
          TERM %in% c('Q', 'L', 'C'),
-         SITE_NAME %in% as.character(stn.kt_sprague$SITE_NAME)) %>%
+         VAR != "TSS",
+         SEASON=="Annual",
+         SITE_NAME %in% as.character(stn.kt_sprague$SITE_NAME),
+         !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
+  select(-DATASET) %>%
   # compute daily mean
-  mutate(N.DAY=as.numeric(difftime(as.Date(paste(WYEAR, 10, 1, sep='-')), as.Date(paste(WYEAR-1, 10, 1, sep='-')), units='days')),
-         VALUE=ifelse(TERM %in% c('Q', 'L'), VALUE/N.DAY, VALUE)) %>%
+  mutate(VALUE=ifelse(TERM %in% c('Q', 'L'), VALUE/N_DAY, VALUE)) %>%
   spread(TERM, VALUE) %>%
   droplevels
 
 df_wyr.flow <- filter(df_wyr, VAR=='FLOW') %>%
-  select(DATASET, SITE_NAME, WYEAR, Q)
+  select(SITE_NAME, WYEAR, Q)
 df_wyr <- filter(df_wyr, VAR!='FLOW') %>%
   select(-Q) %>%
-  left_join(df_wyr.flow, by=c('DATASET', 'SITE_NAME', 'WYEAR'))
+  left_join(df_wyr.flow, by=c('SITE_NAME', 'WYEAR'))
 
 df_mon <- loads_df[['mon']] %>%
-  filter(DATASET %in% dataset_levels,
+  filter(DATASET=="POR",
          TERM %in% c('Q', 'L', 'C'),
-         SITE_NAME %in% as.character(stn.kt_sprague$SITE_NAME)) %>%
-  # compute daily mean
-  mutate(N.DAY=as.numeric(difftime(MONTHYEAR+months(1), MONTHYEAR, units='days')),
-         VALUE=ifelse(TERM %in% c('Q', 'L'), VALUE/N.DAY, VALUE)) %>%
+         VAR != "TSS",
+         SITE_NAME %in% as.character(stn.kt_sprague$SITE_NAME),
+         !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
+  select(-DATASET) %>%
+  mutate(N_DAY=days_in_month(MONTHYEAR),
+         VALUE=ifelse(TERM %in% c('Q', 'L'), VALUE/N_DAY, VALUE)) %>%
   spread(TERM, VALUE) %>%
   rename(DATE=MONTHYEAR) %>%
   droplevels
 
 df_mon.flow <- filter(df_mon, VAR=='FLOW') %>%
-  select(DATASET, SITE_NAME, DATE, Q)
+  select(SITE_NAME, DATE, Q)
 df_mon <- filter(df_mon, VAR!='FLOW') %>%
   select(-Q) %>%
-  left_join(df_mon.flow, by=c('DATASET', 'SITE_NAME', 'DATE'))
-
-# fix negative PP loads and conc
-df_mon <- mutate(df_mon,
-                 LIMITED=(VAR=='PP' & L < 0.1),
-                 C=ifelse(LIMITED, 1, C),
-                 L=ifelse(LIMITED, C*Q, L))
-
-dataset_sites <- lapply(dataset_levels, function(dataset) {
-  x.dataset <- filter(df_wyr, DATASET==dataset)
-  intersect(unique(as.character(x.dataset$SITE_NAME)), as.character(stn.kt_sprague$SITE_NAME))
-})
-names(dataset_sites) <- dataset_levels
-
-dataset_vars <- lapply(dataset_levels, function(dataset) {
-  x.dataset <- filter(df_wyr, DATASET==dataset)
-  unique(as.character(x.dataset$VAR))
-})
-names(dataset_vars) <- dataset_levels
-
-dataset_years <- lapply(dataset_levels, function(dataset) {
-  x.dataset <- filter(df_wyr, DATASET==dataset)
-  c(min(x.dataset$WYEAR), max(x.dataset$WYEAR))
-})
-names(dataset_years) <- dataset_levels
-
-dataset_labels <- lapply(names(dataset_years), function(dataset) {
-  if (dataset=='RECENT') {
-    dataset_label <- 'Recent'
-  } else {
-    dataset_label <- dataset
-  }
-  dataset_label
-})
-names(dataset_labels) <- dataset_levels
-
-period_label <- function(dataset, variable) {
-  if (dataset=='RECENT' & variable=='TSS') {
-    label <- 'WY2011-WY2014'
-  } else {
-    label <- paste(paste0('WY', dataset_years[[dataset]]), collapse='-')
-  }
-  label
-}
+  left_join(df_mon.flow, by=c('SITE_NAME', 'DATE'))
 
 trend.sk <- function(x, value_var, months, month_label, years, log_trans=TRUE, water_year=TRUE) {
   # months <- 1:4
@@ -157,14 +116,20 @@ trend.sk <- function(x, value_var, months, month_label, years, log_trans=TRUE, w
                     SIGNIF=sig,
                     DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))		)
 }
-# trend.sk(x=filter(df_mon, DATASET=='POR', SITE_NAME=="Power", VAR=="TP"),
+# trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
 #          value_var='C',
 #          months=1:12,
 #          month_label='Seasonal',
 #          years=2002:2014,
 #          log_trans=TRUE,
 #          water_year=TRUE)
-
+# trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
+#          value_var='C',
+#          months=10,
+#          month_label='10',
+#          years=2002:2014,
+#          log_trans=TRUE,
+#          water_year=TRUE)
 
 trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_year=TRUE) {
   if (water_year==TRUE) {
@@ -212,7 +177,7 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
              SIGNIF=sig,
              DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))
 }
-# trend.mk(x=filter(df_wyr, DATASET=='POR', SITE_NAME=="Power", VAR=="TP"),
+# trend.mk(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
 #          value_var='C',
 #          month_label='Annual',
 #          years=2002:2014,
@@ -262,7 +227,7 @@ trend.lm <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
              SIGNIF=sig,
              DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))
 }
-# trend.lm(x=filter(df_wyr, DATASET=="POR", SITE_NAME=="Power", VAR=="TP"),
+# trend.lm(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
 #          value_var='C',
 #          month_label='Annual',
 #          years=2002:2014,
@@ -337,41 +302,32 @@ trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
                   TERM=ordered(TERM, levels=names(term_labs)))
   t_all
 }
-# trend.batch(x_mon=filter(df_mon, DATASET=="POR", SITE_NAME=="Power", VAR=="TP"),
-#             x_wyr=filter(df_wyr, DATASET=="POR", SITE_NAME=="Power", VAR=="TP"),
+# trend.batch(x_mon=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
+#             x_wyr=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
 #             years=2002:2014,
 #             log_trans=TRUE,
-#             water_year=TRUE) %>%
-#   summary
+#             water_year=TRUE)
 
 cat('Computing trend analysis...\n\n')
-trends <- lapply(levels(df_mon$DATASET), function(dataset) {
-  cat(dataset, '\n')
-  lapply(dataset_vars[[dataset]], function(variable) {
-    cat('..', variable, '\n')
-    lapply(dataset_sites[[dataset]], function(site) {
-      if (variable == 'TSS') {
-        year_range <- seq(2011, 2014)
-      } else {
-        year_range <- seq(dataset_years[[dataset]][1], dataset_years[[dataset]][2])
-      }
-      x <- trend.batch(x_mon=filter(df_mon, DATASET==dataset, SITE_NAME==site, VAR==variable),
-                       x_wyr=filter(df_wyr, DATASET==dataset, SITE_NAME==site, VAR==variable),
-                       years=year_range,
-                       log_trans=TRUE,
-                       water_year=TRUE)
-      x$SITE_NAME <- site
-      x$VAR <- variable
-      x$DATASET <- dataset
-      x
-    }) %>%
-      rbind_all
+trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
+  cat('..', variable, '\n')
+  lapply(as.character(levels(df_mon$SITE_NAME)), function(site) {
+    year_range <- 2002:2014
+    x <- trend.batch(x_mon=filter(df_mon, SITE_NAME==site, VAR==variable),
+                     x_wyr=filter(df_wyr, SITE_NAME==site, VAR==variable),
+                     years=year_range,
+                     log_trans=TRUE,
+                     water_year=TRUE)
+    x$SITE_NAME <- site
+    x$VAR <- variable
+    x
   }) %>%
     rbind_all
 }) %>%
   rbind_all %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME)),
-         VAR=ordered(VAR, levels=levels(df_mon$VAR))) %>%
+         VAR=ordered(VAR, levels=levels(df_mon$VAR)),
+         SIGNIF=ordered(as.character(SIGNIF), levels=c("p<0.05","0.05<p<0.10","p>0.10"))) %>%
   droplevels
 
 cat('Saving trend results to trends.Rdata...\n')
@@ -379,12 +335,12 @@ saveRDS(trends, file='trends.Rdata')
 
 # plot functions ----
 
-plot_dot_season_flow <- function(dataset, log_trans=TRUE) {
-  x.trend <- filter(trends, DATASET==dataset, VAR=='TP', TERM=='Q', MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep'), LOG==log_trans) %>%
+plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
+  x.trend <- filter(trends, VAR=='TP', TERM=='Q', MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep'), LOG==log_trans) %>%
     mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep')),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes\nDataset: ', dataset_labels[[dataset]], ' | Period: ', period_label(dataset, 'FLOW'), ' | Variable: Flow')
+  title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Variable: Flow')
 #   if (log_trans) {
 #     title <- paste0(title, ' | Transform: Log10')
 #   } else {
@@ -402,7 +358,8 @@ plot_dot_season_flow <- function(dataset, log_trans=TRUE) {
     scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
-    facet_grid(.~MONTH_LABEL)
+    facet_grid(.~MONTH_LABEL) +
+    theme(strip.background=element_blank())
   p.2 <- filter(x.trend, MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep')) %>%
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
@@ -414,30 +371,32 @@ plot_dot_season_flow <- function(dataset, log_trans=TRUE) {
     scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
-    facet_grid(.~MONTH_LABEL)
+    facet_grid(.~MONTH_LABEL) +
+    theme(strip.background=element_blank())
 
-  grid.arrange(grobs=list(p.4, arrangeGrob(p.2, ncol=2, widths=c(2/3, 1/3))),
-               nrow=3,
-               title=title)
+  if (only4) {
+    grid.arrange(grobs=list(p.4),
+                 nrow=3,
+                 top=title)
+  } else {
+
+    grid.arrange(grobs=list(p.4, arrangeGrob(p.2, ncol=2, widths=c(2/3, 1/3))),
+                 nrow=3,
+                 top=title)
+  }
 }
-# plot_dot_season_flow(dataset='POR')
-# plot_dot_season_flow(dataset='RECENT')
+# plot_dot_season_flow()
 
-plot_dot_season <- function(dataset, variable, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), log_trans=TRUE) {
-  x.trend <- filter(trends, DATASET==dataset, VAR==variable, MONTH_LABEL %in% seasons, LOG==log_trans) %>%
+plot_dot_season <- function(variable, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), log_trans=TRUE) {
+  x.trend <- filter(trends, VAR==variable, MONTH_LABEL %in% seasons, LOG==log_trans) %>%
     mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=seasons),
            TERM_LABEL=plyr::revalue(TERM, term_labs),
            TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes\nDataset: ', dataset_labels[[dataset]], ' | Period: ', period_label(dataset, variable), ' | Variable: ', variable)
-#   if (log_trans) {
-#     title <- paste0(title, ' | Transform: Log10')
-#   } else {
-#     title <- paste0(title, ' | Transform: None')
-#   }
-#
-  ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
+  title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Variable: ', variable)
+
+    ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(), shape=16, size=4, color='white') +
     geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
@@ -447,26 +406,21 @@ plot_dot_season <- function(dataset, variable, seasons=c('All Months', 'Oct-Mar'
     scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='', title=title) +
-    facet_grid(MONTH_LABEL~TERM_LABEL)
+    facet_grid(MONTH_LABEL~TERM_LABEL) +
+    theme(strip.background=element_blank())
 }
-# plot_dot_season(dataset='POR', variable='TP')
-# plot_dot_season(dataset='POR', variable='TP', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-# plot_dot_season(dataset='RECENT', variable='TP', log_trans=TRUE)
+# plot_dot_season(variable='TP')
+# plot_dot_season(variable='TP', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
 
-plot_dot_term <- function(dataset, term, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), variables=c("TP","PO4","PP","TN","NH4","NO23","TSS"), log_trans=TRUE) {
-  x.trend <- filter(trends, DATASET==dataset, TERM==term, MONTH_LABEL %in% seasons, LOG==log_trans, VAR %in% variables) %>%
+plot_dot_term <- function(term, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), variables=c("TP","PO4","PP","TN","NH4","NO23","TSS"), log_trans=TRUE) {
+  x.trend <- filter(trends, TERM==term, MONTH_LABEL %in% seasons, LOG==log_trans, VAR %in% variables) %>%
     mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=seasons),
            TERM_LABEL=plyr::revalue(TERM, term_labs),
            TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
            VAR=ordered(VAR, levels=variables),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes\nDataset: ', dataset_labels[[dataset]], ' | Period: ', period_label(dataset, 'TP'), ' | Term: ', term_labs[[term]])
-#   if (log_trans) {
-#     title <- paste0(title, ' | Transform: Log10')
-#   } else {
-#     title <- paste0(title, ' | Transform: None')
-#   }
+  title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Term: ', term_labs[[term]])
 
   p <- ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
@@ -478,19 +432,15 @@ plot_dot_term <- function(dataset, term, seasons=c('All Months', 'Oct-Mar', 'Apr
     scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='', title=title) +
-    facet_grid(VAR~MONTH_LABEL)
+    facet_grid(VAR~MONTH_LABEL) +
+    theme(strip.background=element_blank())
   print(p)
-  if('TSS' %in% unique(x.trend$VAR)) {
-    makeFootnote('Note: TSS Trends based on period WY2011-WY2014')
-  }
 }
-# plot_dot_term(dataset='POR', term='C')
-# plot_dot_term(dataset='POR', term='C', c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-# plot_dot_term(dataset='RECENT', term='C', log_trans=TRUE)
+# plot_dot_term(term='C')
+# plot_dot_term(term='C', c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
 
-plot_diagnostic <- function(dataset, site_name, variable, term, log_trans=TRUE) {
-  x.trend <- filter(trends,
-                    DATASET==dataset, SITE_NAME==site_name,
+plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
+  x.trend <- filter(trends, SITE_NAME==site_name,
                     VAR==variable, TERM==term, LOG==log_trans)
   x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall') %>%
     select(SEASON=MONTH_LABEL, SLOPE, INTERCEPT)
@@ -498,8 +448,8 @@ plot_diagnostic <- function(dataset, site_name, variable, term, log_trans=TRUE) 
   x.trends.all <- filter(x.trend, METHOD=='SeasonalKendall', MONTH_LABEL=='All Months') %>%
     as.list()
 
-  x.wyr <- filter(df_wyr, DATASET==dataset, SITE_NAME==site_name, VAR==variable)
-  x.mon <- filter(df_mon, DATASET==dataset, SITE_NAME==site_name, VAR==variable) %>%
+  x.wyr <- filter(df_wyr, SITE_NAME==site_name, VAR==variable)
+  x.mon <- filter(df_mon, SITE_NAME==site_name, VAR==variable) %>%
     mutate(DDATE=decimal_date(DATE))
   x.mon$SEASON <- ifelse(x.mon$MONTH %in% seq(4, 9), 'Apr-Sep', 'Oct-Mar')
 
@@ -520,14 +470,12 @@ plot_diagnostic <- function(dataset, site_name, variable, term, log_trans=TRUE) 
   ylabel <- paste0(term_labs[[term]], ' [', units, ']')
 
   if (term=='Q') {
-    title <- paste(paste0('Dataset: ', dataset_labels[[dataset]]),
-                   paste0('Period: ', period_label(dataset, variable)),
+    title <- paste(paste0('Period: ', 'WY2002-2014'),
                    paste0('Site: ', site_name),
                    paste0('Variable: ', term_labs[[term]]),
                    sep='  |  ')
   } else {
-    title <- paste(paste0('Dataset: ', dataset_labels[[dataset]]),
-                   paste0('Period: ', period_label(dataset, variable)),
+    title <- paste(paste0('Period: ', 'WY2002-2014'),
                    paste0('Site: ', site_name),
                    paste0('Variable: ', variable),
                    paste0('Term: ', term_labs[[term]]),
@@ -596,12 +544,11 @@ plot_diagnostic <- function(dataset, site_name, variable, term, log_trans=TRUE) 
     pval <- format(x.trends.all$PVAL, nsmall=4L, digits=0, scientific=FALSE)
   }
 
-  tbl <- c('Dataset: '      = dataset,
-           'Site: '         = site_name,
+  tbl <- c('Site: '         = site_name,
            'Variable: '     = variable,
            'Term: '         = term_labs[[term]],
-           'Water Years: '  = period_label(dataset, variable),
-           'Transform: '    = if (log_trans) 'Log10' else 'None',
+           'Water Years: '  = 'WY2002-2014',
+           # 'Transform: '    = if (log_trans) 'Log10' else 'None',
            ' '              = ' ',
            'Trend Results: ' = 'All Months (Seasonal Kendall)',
            'Slope: '        = paste(format(x.trends.all$SLOPE, nsmall=3L, digits=0), paste0(units, '/yr')),
@@ -628,60 +575,59 @@ plot_diagnostic <- function(dataset, site_name, variable, term, log_trans=TRUE) 
                heights=c(10/24, 6/24, 8/24),
                top=title)
 }
-# plot_diagnostic(dataset='POR', site_name='Power', variable='TP', term='C')
+# plot_diagnostic(site_name='Power', variable='TP', term='C')
 
-for (dataset in dataset_levels) {
-  cat(dataset, '\n')
-  for (variable in dataset_vars[[dataset]]) {
-    filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', tolower(variable), '.pdf'))
-    cat('Printing:', filename, '\n')
-    cat('..', variable, '\n')
-    pdf(filename, width=11, height=8.5)
-    print(plot_dot_season(dataset=dataset, variable=variable, log_trans=TRUE))
-    Sys.sleep(1)
-    print(plot_dot_season(dataset=dataset, variable=variable, seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'), log_trans=TRUE))
-    Sys.sleep(1)
-    for (site_name in dataset_sites[[dataset]]) {
-      cat('....', site_name, '\n')
-      for (term in c('C', 'L')) {
-        cat('......', term, '\n')
-        plot_diagnostic(dataset=dataset, site_name=site_name, variable=variable, term=term, log_trans=TRUE)
-        Sys.sleep(1)
-      }
-    }
-    dev.off()
-    Sys.sleep(1)
-  }
-  filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', 'flow', '.pdf'))
+if (!file.exists(file.path('pdf', tolower(dataset), 'trends'))) {
+  dir.create(file.path('pdf', tolower(dataset), 'trends'))
+}
+dataset <- 'POR'
+for (variable in as.character(unique(df_mon$VAR))) {
+  filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', tolower(variable), '.pdf'))
   cat('Printing:', filename, '\n')
-  cat('..', 'FLOW', '\n')
+  cat('..', variable, '\n')
   pdf(filename, width=11, height=8.5)
-  plot_dot_season_flow(dataset=dataset)
+  print(plot_dot_season(variable=variable, log_trans=TRUE))
   Sys.sleep(1)
-  for (site_name in dataset_sites[[dataset]]) {
+  print(plot_dot_season(variable=variable, seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'), log_trans=TRUE))
+  Sys.sleep(1)
+  for (site_name in as.character(unique(df_mon$SITE_NAME))) {
     cat('....', site_name, '\n')
-    for (term in c('Q')) {
+    for (term in c('C', 'L')) {
       cat('......', term, '\n')
-      plot_diagnostic(dataset=dataset, site_name=site_name, variable=dataset_vars[[dataset]][1], term=term, log_trans=TRUE)
+      plot_diagnostic(site_name=site_name, variable=variable, term=term, log_trans=TRUE)
       Sys.sleep(1)
     }
   }
   dev.off()
+
+  plot_dot_season_flow()
   Sys.sleep(1)
 }
 
-for (dataset in dataset_levels) {
-  filename <- file.path('pdf', tolower(dataset), paste0('trends-summary.pdf'))
-  cat('Printing:', filename, '\n')
-  cat(dataset, '\n')
-  pdf(filename, width=11, height=8.5)
-  # plot_dot_term(dataset=dataset, term='C')
-  plot_dot_term(dataset=dataset, term='C', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-  # plot_dot_term(dataset=dataset, term='L')
-  plot_dot_term(dataset=dataset, term='L', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-  dev.off()
-  Sys.sleep(1)
+filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', 'flow', '.pdf'))
+cat('Printing:', filename, '\n')
+cat('..', 'FLOW', '\n')
+pdf(filename, width=11, height=8.5)
+plot_dot_season_flow()
+Sys.sleep(1)
+for (site_name in as.character(unique(df_mon$SITE_NAME))) {
+  cat('....', site_name, '\n')
+  for (term in c('Q')) {
+    cat('......', term, '\n')
+    plot_diagnostic(site_name=site_name, variable="TP", term=term, log_trans=TRUE)
+    Sys.sleep(1)
+  }
 }
+dev.off()
+
+filename <- file.path('pdf', tolower(dataset), paste0('trends-summary.pdf'))
+cat('Printing:', filename, '\n')
+cat(dataset, '\n')
+pdf(filename, width=11, height=8.5)
+plot_dot_term(term='C', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
+plot_dot_term(term='L', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
+plot_dot_season_flow(only4=TRUE)
+dev.off()
 
 # pdf(file.path('pdf', 'trends-dataset-comparison.pdf'), width=11, height=8.5)
 # filter(trends, TERM=='C', MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep'), LOG==TRUE,
@@ -978,4 +924,49 @@ for (site in unique(trend.prcp$SITE_NAME)) {
   plot_diagnostic_prcp(site_name=site)
   Sys.sleep(1)
 }
+dev.off()
+
+# report ----
+trend_rep_c <- filter(trends,
+                      TERM=='C',
+                      MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
+                      LOG==TRUE)
+trend_rep_q <- filter(trends,
+                      TERM=='Q',
+                      VAR=='TP',
+                      MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
+                      LOG==TRUE) %>%
+  mutate(VAR="FLOW")
+
+trend_rep <- rbind(trend_rep_c, trend_rep_q) %>%
+  mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL),
+                             levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')),
+         TERM_LABEL=plyr::revalue(TERM, term_labs),
+         TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
+         VAR=as.character(VAR),
+         VAR_LABEL=ifelse(VAR=="FLOW", "Flow", paste(VAR, '', sep='')),
+         VAR=ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23')),
+         SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME)))) %>%
+  arrange(VAR) %>%
+  mutate(VAR_LABEL=ordered(VAR_LABEL, levels=unique(VAR_LABEL)),
+         SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
+
+p <- ggplot(trend_rep, aes(SLOPE.PCT, SITE_NAME)) +
+  geom_vline(xint=0) +
+  geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
+  geom_point(mapping=aes(), shape=16, size=3, color='white') +
+  geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=3) +
+  geom_point(mapping=aes(), shape=1, size=3) +
+  scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
+  scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+  scale_x_continuous(labels=scales::percent) +
+  labs(x='Trend Slope (%/yr)', y='') +
+  facet_grid(VAR_LABEL~MONTH_LABEL) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+
+filename <- 'report/results-trend-summary.png'
+cat('Saving report figure to:', filename, '\n')
+png(filename, width=10, height=8, res=200, units='in')
+print(p)
 dev.off()

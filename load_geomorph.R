@@ -5,75 +5,50 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading Geomorphology Delineation...\n\n")
+
 load('gis.Rdata')
 
-stn_names <- select(subbasin_area, SITE, SITE_NAME)
 
-geomorph_incbasin <- read.csv('~/Dropbox/Work/klamath/data/sprague/gis/incremental_basins_geomorphology_clip.csv', stringsAsFactors=FALSE) %>%
+# load ----
+DATA_DIR <- getOption('UKL_DATA')
+GIS_DIR <- file.path(DATA_DIR, '../gis/sprague/geomorph')
+
+filename <- file.path(GIS_DIR, 'incremental_basins_geomorphology_clip.csv')
+cat("Loading geomorphology areas from:", filename, '\n')
+geomorph <- read.csv(filename, stringsAsFactors=FALSE) %>%
   rename(AREA_KM2=AreaSqKM) %>%
   rbind(data.frame(SITE=c('SR0040'), AREA_KM2=0)) %>%
-  left_join(stn_names, by="SITE") %>%
   filter(SITE != "WR1000") %>%
-  select(SITE, SITE_NAME, AREA_KM2) %>%
-  left_join(select(incbasin_ivory_area, SITE_NAME, INC_SITE_NAME,
-                   BASIN_AREA_KM2=AREA_KM2),
-            by="SITE_NAME") %>%
-  select(SITE_NAME, INC_SITE_NAME, VALLEY_AREA_KM2=AREA_KM2, BASIN_AREA_KM2)
+  left_join(filter(incbasin_area, INC_SITE_NAME != "Godowa-SF-NF") %>%
+              rename(BASIN_AREA_KM2=AREA_KM2), by="SITE") %>%
+  select(INC_SITE_NAME, VALLEY_AREA_KM2=AREA_KM2, BASIN_AREA_KM2)
 
-geomorph_subbasin <- geomorph_incbasin %>%
-  select(SITE_NAME, AREA_KM2=VALLEY_AREA_KM2) %>%
-  mutate(IDX=1) %>%
-  spread(SITE_NAME, AREA_KM2) %>%
-  mutate(NF_Ivory=NF_Ivory+NF,
-         SF_Ivory=SF_Ivory+SF,
-         Godowa=Godowa+NF_Ivory+SF_Ivory,
-         Lone_Pine=Lone_Pine+Godowa+Sycan,
-         Power=Power+Lone_Pine) %>%
-  gather(SITE_NAME, VALLEY_AREA_KM2, -IDX) %>%
-  select(-IDX)
-
-geomorph_subbasin <- geomorph_subbasin %>%
-  left_join(select(subbasin_area, SITE_NAME, BASIN_AREA_KM2=AREA_KM2),
-            by="SITE_NAME") %>%
+geomorph <- gather(geomorph, VAR, VALUE, -INC_SITE_NAME) %>%
+  spread(INC_SITE_NAME, VALUE) %>%
+  mutate(`Godowa-SF-NF`=`Godowa-SF_Ivory-NF_Ivory`+`SF_Ivory-SF`+`NF_Ivory-NF`,
+         NF_Ivory=`NF_Ivory-NF`+NF,
+         SF_Ivory=`SF_Ivory-SF`+SF,
+         Godowa=`Godowa-SF-NF`+SF+NF,
+         Lone_Pine=`Lone_Pine-Godowa-Sycan`+Godowa+Sycan,
+         Power=`Power-Lone_Pine`+Lone_Pine) %>%
+  gather(SITE_NAME, VALUE, -VAR) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
+  spread(VAR, VALUE) %>%
   mutate(FRAC_AREA=VALLEY_AREA_KM2/BASIN_AREA_KM2)
 
-geomorph_incbasin <- geomorph_incbasin %>%
-  select(INC_SITE_NAME, VALLEY_AREA_KM2, BASIN_AREA_KM2) %>%
-  gather(VAR, AREA, -INC_SITE_NAME) %>%
-  spread(INC_SITE_NAME, AREA) %>%
-  mutate(`Godowa-SF-NF`=`Godowa-SF_Ivory-NF_Ivory`+`SF_Ivory-SF`+`NF_Ivory-NF`) %>%
-  gather(INC_SITE_NAME, AREA, -VAR) %>%
-  spread(VAR, AREA) %>%
-  mutate(FRAC_AREA=VALLEY_AREA_KM2/BASIN_AREA_KM2)
-
-incbasin_names <- select(incbasin_ivory_area, INC_SITE, INC_SITE_NAME) %>%
-  rbind(select(incbasin_area, INC_SITE, INC_SITE_NAME)) %>%
-  unique
-geomorph_incbasin <- left_join(geomorph_incbasin, incbasin_names,
-                               by="INC_SITE_NAME") %>%
-  select(INC_SITE, INC_SITE_NAME, VALLEY_AREA_KM2, BASIN_AREA_KM2, FRAC_AREA) %>%
-  mutate(INC_SITE_NAME=ordered(INC_SITE_NAME,
-                               levels=c('Power-Lone_Pine',
-                                        'Lone_Pine-Godowa-Sycan',
-                                        'Godowa-SF_Ivory-NF_Ivory',
-                                        'Sycan',
-                                        'Godowa-SF-NF',
-                                        'SF_Ivory-SF',
-                                        'SF',
-                                        'NF_Ivory-NF',
-                                        'NF'))) %>%
+geomorph_incbasin <- filter(geomorph, SITE_NAME %in% incbasin_area$INC_SITE_NAME) %>%
+  rename(INC_SITE_NAME=SITE_NAME) %>%
+  mutate(INC_SITE_NAME=ordered(INC_SITE_NAME, levels=levels(incbasin_area$INC_SITE_NAME))) %>%
   arrange(INC_SITE_NAME)
-geomorph_incbasin
 
-subbasin_names <- select(subbasin_area, SITE, SITE_NAME)
-geomorph_subbasin <- left_join(geomorph_subbasin, subbasin_names, by="SITE_NAME") %>%
-  select(SITE, SITE_NAME, VALLEY_AREA_KM2, BASIN_AREA_KM2, FRAC_AREA)
-
-
+geomorph_subbasin <- filter(geomorph, SITE_NAME %in% subbasin_area$SITE_NAME) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME))) %>%
+  arrange(SITE_NAME)
 
 
 # plots ----
-
 geomorph_subbasin %>%
   ggplot(aes(SITE_NAME, FRAC_AREA)) +
   geom_bar(stat="identity") +
@@ -88,8 +63,16 @@ geomorph_incbasin %>%
   coord_flip() +
   labs(y="Fraction Area (%)", x="Incremental Basin")
 
+
 # save ----
+cat('\nSaving Geomorphology areas to csv: csv/geomorph_subbasin.csv and csv/geomorph_incbasin.csv\n')
 write.csv(geomorph_subbasin, file='csv/geomorph_subbasin.csv', row.names=FALSE)
 write.csv(geomorph_incbasin, file='csv/geomorph_incbasin.csv', row.names=FALSE)
 
-save(geomorph_subbasin, geomorph_incbasin, file="geomorph.Rdata")
+filename <- "geomorph.Rdata"
+cat('Saving Geomorphology dataset to:', filename, '\n')
+save(geomorph_subbasin, geomorph_incbasin, file=filename)
+
+cat('\n\n')
+
+

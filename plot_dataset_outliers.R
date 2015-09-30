@@ -11,6 +11,10 @@ load('kt_sprague.Rdata')
 outliers <- readRDS('outliers.Rdata')
 source('functions.R')
 
+if (!file.exists(file.path('pdf', 'outliers'))) {
+  dir.create(file.path('pdf', 'outliers'))
+}
+
 # load data
 wq <- wq.kt_sprague[['RAW']] %>%
   select(SITE_NAME, VAR, DATE, VALUE, QAQC, FLAGGED) %>%
@@ -178,9 +182,9 @@ plot_data <- function(variable, site, log.trans) {
 
 # pdf plots ----
 for (variable in c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')) {
-  cat(variable, '\n')
-
-  pdf(file.path('pdf', 'outliers', paste0('dataset-outliers-', tolower(variable), '.pdf')), width=11, height=8.5)
+  filename <- file.path('pdf', 'outliers', paste0('dataset-outliers-', tolower(variable), '.pdf'))
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=11, height=8.5)
   p <- filter(wq, VAR==variable) %>%
     ggplot(aes(DATE, VALUE, color=FLAGGED, size=FLAGGED)) +
     geom_point() +

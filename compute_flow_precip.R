@@ -6,6 +6,11 @@ theme_set(theme_bw())
 library(fluxr)
 library(gridExtra)
 
+rm(list=ls())
+
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Running flow-precip comparison...\n\n")
+
 # load ----
 load('gis.Rdata')
 
@@ -34,9 +39,9 @@ q.wyr.site <- group_by(q.wyr, SITE_NAME) %>%
 
 load('prism.Rdata')
 prism.mon <- mutate(prism_subbasin, MONTH=month(MONTHYEAR)) %>%
-  select(SITE, SITE_NAME, MONTHYEAR, WYEAR, MONTH, PRCP_mm_mon=PRCP)
+  select(SITE_NAME, MONTHYEAR, WYEAR, MONTH, PRCP_mm_mon=PRCP)
 
-prism.wyr <- group_by(prism.mon, SITE, SITE_NAME, WYEAR) %>%
+prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR) %>%
   summarise(N=n(),
             PRCP_cm_yr=sum(PRCP_mm_mon)/10) %>% # cm/yr
   select(-N)
@@ -121,8 +126,7 @@ df.power %>%
 df.wyr <- left_join(ungroup(q.wyr), ungroup(prism.wyr), by=c('SITE_NAME', 'WYEAR')) %>%
   filter(WYEAR %in% seq(2001, 2014)) %>%
   mutate(Q_PRCP=Q_cm_yr/PRCP_cm_yr) %>%
-  mutate(SITE=ordered(SITE, levels=levels(subbasin_area$SITE)),
-         SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)))
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)))
 
 # plots ----
 filename <- file.path('pdf', 'flow-precip-relationships.pdf')
@@ -211,17 +215,19 @@ print(p)
 dev.off()
 
 # double mass curves ----
-df_dmc <- arrange(df.wyr, SITE_NAME, WYEAR) %>%
-  filter(SITE_NAME %in% c('Power', 'Lone', 'Sycan', 'Godowa', 'SF', 'NF')) %>%
-  group_by(SITE_NAME) %>%
-  mutate(CUM_Q_cm_yr=cumsum(Q_cm_yr),
-         CUM_PRCP_cm_yr=cumsum(PRCP_cm_yr))
-df_dmc_ratio <- group_by(df_dmc, SITE_NAME) %>%
-  summarise(CUM_RATIO=max(CUM_Q_cm_yr)/max(CUM_PRCP_cm_yr))
-ggplot(df_dmc, aes(CUM_PRCP_cm_yr, CUM_Q_cm_yr)) +
-  geom_point() +
-  geom_abline(aes(slope=CUM_RATIO), intercept=0, data=df_dmc_ratio) +
-  xlim(0, NA) +
-  ylim(0, NA) +
-  facet_wrap(~SITE_NAME, scales='free') +
-  labs(x='Cumulative Annual Precip (cm/yr)', y='Cumulative Annual Flow (cm/yr)')
+# df_dmc <- arrange(df.wyr, SITE_NAME, WYEAR) %>%
+#   filter(SITE_NAME %in% c('Power', 'Lone', 'Sycan', 'Godowa', 'SF', 'NF')) %>%
+#   group_by(SITE_NAME) %>%
+#   mutate(CUM_Q_cm_yr=cumsum(Q_cm_yr),
+#          CUM_PRCP_cm_yr=cumsum(PRCP_cm_yr))
+# df_dmc_ratio <- group_by(df_dmc, SITE_NAME) %>%
+#   summarise(CUM_RATIO=max(CUM_Q_cm_yr)/max(CUM_PRCP_cm_yr))
+# ggplot(df_dmc, aes(CUM_PRCP_cm_yr, CUM_Q_cm_yr)) +
+#   geom_point() +
+#   geom_abline(aes(slope=CUM_RATIO), intercept=0, data=df_dmc_ratio) +
+#   xlim(0, NA) +
+#   ylim(0, NA) +
+#   facet_wrap(~SITE_NAME, scales='free') +
+#   labs(x='Cumulative Annual Precip (cm/yr)', y='Cumulative Annual Flow (cm/yr)')
+
+cat('\n\n')

@@ -20,7 +20,9 @@ log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
 # timeseries plots ----
-pdf(file.path('pdf', 'dataset-timeseries.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'dataset-timeseries.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 p <- filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%
   filter(QAQC != 'NEGATIVE') %>%
   mutate(VAR = ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS'))) %>%
@@ -138,5 +140,6 @@ p <- filter(wq.kt_sprague$RECENT, VAR %in% detection_limits$VAR) %>%
   facet_grid(VAR~SITE_NAME, scales='free_y') +
   theme(panel.grid.minor.y=element_blank(),
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8))
+print(p)
 
 dev.off()

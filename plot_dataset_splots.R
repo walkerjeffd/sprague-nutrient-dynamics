@@ -32,9 +32,11 @@ wq <- wq[-idx, ]
 variable <- 'TP'
 site <- 'Power'
 
-pdf(file.path('pdf', 'dataset-scatterplots-variable.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'dataset-scatterplots-variable.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 for (site in levels(wq$SITE_NAME)) {
-  cat(site, '\n')
+  cat('..', site, '\n')
   p <- wq %>%
     mutate(VALUE=log10(VALUE)) %>%
     select(-VAR_UNITS) %>%
@@ -51,9 +53,11 @@ for (site in levels(wq$SITE_NAME)) {
 }
 dev.off()
 
-pdf(file.path('pdf', 'dataset-scatterplots-site.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'dataset-scatterplots-site.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 for (variable in levels(wq$VAR)) {
-  cat(variable, '\n')
+  cat('..', variable, '\n')
   p <- wq %>%
     filter(VAR==variable) %>%
     mutate(YEAR=year(DATE),
@@ -76,7 +80,9 @@ dev.off()
 log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
-pdf(file.path("pdf", "dataset-seasonal-patterns.pdf"), width=11, height=8.5)
+filename <- file.path("pdf", "dataset-seasonal-patterns.pdf")
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 p <- mutate(wq,
        WDAY=water_day(DATE),
        WDAY_DATE=ymd("2000-10-01") + days(WDAY)) %>%

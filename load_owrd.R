@@ -6,11 +6,15 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading OWRD dataset...\n\n")
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load stn ----
-stn.owrd <- read.csv(file.path(DATA_DIR, 'sprague', 'owrd', 'owrd_stations.csv'),
-                     stringsAsFactors=FALSE)
+filename <- file.path(DATA_DIR, 'sprague', 'owrd', 'owrd_stations.csv')
+cat("Loading stations from:", filename, "\n")
+stn.owrd <- read.csv(filename, stringsAsFactors=FALSE)
 
 stn.owrd <- mutate(stn.owrd,
                    LAT=as.numeric(gsub("[^0-9.]+", "", as.character(LAT))),
@@ -29,8 +33,11 @@ stn.owrd <- select(stn.owrd, STATION_ID, DESCRIPTION, LAT, LON, DRAINAGE_AREA_SQ
 
 # load ----
 q.owrd <- lapply(stn.owrd$STATION_ID, function(site) {
-  df <- read.table(file.path(DATA_DIR, 'sprague', 'owrd',
-                             paste0('Station_', site, '_mean_daily_flow.txt')),
+  filename <- file.path(DATA_DIR, 'sprague', 'owrd',
+                        paste0('Station_', site, '_mean_daily_flow.txt'))
+  cat("Loading flow data from:", filename, "\n")
+
+  df <- read.table(filename,
                    sep='\t',
                    header=TRUE,
                    as.is=TRUE)
@@ -54,14 +61,21 @@ stn.owrd <- filter(stn.owrd, STATION_ID %in% stn_period$STATION_ID) %>%
   left_join(stn_period, by="STATION_ID")
 
 # plot ----
-ggplot(q.owrd, aes(DATE, FLOW)) +
+filter(q.owrd, !is.na(FLOW)) %>%
+  ggplot(aes(DATE, FLOW)) +
   geom_line() +
   facet_wrap(~STATION_ID+SITE_NAME, scales='free_y', ncol=1) +
   labs(x='', y='Flow (cfs)', title='OWRD Daily Flow Data')
 
 # save ----
+filename <- file.path('csv', 'stn_owrd.csv')
+cat('\nSaving OWRD stations to:', filename, '\n')
 select(stn.owrd, SITE_NAME, STATION_ID, DESCRIPTION, LAT, LON,
        DRAINAGE_AREA_SQMI, START_DATE, END_DATE) %>%
-  write.csv(file=file.path('csv', 'stn_owrd.csv'), row.names=FALSE)
+  write.csv(file=filename, row.names=FALSE)
 
-save(q.owrd, stn.owrd, file='owrd.Rdata')
+filename <- 'owrd.Rdata'
+cat('Saving OWRD flow dataset to:', filename, '\n')
+save(q.owrd, stn.owrd, file=filename)
+
+cat('\n\n')

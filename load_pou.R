@@ -6,43 +6,100 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading POU dataset...\n\n")
+
 DATA_DIR <- getOption('UKL_DATA')
 
 load('kt_sprague.Rdata')
+load('gis.Rdata')
+load('geomorph.Rdata')
 
-pou.basin <- read.csv(file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_basin.csv'),
+# load ----
+filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_basin.csv')
+cat("Loading POU basin dataset from:", filename, "\n")
+pou.basin <- read.csv(filename,
                       stringsAsFactors=FALSE) %>%
+  filter(SITE != "WR1000") %>%
   select(SITE, AREA_KM2=AreaSqKM) %>%
   mutate(EXTENT="basin")
-pou.valley <- read.csv(file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_valley.csv'),
+
+filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_valley.csv')
+cat("Loading POU valley dataset from:", filename, "\n")
+pou.valley <- read.csv(filename,
                        stringsAsFactors=FALSE) %>%
+  filter(SITE != "WR1000") %>%
   select(SITE, AREA_KM2=AreaSqKM) %>%
   mutate(EXTENT="valley")
 
+pou.basin <- full_join(pou.basin,
+                       filter(incbasin_area, INC_SITE_NAME != "Godowa-SF-NF") %>%
+                         rename(TOTAL_AREA_KM2=AREA_KM2,
+                                SITE_NAME=INC_SITE_NAME),
+                       by="SITE") %>%
+  mutate(EXTENT="basin",
+         AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2))
+
+pou.valley <- full_join(pou.valley,
+                        left_join(geomorph_incbasin,
+                                  select(incbasin_area, SITE, INC_SITE_NAME),
+                                  by="INC_SITE_NAME") %>%
+                          filter(INC_SITE_NAME != "Godowa-SF-NF") %>%
+                          select(TOTAL_AREA_KM2=VALLEY_AREA_KM2,
+                                 SITE_NAME=INC_SITE_NAME,
+                                 SITE),
+                         by="SITE") %>%
+  mutate(EXTENT="valley",
+         AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2))
+
 pou <- rbind(pou.basin, pou.valley) %>%
-  left_join(select(stn.kt_sprague, SITE, SITE_NAME), by="SITE") %>%
-  filter(!is.na(SITE_NAME)) %>%
-  rbind(data.frame(EXTENT=c('basin', 'valley', 'valley'),
-                   SITE_NAME=c(rep('NF', 2), 'SF'),
-                   SITE=c(rep('SR0040', 2), 'SR0050'),
-                   AREA_KM2=rep(0, 3))) %>%
   select(-SITE) %>%
-  arrange(EXTENT, SITE_NAME)
+  gather(VAR, VALUE, AREA_KM2, TOTAL_AREA_KM2) %>%
+  spread(SITE_NAME, VALUE) %>%
+  mutate(`Godowa-SF-NF`=`Godowa-SF_Ivory-NF_Ivory`+`SF_Ivory-SF`+`NF_Ivory-NF`,
+         NF_Ivory=`NF_Ivory-NF`+NF,
+         SF_Ivory=`SF_Ivory-SF`+SF,
+         Godowa=`Godowa-SF-NF`+SF+NF,
+         Lone_Pine=`Lone_Pine-Godowa-Sycan`+Godowa+Sycan,
+         Power=`Power-Lone_Pine`+Lone_Pine,
+         `Godowa+Sycan`=Godowa+Sycan,
+         `SF+NF`=SF+NF,
+         `SF_Ivory+NF_Ivory`=SF_Ivory+NF_Ivory) %>%
+  gather(SITE_NAME, VALUE, -EXTENT, -VAR) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
+  spread(VAR, VALUE) %>%
+  mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2))
 
-pou <- spread(pou, SITE_NAME, AREA_KM2) %>%
-  mutate(SF_Ivory=SF_Ivory+SF,
-         NF_Ivory=NF_Ivory+NF,
-         Godowa=Godowa+NF_Ivory+SF_Ivory,
-         Lone_Pine=Lone_Pine+Godowa+Sycan,
-         Power=Power+Lone_Pine,
-         'Godowa+Sycan'=Godowa+Sycan,
-         'SF+NF'=SF+NF,
-         'SF_Ivory+NF_Ivory'=SF_Ivory+NF_Ivory) %>%
-  gather(SITE_NAME, AREA_KM2, -EXTENT) %>%
-  mutate(LANDUSE="POU", SOURCE="POU") %>%
-  select(SOURCE, EXTENT, SITE_NAME, LANDUSE, AREA_KM2)
+pou_incbasin <- filter(pou, SITE_NAME %in% incbasin_area$INC_SITE_NAME) %>%
+  rename(INC_SITE_NAME=SITE_NAME) %>%
+  mutate(INC_SITE_NAME=ordered(INC_SITE_NAME, levels=levels(incbasin_area$INC_SITE_NAME))) %>%
+  arrange(INC_SITE_NAME)
 
-ggplot(pou, aes(SITE_NAME, AREA_KM2, fill=EXTENT)) +
-  geom_bar(stat='identity', position='dodge')
+pou_subbasin <- filter(pou, SITE_NAME %in% c(levels(subbasin_area$SITE_NAME), "Godowa+Sycan", "SF_Ivory+NF_Ivory", "SF+NF")) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=c('Power', 'Lone_Pine',
+                                               'Godowa+Sycan', 'Godowa',
+                                               'Sycan', 'SF_Ivory+NF_Ivory',
+                                               'SF_Ivory', 'NF_Ivory',
+                                               'SF+NF',
+                                               'SF', 'NF'))) %>%
+  arrange(SITE_NAME)
 
-save(pou, file='pou.Rdata')
+# plots ----
+gather(pou_incbasin, VAR, VALUE, AREA_KM2:AREA_FRAC) %>%
+  ggplot(aes(INC_SITE_NAME, VALUE, fill=EXTENT)) +
+  geom_bar(stat='identity', position='dodge') +
+  facet_wrap(~VAR, scales='free_y') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+
+gather(pou_subbasin, VAR, VALUE, AREA_KM2:AREA_FRAC) %>%
+  ggplot(aes(SITE_NAME, VALUE, fill=EXTENT)) +
+  geom_bar(stat='identity', position='dodge') +
+  facet_wrap(~VAR, scales='free_y') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+
+# save ----
+filename <- "pou.Rdata"
+cat('\nSaving POU dataset to:', filename, '\n')
+save(pou_incbasin, pou_subbasin, file=filename)
+
+cat('\n\n')

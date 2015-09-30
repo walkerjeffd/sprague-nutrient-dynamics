@@ -22,27 +22,38 @@ load('loads.Rdata')
 load('gis.Rdata')
 
 df_wyr <- loads_df$wyr
-df_site <- loads_df$site
+df_site <- loads_df$site %>%
+  mutate(PERIOD=plyr::revalue(PERIOD, c('2011-2014'='P2010',
+                                        '2010-2014'='P2010',
+                                        '2002-2014'='P2002')))
 
-stn <- select(stn.kt_sprague, SITE, SITE_NAME, LAT, LON) %>%
-  arrange(SITE) %>%
-  #   rbind(data.frame(SITE='WR1000', SITE_NAME='Sprague_Kirchers', LAT=42.567806, LON=-121.864472), .) %>%
-  mutate(SITE=ordered(SITE, levels=SITE),
-         SITE_NAME=ordered(SITE_NAME, levels=SITE_NAME))
-stn <- left_join(stn, select(subbasin_area, SITE, AREA_KM2), by='SITE')
+# stn <- select(stn.kt_sprague, SITE, SITE_NAME, LAT, LON) %>%
+#   arrange(SITE) %>%
+#   #   rbind(data.frame(SITE='WR1000', SITE_NAME='Sprague_Kirchers', LAT=42.567806, LON=-121.864472), .) %>%
+#   mutate(SITE=ordered(SITE, levels=SITE),
+#          SITE_NAME=ordered(SITE_NAME, levels=SITE_NAME))
+# stn <- left_join(stn, select(subbasin_area, SITE, AREA_KM2), by='SITE')
+# stn <- subbasin_area
+stn <- left_join(subbasin_area, select(stn.kt_sprague, SITE_NAME, LAT, LON), by="SITE_NAME")
 
-dataset_levels <- names(loads)
-subbasin_levels <- levels(subbasin_area$SITE_NAME)
-incbasin_levels <- list(RECENT=unique(incbasin_ivory_area$INC_SITE_NAME),
-                        POR=unique(incbasin_area$INC_SITE_NAME))
+dataset_levels <- "POR"
+subbasin_levels <- list(P2010=levels(subbasin_area$SITE_NAME),
+                        P2002=setdiff(levels(subbasin_area$SITE_NAME), c("NF_Ivory", "SF_Ivory")))
+incbasin_levels <- list(P2010=setdiff(levels(incbasin_area$INC_SITE_NAME), c("Godowa-SF-NF")),
+                        P2002=setdiff(levels(incbasin_area$INC_SITE_NAME),
+                                      c("Godowa-SF_Ivory-NF_Ivory", "SF_Ivory-SF", "NF_Ivory-NF")))
+wyears_levels <- list(P2010=c(2010, 2014),
+                      P2002=c(2002, 2014))
 
 # separate gis by dataset
-stn <- list(RECENT=stn,
-            POR=filter(stn, !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))))
-subbasin <- list(RECENT=subbasin,
-                 POR=filter(subbasin, !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))))
-incbasin <- list(RECENT=incbasin_ivory,
-                 POR=incbasin)
+stn <- list(P2010=filter(stn, SITE_NAME %in% subbasin_levels[['P2010']]),
+            P2002=filter(stn, SITE_NAME %in% subbasin_levels[['P2002']]))
+subbasin <- list(P2010=subbasin,
+                 P2002=filter(subbasin, !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))))
+incbasin <- list(P2010=filter(incbasin,
+                              INC_SITE_NAME %in% incbasin_levels[['P2010']]),
+                 P2002=filter(incbasin,
+                              INC_SITE_NAME %in% incbasin_levels[['P2002']]))
 
 scale_fill_term <- list(Q=scale_fill_gradientn('Flow\n(hm3/yr)', colours=RColorBrewer::brewer.pal(n=6, name="Blues"), limits=c(0,NA)),
                         L=scale_fill_gradientn('Load\n(kg/yr)', colours=RColorBrewer::brewer.pal(n=6, name="Greens"), limits=c(0,NA)),
@@ -53,45 +64,48 @@ scale_fill_term <- list(Q=scale_fill_gradientn('Flow\n(hm3/yr)', colours=RColorB
 scale_fill_term_inc <- list(
   Q=scale_fill_gradient2('Net Flow (cm/yr)',
                          high="#08519C", mid='white', low='black',
-                         space='rgb'),
+                         space='Lab'),
   L=scale_fill_gradient2('Net Load\n(kg/yr)',
                          high="#006D2C", mid='white', low='black',
-                         space='rgb'),
+                         space='Lab'),
   Q_AREA=scale_fill_gradient2('Net Flow per\nArea (cm/yr)',
                               high="#08519C", mid='white', low='black',
-                              space='rgb'),
+                              space='Lab'),
   L_AREA=scale_fill_gradient2('Net Load per\nArea (kg/m2/yr)',
                               high="#006D2C", mid='white', low='black',
-                              space='rgb'),
+                              space='Lab'),
   C=scale_fill_gradient2('Change in\nFWM Conc (ppb)',
                          high='orangered', mid='white', low='black',
-                         space='rgb')
+                         space='Lab')
 )
 
 # subbasin functions ----
-map_subbasin <- function(dataset, variable, term, title=NULL) {
+map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
   ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-    geom_polygon(aes(x = long, y = lat, group = group), data = select(incbasin[[dataset]], -SITE_NAME),
+    geom_polygon(aes(x = long, y = lat, group = group),
+                 data = incbasin[[period]],
                  color = 'grey50', fill = NA, size = 0.2) +
     geom_polygon(aes(x = long, y = lat, fill = VALUE),
-                 data = subbasin[[dataset]] %>%
-                   left_join(filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels), by='SITE_NAME') %>%
-                   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels)),
+                 data = subbasin[[period]] %>%
+                   left_join(filter(df_site, PERIOD==period, SEASON==season, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels[[period]]),
+                             by='SITE_NAME') %>%
+                   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])),
                  colour = 'black', size = 0.2) +
     geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                  color = 'black', fill = NA, size = 0.2) +
-    geom_point(aes(x = LON, y = LAT), data = stn[[dataset]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
+    geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
     scale_fill_term[[term]] +
     facet_wrap(~SITE_NAME, nrow=2) +
     ggtitle(title) +
     theme(strip.background=element_blank(),
           strip.text.x=element_text(face='bold'))
 }
-# map_subbasin(dataset='POR', variable='FLOW', term='Q_AREA')
-# map_subbasin(dataset='POR', variable='TP', term='C')
+# map_subbasin(dataset='POR', period='P2002', season='Annual', variable='FLOW', term='Q_AREA')
+# map_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='C')
+# map_subbasin(dataset='POR', period='P2002', season='Summer (Jul-Sep)', variable='TP', term='C')
 
-bar_subbasin <- function(dataset, variable, term, title=NULL) {
-  p <- filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels) %>%
+bar_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
+  p <- filter(df_site, PERIOD==period, SEASON==season, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels[[period]]) %>%
     mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME)))) %>%
     ggplot(aes(x=SITE_NAME, y=VALUE, fill=VALUE)) +
     geom_bar(stat='identity', color='grey50') +
@@ -102,11 +116,19 @@ bar_subbasin <- function(dataset, variable, term, title=NULL) {
     ggtitle(title)
   p
 }
-# bar_subbasin(dataset='RECENT', variable='TP', term='L_AREA')
+# bar_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
+# bar_subbasin(dataset='POR', period='P2010', season='Annual', variable='TP', term='C')
 
-tile_subbasin <- function(dataset, variable, term, title=NULL) {
-  p <- filter(df_wyr, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels) %>%
-    mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME)))) %>%
+tile_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
+  x <- filter(df_wyr,
+              DATASET==dataset, VAR==variable, TERM==term,
+              WYEAR >= wyears_levels[[period]][1],
+              WYEAR <= wyears_levels[[period]][2],
+              SEASON == season,
+              SITE_NAME %in% subbasin_levels[[period]]) %>%
+    mutate(SITE_NAME=ordered(as.character(SITE_NAME),
+                             levels=rev(levels(SITE_NAME))))
+  p <- x %>%
     ggplot(aes(x=factor(WYEAR), y=SITE_NAME)) +
     geom_tile(aes(fill=VALUE)) +
     scale_fill_term[[term]] +
@@ -117,46 +139,45 @@ tile_subbasin <- function(dataset, variable, term, title=NULL) {
     ggtitle(title)
   p
 }
-# tile_subbasin(dataset='POR', variable='TP', term='L_AREA')
-# tile_subbasin(dataset='RECENT', variable='FLOW', term='Q_AREA')
+tile_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
+tile_subbasin(dataset='POR', period='P2010', season='Summer (Jul-Sep)', variable='TP', term='C')
 
-dash_subbasin <- function(dataset, variable, term, title=NULL) {
-  p.map <- map_subbasin(dataset=dataset, variable=variable, term=term, title=title)
-  p.bar <- bar_subbasin(dataset=dataset, variable=variable, term=term)
-    # theme(aspect.ratio=1)
-  p.tile <- tile_subbasin(dataset=dataset, variable=variable, term=term)
-    # theme(plot.margin = grid::unit(c(1,0,1,0), "cm")) +
-    # theme(aspect.ratio=1)
+dash_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
+  p.map <- map_subbasin(dataset=dataset, period=period, season=season, variable=variable, term=term, title=title)
+  p.bar <- bar_subbasin(dataset=dataset, period=period, season=season, variable=variable, term=term)
+  p.tile <- tile_subbasin(dataset=dataset, period=period, season=season, variable=variable, term=term)
   grid.arrange(p.map, arrangeGrob(p.bar, p.tile, ncol=2), heights=c(2/3, 1/3), ncol=1)
-  # makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
 }
-# dash_subbasin('POR', 'FLOW', 'Q_AREA',
+# dash_subbasin('POR', 'P2002', 'Annual', 'FLOW', 'Q_AREA',
 #               paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: POR   |   Variable: Flow\n'))
-# dash_subbasin('RECENT', 'TP', 'L',
+# dash_subbasin('POR', 'P2002', 'Annual', 'TP', 'L',
 #               paste0('Mean Annual Load', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
-# dash_subbasin('POR', 'TP', 'L_AREA',
+# dash_subbasin('POR', 'P2002', 'Annual', 'TP', 'L_AREA',
 #               paste0('Mean Annual Load per Unit Area', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
-dash_subbasin('POR', 'TP', 'C',
-              paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
+# dash_subbasin('POR', 'P2002', 'Annual', 'TP', 'C',
+#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
+# dash_subbasin('POR', 'P2010', 'Annual', 'TP', 'C',
+#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
 
-map_incbasin <- function(dataset, variable, term, title=NULL) {
+map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
   if (term == 'C') {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
       geom_polygon(aes(x = long, y = lat, group = group),
-                   data = select(incbasin[[dataset]], -SITE_NAME),
+                   data = incbasin[[period]],
                    color = 'grey50', fill = NA, size = 0.2) +
       geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = filter(incbasin[[dataset]], !(SITE_NAME %in% c('Sycan', 'NF', 'SF'))) %>%
+                   data = filter(incbasin[[period]], !(INC_SITE_NAME %in% c('Sycan', 'NF', 'SF'))) %>%
                      left_join(filter(df_site, DATASET==dataset,
+                                      PERIOD==period, SEASON==season,
                                       VAR==variable, TERM==term,
-                                      SITE_NAME %in% incbasin_levels[[dataset]]),
+                                      SITE_NAME %in% incbasin_levels[[period]]),
                                by=c('INC_SITE_NAME'='SITE_NAME')),
                    colour = 'black', size = 0.2) +
       geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                    color = 'black', fill = NA, size = 0.2) +
-      geom_point(aes(x = LON, y = LAT), data = stn[[dataset]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
+      geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
       geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-                data=incbasin[[dataset]] %>%
+                data=incbasin[[period]] %>%
                   group_by(INC_SITE_NAME) %>%
                   summarise(long=mean(c(min(long), max(long))),
                             lat=mean(c(min(lat), max(lat)))),
@@ -165,17 +186,21 @@ map_incbasin <- function(dataset, variable, term, title=NULL) {
       ggtitle(title)
   } else {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = select(incbasin[[dataset]], -SITE_NAME),
+      geom_polygon(aes(x = long, y = lat, group = group), data = incbasin[[period]],
                    color = 'grey50', fill = NA, size = 0.2) +
       geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = incbasin[[dataset]] %>%
-                     left_join(filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% incbasin_levels[[dataset]]), by=c('INC_SITE_NAME'='SITE_NAME')),
+                   data = incbasin[[period]] %>%
+                     left_join(filter(df_site,
+                                      DATASET==dataset, VAR==variable, TERM==term,
+                                      PERIOD==period, SEASON==season,
+                                      SITE_NAME %in% incbasin_levels[[period]]),
+                               by=c('INC_SITE_NAME'='SITE_NAME')),
                    colour = 'black', size = 0.2) +
       geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                    color = 'black', fill = NA, size = 0.2) +
-      geom_point(aes(x = LON, y = LAT), data = stn[[dataset]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
+      geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
       geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-                data=incbasin[[dataset]] %>%
+                data=incbasin[[period]] %>%
                   group_by(INC_SITE_NAME) %>%
                   summarise(long=mean(c(min(long), max(long))),
                             lat=mean(c(min(lat), max(lat)))),
@@ -192,19 +217,20 @@ map_incbasin <- function(dataset, variable, term, title=NULL) {
                      color='grey50')
   p
 }
-# map_incbasin(dataset='POR', variable='FLOW', term='Q_AREA',
+# map_incbasin(dataset='POR', period='P2002', season='Annual',
+#              variable='FLOW', term='Q_AREA',
 #              title=paste0('Mean Annual Flow per Unit Area', '   |   ',
 #                           'Dataset: POR   |   Variable: Flow\n'))
-# map_incbasin(dataset='RECENT', variable='FLOW', term='Q_AREA',
+# map_incbasin(dataset='POR', period='P2010', season='Annual',
+#              variable='FLOW', term='Q_AREA',
 #              title=paste0('Mean Annual Flow per Unit Area', '   |   ',
-#                           'Dataset: RECENT   |   Variable: Flow\n'))
-# map_incbasin(dataset='RECENT', variable='TP', term='C')
-# map_incbasin(dataset='RECENT', variable='TP', term='C')
-# map_incbasin(dataset='POR', variable='TP', term='L_AREA')
-# map_incbasin(dataset='RECENT', variable='NO23', term='C')
+#                           'Dataset: POR   |   Variable: Flow\n'))
+# map_incbasin(dataset='POR', period='P2002', season='Annual',
+#              variable='TP', term='C')
 
-bar_incbasin <- function(dataset, variable, term, title=NULL) {
-  x <- filter(df_site, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% incbasin_levels[[dataset]]) %>%
+bar_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
+  x <- filter(df_site, DATASET==dataset, PERIOD==period, SEASON==season,
+              VAR==variable, TERM==term, SITE_NAME %in% incbasin_levels[[period]]) %>%
     mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
   if (term == 'C') {
     x <- filter(x, !(SITE_NAME %in% c('SF', 'NF', 'Sycan')))
@@ -220,12 +246,14 @@ bar_incbasin <- function(dataset, variable, term, title=NULL) {
     ggtitle(title)
   p
 }
-# bar_incbasin(dataset='POR', variable='TP', term='L_AREA')
-# bar_incbasin(dataset='RECENT', variable='TP', term='C')
-# bar_incbasin(dataset='RECENT', variable='FLOW', term='Q_AREA')
+# bar_incbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
+# bar_incbasin(dataset='POR', period='P2010', season='Annual', variable='TP', term='C')
 
-tile_incbasin <- function(dataset, variable, term, title=NULL) {
-  x <- filter(df_wyr, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% incbasin_levels[[dataset]]) %>%
+tile_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
+  x <- filter(df_wyr, DATASET==dataset, VAR==variable, SEASON==season,
+              WYEAR >= wyears_levels[[period]][1],
+              WYEAR <= wyears_levels[[period]][2],
+              TERM==term, SITE_NAME %in% incbasin_levels[[period]]) %>%
     mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
   if (term == 'C') {
@@ -242,49 +270,63 @@ tile_incbasin <- function(dataset, variable, term, title=NULL) {
     ggtitle(title)
   p
 }
-# tile_incbasin(dataset='POR', variable='TP', term='L_AREA')
-# tile_incbasin(dataset='RECENT', variable='FLOW', term='Q_AREA')
+# tile_incbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
 
-dash_incbasin <- function(dataset, variable, term, title=NULL) {
-  p.map <- map_incbasin(dataset=dataset, variable=variable, term=term, title=title)
-  p.bar <- bar_incbasin(dataset=dataset, variable=variable, term=term)
-  p.tile <- tile_incbasin(dataset=dataset, variable=variable, term=term) +
-    theme(plot.margin = grid::unit(c(1,0,1,0), "cm"))
+dash_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
+  p.map <- map_incbasin(dataset=dataset, period=period, season=season, variable=variable, term=term, title=title)
+  p.bar <- bar_incbasin(dataset=dataset, period=period, season=season, variable=variable, term=term)
+  p.tile <- tile_incbasin(dataset=dataset, period=period, season=season, variable=variable, term=term)
+    # theme(plot.margin = grid::unit(c(1,0,1,0), "cm"))
   grid.arrange(grobs=list(p.map, arrangeGrob(p.bar, p.tile, ncol=2)),
                heights=c(2/3, 1/3), ncol=1)
   # makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
 }
-# dash_incbasin('POR', 'FLOW', 'Q_AREA',
+# dash_incbasin('POR', 'P2002', 'Annual', 'FLOW', 'Q_AREA',
 #               paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: POR   |   Variable: Flow\n'))
-# dash_incbasin('RECENT', 'FLOW', 'Q_AREA',
-#               paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: RECENT   |   Variable: Flow\n'))
-# dash_incbasin('RECENT', 'TP', 'C',
-#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: RECENT   |   Variable: TP\n'))
-# dash_incbasin('RECENT', 'NO23', 'C',
-#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: RECENT   |   Variable: NO23\n'))
+# dash_incbasin('POR', 'P2010', 'Annual', 'FLOW', 'Q_AREA',
+#               paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: POR   |   Variable: Flow\n'))
+# dash_incbasin('POR', 'P2010', 'Annual', 'TP', 'C',
+#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
+# dash_incbasin('POR', 'P2002', 'Annual', 'TP', 'C',
+#               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
 
 
 # pdf ----
-for (dataset in c('POR', 'RECENT')) {
-  cat(dataset, '\n')
+dataset <- 'POR'
+if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-subbasin'))) {
+  dir.create(file.path('pdf', tolower(dataset), 'loads-maps-subbasin'))
+}
+if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-incremental-basin'))) {
+  dir.create(file.path('pdf', tolower(dataset), 'loads-maps-incremental-basin'))
+}
+
+dataset <- 'POR'
+season <- 'Annual'
+for (period in c('P2002', 'P2010')) {
+  cat(period, '\n')
   cat('.. SUBBASINS', '\n')
-  variables <- setdiff(filter(df_site, DATASET==dataset)$VAR %>% as.character %>% unique, 'FLOW')
+  variables <- setdiff(filter(df_site, PERIOD==period)$VAR %>% as.character %>% unique, 'FLOW')
+  period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
   for (variable in variables) {
     filename <- file.path('pdf', tolower(dataset), 'loads-maps-subbasin',
-                          paste0('loads-subbasin-', tolower(variable), '.pdf'))
+                          paste0('loads-subbasin-', period_label, '-', tolower(variable), '.pdf'))
     cat('Printing:', filename, '\n')
     pdf(filename, width=11, height=8.5)
-    cat('....', variable, '\n')
-    dash_subbasin(dataset, variable, 'C',
-                  paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: ', dataset,'   |   Variable: ', variable, '\n'))
-    dash_subbasin(dataset, variable, 'L_AREA',
-                  paste0('Mean Annual Load per Unit Area', '   |   ', 'Dataset: ', dataset,'   |   Variable: ', variable, '\n'))
-    dash_subbasin(dataset, 'FLOW', 'Q_AREA',
-                  paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
-#     dash_subbasin(dataset, variable, 'L',
-#                   paste0('Mean Annual Load', '   |   ', 'Dataset: ', dataset,'   |   Variable: ', variable, '\n'))
-#     dash_subbasin(dataset, 'FLOW', 'Q',
-#                   paste0('Mean Annual Flow', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
+    dash_subbasin(dataset, period, season, variable, 'C',
+                  paste0('Mean Annual FWM Concentration\n',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable, '\n'))
+    dash_subbasin(dataset, period, season, variable, 'L_AREA',
+                  paste0('Mean Annual Load per Unit Area',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable, '\n'))
+    dash_subbasin(dataset, period, season, 'FLOW', 'Q_AREA',
+                  paste0('Mean Annual Flow per Unit Area',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable, '\n'))
     dev.off()
     Sys.sleep(2)
   }
@@ -293,45 +335,53 @@ for (dataset in c('POR', 'RECENT')) {
   for (variable in variables) {
     filename <- file.path('pdf', tolower(dataset),
                           'loads-maps-incremental-basin',
-                          paste0('loads-incbasin-', tolower(variable), '.pdf'))
+                          paste0('loads-incbasin-', period_label, '-', tolower(variable), '.pdf'))
     cat('Printing:', filename, '\n')
     pdf(filename, width=11, height=8.5)
-    cat('....', variable, '\n')
-    dash_incbasin(dataset, variable, 'C',
-                  paste0('Change in Annual FWM Concentration', '   |   ', 'Dataset: ', dataset, '   |   Variable: ', variable, '\n'))
-    dash_incbasin(dataset, variable, 'L_AREA',
-                  paste0('Mean Annual Load per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: ', variable, '\n'))
-    dash_incbasin(dataset, 'FLOW', 'Q_AREA',
-                  paste0('Mean Annual Flow per Unit Area', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
-#     dash_incbasin(dataset, variable, 'L',
-#                   paste0('Mean Annual Load', '   |   ', 'Dataset: ', dataset, '   |   Variable: ', variable, '\n'))
-#     dash_incbasin(dataset, 'FLOW', 'Q',
-#                   paste0('Mean Annual Flow', '   |   ', 'Dataset: ', dataset, '   |   Variable: Flow\n'))
+    dash_incbasin(dataset, period, season, variable, 'C',
+                  paste0('Change in Annual FWM Concentration',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable, '\n'))
+    dash_incbasin(dataset, period, season, variable, 'L_AREA',
+                  paste0('Mean Annual Load per Unit Area',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable, '\n'))
+    dash_incbasin(dataset, period, season, 'FLOW', 'Q_AREA',
+                  paste0('Mean Annual Flow per Unit Area',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable, '\n'))
     dev.off()
     Sys.sleep(2)
   }
 }
 
 # summary maps
-for (dataset in c('POR', 'RECENT')) {
+dataset <- 'POR'
+season <- 'Annual'
+for (period in c('P2002', 'P2010')) {
   term <- 'C'
-  maps.c <- lapply(c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23'), function(variable) {
+  variables <- setdiff(droplevels(filter(df_site, PERIOD==period))$VAR %>% levels, 'FLOW')
+  period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
+  maps.c <- lapply(variables, function(variable) {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
       geom_polygon(aes(x = long, y = lat, group = group),
-                   data = incbasin[[dataset]] %>%
-                     select(-SITE_NAME),
+                   data = incbasin[[period]],
                    color = 'grey50', fill = NA, size = 0.2) +
       geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = filter(incbasin[[dataset]], !(SITE_NAME %in% c("Sycan", "NF", "SF"))) %>%
-                     left_join(filter(df_site, DATASET==dataset, VAR==variable, TERM==term,
-                                      SITE_NAME %in% incbasin_levels[[dataset]],
+                   data = filter(incbasin[[period]], !(INC_SITE_NAME %in% c("Sycan", "NF", "SF"))) %>%
+                     left_join(filter(df_site, DATASET==dataset, PERIOD==period,
+                                      SEASON==season, VAR==variable, TERM==term,
+                                      SITE_NAME %in% incbasin_levels[[period]],
                                       !(SITE_NAME %in% c('NF', 'SF', 'Sycan'))),
                                by=c('INC_SITE_NAME'='SITE_NAME')),
                    colour = 'black', size = 0.2) +
       geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                    color = 'black', fill = NA, size = 0.2) +
-      geom_point(aes(x = LON, y = LAT), data = stn[[dataset]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
-      scale_fill_gradient2('Change in\nFWM Conc (ppb)', high='orangered', mid='white', low='black', space='rgb') +
+      geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
+      scale_fill_gradient2('Change in\nFWM Conc (ppb)', high='orangered', mid='white', low='black', space='Lab') +
       ggtitle(variable) +
       theme(legend.text=element_text(size=8),
             legend.position='bottom',
@@ -342,9 +392,11 @@ for (dataset in c('POR', 'RECENT')) {
   })
 
   term <- 'L_AREA'
-  maps.l <- lapply(c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23'), function(variable) {
-    x <- filter(df_site, DATASET==dataset, VAR==variable, TERM==term,
-                SITE_NAME %in% incbasin_levels[[dataset]])
+  maps.l <- lapply(variables, function(variable) {
+    x <- filter(df_site, DATASET==dataset,
+                PERIOD==period, SEASON==season,
+                VAR==variable, TERM==term,
+                SITE_NAME %in% incbasin_levels[[period]])
     if (min(x$VALUE)<0) {
       color_limits <- c(NA, NA)
     } else {
@@ -353,20 +405,22 @@ for (dataset in c('POR', 'RECENT')) {
 
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
       geom_polygon(aes(x = long, y = lat, group = group),
-                   data = select(incbasin[[dataset]], -SITE_NAME),
+                   data = incbasin[[period]],
                    color = 'grey50', fill = NA, size = 0.2) +
       geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = incbasin[[dataset]] %>%
+                   data = incbasin[[period]] %>%
                      left_join(x, by=c('INC_SITE_NAME'='SITE_NAME')) %>%
-                     mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=incbasin_levels)),
+                     mutate(VAR=ordered(as.character(VAR), levels=levels(df_site$VAR)),
+                            INC_SITE_NAME=ordered(as.character(INC_SITE_NAME),
+                                                  levels=incbasin_levels[[period]])),
                    colour = 'black', size = 0.2) +
       geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                    color = 'black', fill = NA, size = 0.2) +
-      geom_point(aes(x = LON, y = LAT), data = stn[[dataset]],
+      geom_point(aes(x = LON, y = LAT), data = stn[[period]],
                  fill = 'deepskyblue', pch = 21, color = 'black', size = 2) +
       scale_fill_gradient2('Net Load per\nArea (kg/m2/yr)',
                            high="#006D2C", mid='white', low='black',
-                           space='rgb',
+                           space='Lab',
                            lim=color_limits)+
       ggtitle(variable) +
       theme(legend.text=element_text(size=8),
@@ -375,8 +429,9 @@ for (dataset in c('POR', 'RECENT')) {
     ggplotGrob(p)
   })
 
-  x.flow <- filter(df_site, DATASET==dataset, VAR=="FLOW", TERM=='Q_AREA',
-                   SITE_NAME %in% incbasin_levels[[dataset]])
+  x.flow <- filter(df_site, DATASET==dataset, PERIOD==period,
+                   SEASON==season, VAR=="FLOW", TERM=='Q_AREA',
+                   SITE_NAME %in% incbasin_levels[[period]])
   if (min(x.flow$VALUE)<0) {
     color_limits <- c(NA, NA)
   } else {
@@ -385,21 +440,21 @@ for (dataset in c('POR', 'RECENT')) {
 
   maps.q <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
       geom_polygon(aes(x = long, y = lat, group = group),
-                   data = select(incbasin[[dataset]], -SITE_NAME),
+                   data = incbasin[[period]],
                    color = 'grey50', fill = NA, size = 0.2) +
       geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = incbasin[[dataset]] %>%
+                   data = incbasin[[period]] %>%
                      left_join(x.flow, by=c('INC_SITE_NAME'='SITE_NAME')) %>%
-                     mutate(SITE_NAME=ordered(as.character(SITE_NAME),
-                                              levels=incbasin_levels)),
+                     mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME),
+                                              levels=incbasin_levels[[period]])),
                    colour = 'black', size = 0.2) +
       geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                    color = 'black', fill = NA, size = 0.2) +
-      geom_point(aes(x = LON, y = LAT), data = stn[[dataset]],
+      geom_point(aes(x = LON, y = LAT), data = stn[[period]],
                  fill = 'deepskyblue', pch = 21, color = 'black', size = 2) +
       scale_fill_gradient2('Net Flow per\nArea (cm/yr)',
                            high="#08519C", mid='white', low='black',
-                           space='rgb', lim=color_limits) +
+                           space='Lab', lim=color_limits) +
       facet_wrap(~VAR) +
       theme(legend.text=element_text(size=8),
             legend.position='bottom',
@@ -407,17 +462,20 @@ for (dataset in c('POR', 'RECENT')) {
             strip.text=element_text(size=12, face='bold'),
             strip.background=element_blank())
 
-  filename <- file.path('pdf', tolower(dataset), paste0('loads-summary-maps.pdf'))
+  filename <- file.path('pdf', tolower(dataset), paste0('loads-summary-maps-', period_label, '.pdf'))
   cat('Printing:', filename, '\n')
   pdf(filename, width=10, height=8)
   grid.arrange(grobs=maps.c, nrow=2,
-               top=paste0('\nNet Change in FWM Concentration by Incremental Subbasin\nDataset: ', dataset))
+               top=paste0('\nNet Change in FWM Concentration by Incremental Subbasin\n',
+                          'Period: ', period_label))
   makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
   grid.arrange(grobs=maps.l, nrow=2,
-               top=paste0('\nNet Load per Unit Area by Incremental Subbasin\nDataset: ', dataset))
+               top=paste0('\nNet Load per Unit Area by Incremental Subbasin\n',
+                          'Period: ', period_label))
   makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
   grid.arrange(grobs=arrangeGrob(maps.q, nrow=2, ncol=3),
-               top=paste0('\nNet Flow per Unit Area by Incremental Subbasin\nDataset: ', dataset))
+               top=paste0('\nNet Flow per Unit Area by Incremental Subbasin\n',
+                          'Period: ', period_label))
   makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
   dev.off()
 }
@@ -425,28 +483,28 @@ for (dataset in c('POR', 'RECENT')) {
 # report ----
 
 # subbasin
-png('report/results-load-map-subbasin-recent-tp-conc.png', width=10, height=8, res=200, units='in')
-dash_subbasin('RECENT', 'TP', 'C', '')
+png('report/results-load-map-subbasin-tp-conc.png', width=10, height=8, res=200, units='in')
+dash_subbasin('POR', 'P2010', 'Annual', 'TP', 'C', '')
 dev.off()
 
-png('report/results-load-map-subbasin-recent-tp-load.png', width=10, height=8, res=200, units='in')
-dash_subbasin('RECENT', 'TP', 'L_AREA', '')
+png('report/results-load-map-subbasin-tp-load.png', width=10, height=8, res=200, units='in')
+dash_subbasin('POR', 'P2010', 'Annual', 'TP', 'L_AREA', '')
 dev.off()
 
-png('report/results-load-map-subbasin-recent-flow.png', width=10, height=8, res=200, units='in')
-dash_subbasin('RECENT', 'FLOW', 'Q_AREA', '')
+png('report/results-load-map-subbasin-flow.png', width=10, height=8, res=200, units='in')
+dash_subbasin('POR', 'P2010', 'Annual', 'FLOW', 'Q_AREA', '')
 dev.off()
 
 # incbasin
-png('report/results-load-map-incbasin-recent-tp-conc.png', width=10, height=8, res=200, units='in')
-dash_incbasin('RECENT', 'TP', 'C', '')
+png('report/results-load-map-incbasin-tp-conc.png', width=10, height=8, res=200, units='in')
+dash_incbasin('POR', 'P2010', 'Annual', 'TP', 'C', '')
 dev.off()
 
-png('report/results-load-map-incbasin-recent-tp-load.png', width=10, height=8, res=200, units='in')
-dash_incbasin('RECENT', 'TP', 'L_AREA', '')
+png('report/results-load-map-incbasin-tp-load.png', width=10, height=8, res=200, units='in')
+dash_incbasin('POR', 'P2010', 'Annual', 'TP', 'L_AREA', '')
 dev.off()
 
-png('report/results-load-map-incbasin-recent-flow.png', width=10, height=8, res=200, units='in')
-dash_incbasin('RECENT', 'FLOW', 'Q_AREA', '')
+png('report/results-load-map-incbasin-flow.png', width=10, height=8, res=200, units='in')
+dash_incbasin('POR', 'P2010', 'Annual', 'FLOW', 'Q_AREA', '')
 dev.off()
 

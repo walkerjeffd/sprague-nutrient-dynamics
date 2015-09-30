@@ -8,6 +8,9 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading KT Synoptic dataset...\n\n")
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----
@@ -105,7 +108,7 @@ df <- select(df, DATE, TIME, LAT, LON, SITE_DESCRIPTION, SITE,
              FLOW_cfs, STAGE_ft, TEMP_degC, COND_uScm, DO_ppm, PH_su, PSAT_pct,
              TP_ppm, PO4_ppm, NH4_ppm, NO23_ppm, TN_ppm,
              TSS_ppm, NOTES) %>%
-  mutate(STAGE_ft=as.double(STAGE_ft)) # 'n/a' converted to NA
+  mutate(STAGE_ft=as.double(STAGE_ft)) # 'n/a' converted to NA on 4 rows
 
 # fix times
 df[which(df$TIME==17.25), "TIME"] <- 1725
@@ -162,4 +165,8 @@ filter(df, SITE=='SR0200') %>%
 # save ----
 wq.kt_synoptic <- df
 
-save(wq.kt_synoptic, stn.kt_synoptic, file="kt_synoptic.Rdata")
+filename <- "kt_synoptic.Rdata"
+cat('Saving synoptic datasets to:', filename, '\n')
+save(wq.kt_synoptic, stn.kt_synoptic, file=filename)
+
+cat('\n\n')

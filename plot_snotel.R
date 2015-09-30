@@ -14,7 +14,9 @@ load('gis.Rdata')
 source('functions.R')
 
 # plots ----
-pdf(file.path('pdf', 'snotel.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'snotel.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_polygon(aes(x = long, y = lat, group = group), data = basin,

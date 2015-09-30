@@ -14,7 +14,9 @@ load('ghcnd.Rdata')
 load('gis.Rdata')
 
 # plots ----
-pdf(file.path('pdf', 'prism.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'prism.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 p <- ggplot(prism_subbasin, aes(MONTHYEAR, PRCP/25.4, color=SITE_NAME)) +
   geom_line() +
@@ -83,7 +85,9 @@ prcp <- filter(ghcnd, STATION=='GHCND:USW00094236') %>%
   mutate(WYEAR=fluxr::wyear(MONTHYEAR)) %>%
   filter(WYEAR>=2001)
 
-pdf(file.path('pdf', 'prism-ghcnd-compare.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'prism-ghcnd-compare.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 p.mon <- prcp %>%
   ggplot(aes(MONTHYEAR, PRCP, fill=SOURCE)) +

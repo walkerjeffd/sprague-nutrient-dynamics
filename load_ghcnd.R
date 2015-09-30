@@ -12,7 +12,7 @@ DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----
 filename <- file.path(DATA_DIR, 'sprague', 'ghcnd', 'ghcnd_sprague.csv')
-cat('Loading file:', filename, '\n')
+cat('Loading GHCND dataset from:', filename, '\n\n')
 
 ghcnd <- read.csv(filename, stringsAsFactors=FALSE, na.strings='-9999') %>%
   select(STATION, STATION_NAME, ELEVATION, LATITUDE, LONGITUDE, DATE, TMIN, TMAX, PRCP, SNOW) %>%

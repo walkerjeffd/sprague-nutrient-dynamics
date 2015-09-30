@@ -7,6 +7,9 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Loading SNOTEL dataset...\n\n")
+
 DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----
@@ -19,6 +22,7 @@ files <- c('QUARTZ MOUNTAIN'='706_QUARTZ MOUNTAIN_20150219.txt',
 
 snotel <- lapply(names(files), function(site_name) {
   fname <- files[[site_name]]
+  cat("Loading SNOTEL data from:", fname, '\n')
   df <- read.csv(file = file.path(snotel_dir, fname), header = TRUE, skip = 7)
   names(df) <- c('DATE', 'SWE_in')
   df$DATE <- ymd(df$DATE)
@@ -30,7 +34,6 @@ snotel <- lapply(names(files), function(site_name) {
 snotel[['WYEAR']] <- wyear(snotel[['DATE']])
 
 snotel <- snotel %>%
-  mutate(SITE_NAME=factor(SITE_NAME)) %>%
   filter(WYEAR <= 2014)
 
 # stations ----
@@ -52,8 +55,10 @@ snotel.wyr <- snotel %>%
   left_join(snotel.wyr, by=c('SITE_NAME', 'WYEAR')) %>%
   select(SITE_NAME, WYEAR, N, SWE_APR, SWE_MEAN, SWE_MAX)
 
-png(filename="report/snotel-daily-ts.png", res=200, width=10, height=8, units = 'in')
-mutate(snotel, SWE_cm=SWE_in*2.54) %>%
+filename <- "report/snotel-daily-ts.png"
+cat('\nSaving daily timeseries plot to:', filename, '\n')
+png(filename=filename, res=200, width=10, height=8, units = 'in')
+p <- mutate(snotel, SWE_cm=SWE_in*2.54) %>%
   ggplot(aes(DATE, SWE_cm)) +
   geom_line() +
   labs(x="Date", y="Snow Water Equivalent (cm)") +
@@ -61,8 +66,16 @@ mutate(snotel, SWE_cm=SWE_in*2.54) %>%
   scale_x_datetime(breaks=scales::date_breaks('5 years'),
                    labels=scales::date_format('%Y'),
                    limits=c(as.POSIXct('1981-12-31'), as.POSIXct('2014-09-30')))
+print(p)
 dev.off()
 
 # save ----
-write.csv(stn.snotel, file='csv/stn_snotel.csv', row.names=FALSE)
-save(snotel, snotel.wyr, stn.snotel, file='snotel.Rdata')
+filename <- 'csv/stn_snotel.csv'
+cat('\nSaving SNOTEL dataset to:', filename, '\n')
+write.csv(stn.snotel, file=filename, row.names=FALSE)
+
+filename <- 'snotel.Rdata'
+cat('Saving SNOTEL dataset to:', filename, '\n')
+save(snotel, snotel.wyr, stn.snotel, file=filename)
+
+cat('\n\n')

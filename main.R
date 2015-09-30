@@ -21,7 +21,7 @@ source('load_owrd.R')
 source('load_usgs.R')
 source('load_prism.R')
 
-# compute loads
+# compute flows and loads
 source('compute_flows.R')
 source('compute_flow_precip.R')
 source('compute_loads.R')
@@ -30,7 +30,7 @@ source('compute_loads.R')
 source('plot_dataset_outliers.R')
 source('plot_dataset_splots.R')
 source('plot_dataset_timeseries.R')
-source('plot_synoptic.R')
+# source('plot_synoptic.R')
 source('plot_maps.R')
 
 # source('plot_flow_ciy_method.R')
@@ -45,12 +45,12 @@ source('plot_loads_summary.R')
 source('plot_loads_maps.R')
 source('plot_loads_tiles.R')
 
-source('plot_loads_data.R')
-source('plot_loads_residuals.R')
-source('plot_loads_problems.R')
-
+source('plot_loads_network.R')
 source('plot_loads_landuse.R')
 
+# source('plot_loads_data.R')
+# source('plot_loads_residuals.R')
+# source('plot_loads_problems.R')
 
 # compute and plot trends
 source('compute_trends.R')

@@ -7,18 +7,16 @@ rm(list=ls())
 
 load('gis.Rdata')
 load('nlcd.Rdata')
-load('network.Rdata')
+network <- readRDS('network.Rdata')
+
 nlcd.subbasin.raw <- nlcd.subbasin
-nlcd.subbasin <- filter(nlcd.subbasin.raw, SOURCE=="NLCD_CAT") %>%
+nlcd.subbasin <- nlcd.subbasin.raw %>%
   select(-TOTAL_AREA_KM2, -AREA_FRAC) %>%
-  group_by(EXTENT, LANDUSE, SITE_NAME) %>%
-  summarise(AREA_KM2=sum(AREA_KM2)) %>%
-  ungroup %>%
   spread(SITE_NAME, AREA_KM2) %>%
   mutate('Godowa+Sycan'=Godowa+Sycan,
          'SF+NF'=SF+NF,
          'SF_Ivory+NF_Ivory'=SF_Ivory+NF_Ivory) %>%
-  gather(SITE_NAME, AREA_KM2, -EXTENT, -LANDUSE) %>%
+  gather(SITE_NAME, AREA_KM2, -SOURCE, -EXTENT, -LANDUSE) %>%
   group_by(EXTENT, SITE_NAME) %>%
   mutate(TOTAL_AREA_KM2=sum(AREA_KM2)) %>%
   ungroup %>%
@@ -30,7 +28,7 @@ nlcd.subbasin <- filter(nlcd.subbasin.raw, SOURCE=="NLCD_CAT") %>%
                                     'SF_Ivory', 'SF', 'NF_Ivory', 'NF')))
 stopifnot(all(table(nlcd.subbasin$EXTENT, nlcd.subbasin$SITE_NAME)==8))
 
-group_by(nlcd.subbasin, EXTENT, SITE_NAME) %>%
+group_by(nlcd.subbasin, SOURCE, EXTENT, SITE_NAME) %>%
   summarise(AREA_KM2=sum(AREA_KM2),
             AREA_FRAC=sum(AREA_FRAC)) %>%
   as.data.frame
@@ -72,7 +70,10 @@ scale_fill_nlcd <- scale_fill_manual('Land Use',
                                               'Water'='#5475A8',
                                               'Planted/Cultivated'='red',
                                               'Developed'='#E8D1D1'))
-pdf(file.path('pdf', 'land-use-nlcd.pdf'), width=11, height=8.5)
+
+filename <- file.path('pdf', 'land-use-nlcd.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 p <- nlcd.subbasin %>%
   ggplot(aes(SITE_NAME, AREA_FRAC, fill=LANDUSE)) +
   geom_bar(position='fill', stat='identity') +
@@ -128,8 +129,9 @@ print(p)
 dev.off()
 
 # report ----
-
-png("report/nlcd-subbasin-composition.png", width=8, height=4, res=200, units="in")
+filename <- "report/nlcd-subbasin-composition.png"
+cat('Saving subbasin composition to:', filename, '\n')
+png(filename, width=8, height=4, res=200, units="in")
 p <- nlcd.subbasin %>%
   filter(SITE_NAME %in% c("Power", "Lone_Pine", "Godowa", "Sycan", "SF_Ivory", "SF", "NF_Ivory", "NF")) %>%
   mutate(EXTENT=plyr::revalue(EXTENT, c("basin"="Total Basin", "valley"="Lower Valley"))) %>%
@@ -137,58 +139,11 @@ p <- nlcd.subbasin %>%
   ggplot(aes(SITE_NAME, AREA_FRAC, fill=LANDUSE)) +
   geom_bar(position='fill', stat='identity') +
   labs(x='Station', y='Fraction of Drainage Area (%)') +
-  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        strip.background=element_blank(),
+        strip.text=element_text(face="bold")) +
   scale_fill_nlcd +
   scale_y_continuous(labels=scales::percent) +
   facet_wrap(~EXTENT)
 print(p)
 dev.off()
-
-# # pdf
-# pdf(file.path('pdf', 'land-use-gap.pdf'), width=11, height=8.5)
-#
-# gap %>%
-#   arrange(NVC_CLASS) %>%
-#   group_by(EXTENT, INC_SITE_ABBR, NVC_CLASS) %>%
-#   summarise(AREA_FRAC=sum(AREA_FRAC)) %>%
-#   ggplot(aes(INC_SITE_ABBR, AREA_FRAC, fill=NVC_CLASS)) +
-#   geom_bar(position='fill', stat='identity') +
-#   labs(x='', y='Fraction Area') +
-#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
-#   scale_y_continuous(labels=scales::percent) +
-#   scale_fill_manual('Land Use', values=c('Shrubland & Grassland'='#AF963C',
-#                                          'Recently Disturbed or Modified'='#FDE9AA',
-#                                          'Forest & Woodland'='#85C77E',
-#                                          'Semi-Desert'='#D3CDC0',
-#                                          'Polar & High Montane Vegetation'='#C8E6F8',
-#                                          'Nonvascular & Sparse Vascular Rock Vegetation'='green',
-#                                          'Introduced & Semi Natural Vegetation'='orange',
-#                                          'Open Water'='#5475A8',
-#                                          'Agricultural Vegetation'='red',
-#                                          'Developed & Other Human Use'='#E8D1D1')) +
-#   facet_wrap(~EXTENT) +
-#   ggtitle('USGS GAP Dataset')
-#
-# gap %>%
-#   arrange(NVC_CLASS) %>%
-#   group_by(EXTENT, INC_SITE_ABBR, NVC_CLASS) %>%
-#   summarise(AREA_FRAC=sum(AREA_FRAC)) %>%
-#   ggplot(aes(INC_SITE_ABBR, AREA_FRAC, fill=NVC_CLASS)) +
-#   geom_bar(stat='identity') +
-#   labs(x='', y='Fraction Area') +
-#   scale_y_continuous(labels=scales::percent) +
-#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
-#   scale_fill_manual('Land Use', values=c('Shrubland & Grassland'='#AF963C',
-#                                          'Recently Disturbed or Modified'='#FDE9AA',
-#                                          'Forest & Woodland'='#85C77E',
-#                                          'Semi-Desert'='#D3CDC0',
-#                                          'Polar & High Montane Vegetation'='#C8E6F8',
-#                                          'Nonvascular & Sparse Vascular Rock Vegetation'='green',
-#                                          'Introduced & Semi Natural Vegetation'='orange',
-#                                          'Open Water'='#5475A8',
-#                                          'Agricultural Vegetation'='red',
-#                                          'Developed & Other Human Use'='#E8D1D1')) +
-#   facet_grid(NVC_CLASS~EXTENT, scales='free_y') +
-#   ggtitle('USGS GAP Dataset')
-#
-# dev.off()

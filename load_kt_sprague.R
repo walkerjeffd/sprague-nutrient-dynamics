@@ -437,11 +437,8 @@ print(table(df.clean$VAR, df.clean$QAQC))
 # POR dataset ----
 df.por <- df.clean
 
-# remove Ivory stations and TSS
+# apply upper detection limit
 df.por <- df.por %>%
-  filter(!(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory')),
-         !(VAR %in% 'TSS')) %>%
-  droplevels %>%
   mutate(LIMITED = ifelse(is.na(UPPERDL), FALSE, VALUE < UPPERDL),
          VALUE = ifelse(LIMITED, UPPERDL, VALUE))
 cat("Summary of variables set to detection limit for POR dataset\n")
@@ -472,7 +469,7 @@ print(table(df.recent$VAR, df.recent$LIMITED))
 cat("Summary of sites set to detection limit for RECENT dataset\n")
 print(table(df.recent$SITE_NAME, df.recent$LIMITED))
 
-# check all values >= 1/2 lower DL
+# check all values >= lower DL
 df.recent_check <- filter(df.recent, VAR %in% detection_limits$VAR) %>%
   group_by(VAR) %>%
   summarise(MIN_VALUE=min(VALUE, na.rm=TRUE)) %>%

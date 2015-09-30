@@ -10,6 +10,9 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+cat(paste0(rep('=', 80), collapse=''), '\n')
+cat("Running flow model...\n\n")
+
 source("functions.R")
 load('gis.Rdata')
 
@@ -70,7 +73,8 @@ stn.kt_sprague <- stn.kt_sprague %>%
                                                  'SF'='OWRD-11497500',
                                                  'NF'='OWRD-11497500',
                                                  'SF_Ivory'='OWRD-11497500',
-                                                 'NF_Ivory'='OWRD-11497500'))),
+                                                 'NF_Ivory'='OWRD-11497500')),
+                       stringsAsFactors=FALSE),
             by='SITE_NAME')
 
 # dataset por ----
@@ -147,16 +151,19 @@ ggplot(q, aes(REF_FLOW, FLOW)) +
   facet_wrap(~SITE_NAME, scales='free')
 
 mutate(q, WDAY=water_day(DATE)) %>%
+  filter(!is.na(RATIO)) %>%
   ggplot(aes(WDAY, RATIO)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME, scales='free')
 
 mutate(q, WDAY=water_day(DATE)) %>%
+  filter(!is.na(RATIO)) %>%
   ggplot(aes(WDAY, RATIO/REF_FLOW)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME, scales='free')
 
 mutate(q, WDAY=water_day(DATE)) %>%
+  filter(!is.na(RATIO)) %>%
   ggplot(aes(REF_FLOW, RATIO)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME, scales='free')
@@ -203,14 +210,14 @@ q.model <- mutate(q,
 q.out <- select(q.model, SITE_NAME, DATE, Q=PRED_RESID)
 
 # explore ----
-filter(q.model, CUMISNA>0) %>%
+filter(q.model, CUMISNA>0, !is.na(LN_RESID)) %>%
   ggplot(aes(DATE, LN_RESID)) +
   geom_point(size=1) +
   facet_wrap(~SITE_NAME)
 
-filter(q.model, CUMISNA>0) %>%
+filter(q.model, CUMISNA>0, !is.na(LN_RESID)) %>%
   ggplot(aes(LN_RESID)) +
-  geom_histogram() +
+  geom_histogram(binwidth=0.1) +
   facet_wrap(~SITE_NAME)
 
 # library(manipulate)
@@ -246,7 +253,8 @@ filename <- file.path('pdf', 'flow-data.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
+  geom_polygon(aes(x = long, y = lat, group = group),
+               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
                color = 'grey50', fill = NA, size = 0.2) +
   geom_path(aes(x = long, y = lat, group = group), data = flowline,
             color='deepskyblue', size=0.2) +
@@ -275,7 +283,8 @@ filename <- file.path('pdf', 'flow-model.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
+  geom_polygon(aes(x = long, y = lat, group = group),
+               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
                color = 'grey50', fill = NA, size = 0.2) +
   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                color = 'black', fill = NA, size = 0.2) +
@@ -297,11 +306,6 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
 print(p)
 makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
 
-# ggplot(q.model, aes(DATE)) +
-#   geom_line(aes(y=REF_FLOW), color='gray50') +
-#   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
-#   labs(x='', y='Flow (cfs)', title='KT Biweekly (red) and Daily Reference (gray) Flows') +
-#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
 p <- ggplot(q.model, aes(DATE)) +
   geom_line(aes(y=PRED), color='gray50') +
   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
@@ -391,25 +395,6 @@ p <- filter(q.model, !is.na(FLOW)) %>%
        title="Distributions of Flow Ratios used to Interpolate Measured Flows") +
   facet_wrap(~SITE_NAME, nrow=2)
 print(p)
-#
-# filter(q.model, !is.na(FLOW)) %>%
-#   mutate(WDAY=water_day(DATE)) %>%
-#   (function(x) {
-#     x2 <- mutate(x, WDAY=WDAY+365)
-#     x3 <- mutate(x, WDAY=WDAY+365*2)
-#     x <- rbind(x, x2, x3)
-#     x <- mutate(x, WDAY-365)
-#   }) %>%
-#   ggplot(aes(WDAY, RATIO)) +
-#   geom_hline(yint=1, color='gray50') +
-#   geom_point(size=1) +
-#   geom_smooth(method="loess", se=FALSE, span=0.2) +
-#   ylim(0, NA) +
-#   geom_vline(xint=365) +
-#   geom_vline(xint=365*2) +
-#   labs(x="Month", y="Flow Ratio [Q_site/Q_ref]",
-#        title="Seasonal Patterns in Flow Ratios") +
-#   facet_wrap(~SITE_NAME, nrow=2)
 
 p <- ratios %>%
   mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
@@ -421,19 +406,16 @@ p <- ratios %>%
        title="Mean Monthly Flow Ratio used to Interpolate Measured Flows") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 print(p)
-#
-# ggplot(q.model, aes(DATE, RATIO_MONTH)) +
-#   geom_line() +
-#   geom_hline(yint=0, alpha=0) +
-#   labs(x='', y='Monthly Flow Ratio', title='Monthly Ratios of KT Flow to Reference Flow') +
-#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
 
 dev.off()
 
 # report ----
-png('report/method-flow-station-map.png', width=8, height=5, res=200, units='in')
+filename <- 'report/method-flow-station-map.png'
+cat("\nSaving reference station map to:", filename, '\n')
+png(filename, width=8, height=5, res=200, units='in')
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin_ivory,
+  geom_polygon(aes(x = long, y = lat, group = group),
+               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
                color = 'grey50', fill = NA, size = 0.2) +
   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
                color = 'black', fill = NA, size = 0.2) +
@@ -445,9 +427,9 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
                 vjust = ifelse(SITE!='11497500', -1, 1)),
             data = stn.ref, fontface='bold', size=4) +
   geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
-            data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=4, hjust=1) +
+            data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=3, hjust=1) +
   geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
-            data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=4, hjust=0) +
+            data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=3, hjust=0) +
   scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
   scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
   scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
@@ -462,7 +444,9 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
 print(p)
 dev.off()
 
-png('report/results-flow-daily-ts.png', width=8, height=6, res=200, units='in')
+filename <- 'report/results-flow-daily-ts.png'
+cat("Saving daily flows to:", filename, '\n')
+png(filename, width=8, height=6, res=200, units='in')
 p <- ggplot(q.model, aes(DATE)) +
   geom_line(aes(y=PRED_RESID, color="Estimated Daily\nFlows")) +
   geom_point(aes(y=FLOW, color='Measured Biweekly\nFlow'), size=1) +
@@ -475,7 +459,9 @@ p <- ggplot(q.model, aes(DATE)) +
 print(p)
 dev.off()
 
-png('report/results-flow-annual-ts.png', width=8, height=6, res=200, units='in')
+filename <- 'report/results-flow-annual-ts.png'
+cat("Saving annual flows to:", filename, '\n')
+png(filename, width=8, height=6, res=200, units='in')
 p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
   group_by(SITE_NAME, WYEAR) %>%
   summarise(N=n(),
@@ -491,7 +477,11 @@ dev.off()
 
 # save ----
 cat('Saving flows to flows.Rdata...\n')
+
+# units in cfs
 list(ratios=ratios,
      model=q.model,
      df=q.out) %>%
   saveRDS(file='flows.Rdata')
+
+cat('\n\n')

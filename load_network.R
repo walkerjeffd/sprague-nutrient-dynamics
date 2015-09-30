@@ -3,7 +3,7 @@ library(dplyr)
 rm(list=ls())
 
 cat(paste0(rep('=', 80), collapse=''), '\n')
-cat("Loading network...\n\n")
+cat("Loading Reach Network...\n\n")
 
 # create network ----
 network <- list(RECENT=data.frame(FROM =  c('Lone_Pine', 'Godowa+Sycan', 'Sycan',        'Godowa',       'SF_Ivory+NF_Ivory', 'NF_Ivory',          'SF_Ivory',          'NF',       'SF'),
@@ -22,7 +22,7 @@ network <- lapply(names(network), function(d) {
   rbind_all
 
 # save ----
-cat("Saving network.Rdata\n")
-save(network, file='network.Rdata')
+cat("Saving network.Rdata as RDS\n")
+saveRDS(network, file='network.Rdata')
 
 cat("\n\n")

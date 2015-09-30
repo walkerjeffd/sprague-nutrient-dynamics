@@ -28,7 +28,7 @@ detection_limits <- lapply(names(detection_limits), function(limit_name) {
   rbind_all() %>%
   spread(LIMIT_NAME, LIMIT)
 
-cat("Saving detection_limits.Rdata\n")
+cat("Saving detection_limits.Rdata as RDS\n")
 saveRDS(detection_limits, file = "detection_limits.Rdata")
 
 cat("\n\n")
