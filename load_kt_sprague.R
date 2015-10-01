@@ -424,6 +424,12 @@ print(table(df.raw$VAR, df.raw$QAQC))
 # CLEAN dataset ----
 df.clean <- df.raw
 
+df_removed <- filter(df.raw, !(QAQC %in% c('PASS', 'RPD')))
+df_removed <- group_by(df_removed, SITE_NAME, VAR) %>%
+  summarise(N=n()) %>%
+  spread(VAR, N, fill=0)
+write.csv(df_removed, file="csv/wq_removed.csv", row.names=FALSE)
+
 # keep only PASS and RPD samples
 df.clean <- filter(df.clean, QAQC %in% c('PASS', 'RPD'))
 
