@@ -938,7 +938,7 @@ trend_rep_q <- filter(trends,
                       LOG==TRUE) %>%
   mutate(VAR="FLOW")
 
-trend_rep <- rbind(trend_rep_c, trend_rep_q) %>%
+trend_rep_c <- rbind(trend_rep_c, trend_rep_q) %>%
   mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL),
                              levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')),
          TERM_LABEL=plyr::revalue(TERM, term_labs),
@@ -968,5 +968,35 @@ p <- ggplot(trend_rep, aes(SLOPE.PCT, SITE_NAME)) +
 filename <- 'report/results-trend-summary.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=10, height=8, res=200, units='in')
+print(p)
+dev.off()
+
+trend_rep_tp <- filter(trends,
+                       VAR=='TP',
+                       MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
+                       LOG==TRUE) %>%
+  mutate(TERM_LABEL=plyr::revalue(TERM, c("C"="TP Conc", "Q"="Flow", "L"="TP Load")),
+         TERM_LABEL=ordered(TERM_LABEL, levels=c("Flow", "TP Load", "TP Conc")),
+         MONTH_LABEL=ordered(as.character(MONTH_LABEL),
+                             levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')))
+
+p <- ggplot(trend_rep_tp, aes(SLOPE.PCT, SITE_NAME)) +
+  geom_vline(xint=0) +
+  geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
+  geom_point(mapping=aes(), shape=16, size=3, color='white') +
+  geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=3) +
+  geom_point(mapping=aes(), shape=1, size=3) +
+  scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
+  scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+  scale_x_continuous(labels=scales::percent, breaks=seq(-0.06, 0.04, by=0.02)) +
+  labs(x='Trend Slope (%/yr)', y='') +
+  facet_grid(TERM_LABEL~MONTH_LABEL) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'),
+        axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8))
+
+filename <- 'report/results-trend-tp.png'
+cat('Saving report figure to:', filename, '\n')
+png(filename, width=10, height=5, res=200, units='in')
 print(p)
 dev.off()
