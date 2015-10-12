@@ -13,7 +13,7 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
-term_labs <- c('C'='FWM Conc', 'L'='Load', 'Q'='Flow')
+term_labs <- c('Q'='Flow', 'L'='Load', 'C'='FWM Conc')
 term_units <- c('C'='ppb', 'L'='kg/d', 'Q'='hm3/d')
 dataset <- "POR"
 load('loads.Rdata')
@@ -337,15 +337,11 @@ saveRDS(trends, file='trends.Rdata')
 
 plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
   x.trend <- filter(trends, VAR=='TP', TERM=='Q', MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep'), LOG==log_trans) %>%
-    mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep')),
+    mutate(VAR='Flow',
+           MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep')),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Variable: Flow')
-#   if (log_trans) {
-#     title <- paste0(title, ' | Transform: Log10')
-#   } else {
-#     title <- paste0(title, ' | Transform: None')
-#   }
+  title <- paste0('Seasonal Kendall Trend Slopes and Significance\nPeriod: WY2002-2014 | Term: Flow')
 
   p.4 <- filter(x.trend, MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')) %>%
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
@@ -358,7 +354,7 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
     scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
-    facet_grid(.~MONTH_LABEL) +
+    facet_grid(VAR~MONTH_LABEL) +
     theme(strip.background=element_blank())
   p.2 <- filter(x.trend, MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep')) %>%
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
@@ -371,7 +367,7 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
     scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
-    facet_grid(.~MONTH_LABEL) +
+    facet_grid(VAR~MONTH_LABEL) +
     theme(strip.background=element_blank())
 
   if (only4) {
@@ -577,6 +573,23 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
 }
 # plot_diagnostic(site_name='Power', variable='TP', term='C')
 
+# pdf ----
+filename <- file.path('pdf', tolower(dataset), paste0('trends-summary-term.pdf'))
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5, useDingbats = FALSE)
+plot_dot_season_flow(only4=TRUE)
+plot_dot_term(term='L', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
+plot_dot_term(term='C', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
+dev.off()
+
+filename <- file.path('pdf', tolower(dataset), paste0('trends-summary-variable.pdf'))
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+for (variable in as.character(unique(df_mon$VAR))) {
+  print(plot_dot_season(variable=variable, seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'), log_trans=TRUE))
+}
+dev.off()
+
 if (!file.exists(file.path('pdf', tolower(dataset), 'trends'))) {
   dir.create(file.path('pdf', tolower(dataset), 'trends'))
 }
@@ -586,10 +599,6 @@ for (variable in as.character(unique(df_mon$VAR))) {
   cat('Printing:', filename, '\n')
   cat('..', variable, '\n')
   pdf(filename, width=11, height=8.5)
-  print(plot_dot_season(variable=variable, log_trans=TRUE))
-  Sys.sleep(1)
-  print(plot_dot_season(variable=variable, seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'), log_trans=TRUE))
-  Sys.sleep(1)
   for (site_name in as.character(unique(df_mon$SITE_NAME))) {
     cat('....', site_name, '\n')
     for (term in c('C', 'L')) {
@@ -599,8 +608,6 @@ for (variable in as.character(unique(df_mon$VAR))) {
     }
   }
   dev.off()
-
-  plot_dot_season_flow()
   Sys.sleep(1)
 }
 
@@ -608,8 +615,6 @@ filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', 'flow
 cat('Printing:', filename, '\n')
 cat('..', 'FLOW', '\n')
 pdf(filename, width=11, height=8.5)
-plot_dot_season_flow()
-Sys.sleep(1)
 for (site_name in as.character(unique(df_mon$SITE_NAME))) {
   cat('....', site_name, '\n')
   for (term in c('Q')) {
@@ -618,15 +623,6 @@ for (site_name in as.character(unique(df_mon$SITE_NAME))) {
     Sys.sleep(1)
   }
 }
-dev.off()
-
-filename <- file.path('pdf', tolower(dataset), paste0('trends-summary.pdf'))
-cat('Printing:', filename, '\n')
-cat(dataset, '\n')
-pdf(filename, width=11, height=8.5)
-plot_dot_term(term='C', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-plot_dot_term(term='L', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-plot_dot_season_flow(only4=TRUE)
 dev.off()
 
 # pdf(file.path('pdf', 'trends-dataset-comparison.pdf'), width=11, height=8.5)
