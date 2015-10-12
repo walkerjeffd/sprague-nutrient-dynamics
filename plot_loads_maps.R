@@ -293,69 +293,113 @@ dash_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
 
 # pdf ----
 dataset <- 'POR'
-if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-subbasin'))) {
-  dir.create(file.path('pdf', tolower(dataset), 'loads-maps-subbasin'))
+if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin'))) {
+  dir.create(file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin'))
 }
-if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-incremental-basin'))) {
-  dir.create(file.path('pdf', tolower(dataset), 'loads-maps-incremental-basin'))
+if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-incr-basin'))) {
+  dir.create(file.path('pdf', tolower(dataset), 'loads-maps-incr-basin'))
 }
 
 dataset <- 'POR'
 season <- 'Annual'
 for (period in c('P2002', 'P2010')) {
+  if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period))) {
+    dir.create(file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period))
+  }
+  if (!file.exists(file.path('pdf', tolower(dataset), 'loads-maps-incr-basin', period))) {
+    dir.create(file.path('pdf', tolower(dataset), 'loads-maps-incr-basin', period))
+  }
+
   cat(period, '\n')
   cat('.. SUBBASINS', '\n')
   variables <- setdiff(filter(df_site, PERIOD==period)$VAR %>% as.character %>% unique, 'FLOW')
-  period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
+  if (variable == 'TSS') {
+    period_label <- 'WY2011-2014'
+  } else {
+    period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
+  }
+
   for (variable in variables) {
-    filename <- file.path('pdf', tolower(dataset), 'loads-maps-subbasin',
-                          paste0('loads-subbasin-', period_label, '-', tolower(variable), '.pdf'))
+    if (variable == 'TSS') {
+      period_label <- 'WY2011-2014'
+    } else {
+      period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
+    }
+
+    filename <- file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period,
+                          paste0('loads-cumul-basin-', period_label, '-', tolower(variable), '.pdf'))
     cat('Printing:', filename, '\n')
     pdf(filename, width=11, height=8.5)
+    dash_subbasin(dataset, period, season, variable, 'L_AREA',
+                  paste0('Mean Annual Load per Unit Area\n',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable,
+                         '   |   Term: ', 'Load per Unit Area', '\n'))
     dash_subbasin(dataset, period, season, variable, 'C',
                   paste0('Mean Annual FWM Concentration\n',
                          'Period: ', period_label,
                          '   |   Season: ', season,
-                         '   |   Variable: ', variable, '\n'))
-    dash_subbasin(dataset, period, season, variable, 'L_AREA',
-                  paste0('Mean Annual Load per Unit Area',
-                         'Period: ', period_label,
-                         '   |   Season: ', season,
-                         '   |   Variable: ', variable, '\n'))
-    dash_subbasin(dataset, period, season, 'FLOW', 'Q_AREA',
-                  paste0('Mean Annual Flow per Unit Area',
-                         'Period: ', period_label,
-                         '   |   Season: ', season,
-                         '   |   Variable: ', variable, '\n'))
+                         '   |   Variable: ', variable,
+                         '   |   Term: ', 'FWM Concentration', '\n'))
     dev.off()
     Sys.sleep(2)
   }
 
+  variable <- 'Flow'
+  filename <- file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period,
+                        paste0('loads-cumul-basin-', period_label, '-', tolower(variable), '.pdf'))
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=11, height=8.5)
+  dash_subbasin(dataset, period, season, 'FLOW', 'Q_AREA',
+                paste0('Mean Annual Flow per Unit Area\n',
+                       'Period: ', period_label,
+                       '   |   Season: ', season,
+                       '   |   Variable: ', variable,
+                       '   |   Term: ', 'Flow per Unit Area', '\n'))
+  dev.off()
+
   cat('.. INCBASINS', '\n')
   for (variable in variables) {
+    if (variable == 'TSS') {
+      period_label <- 'WY2011-2014'
+    } else {
+      period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
+    }
     filename <- file.path('pdf', tolower(dataset),
-                          'loads-maps-incremental-basin',
-                          paste0('loads-incbasin-', period_label, '-', tolower(variable), '.pdf'))
+                          'loads-maps-incr-basin', period,
+                          paste0('loads-incr-basin-', period_label, '-', tolower(variable), '.pdf'))
     cat('Printing:', filename, '\n')
     pdf(filename, width=11, height=8.5)
-    dash_incbasin(dataset, period, season, variable, 'C',
-                  paste0('Change in Annual FWM Concentration',
-                         'Period: ', period_label,
-                         '   |   Season: ', season,
-                         '   |   Variable: ', variable, '\n'))
     dash_incbasin(dataset, period, season, variable, 'L_AREA',
-                  paste0('Mean Annual Load per Unit Area',
+                  paste0('Mean Annual Load per Unit Area\n',
                          'Period: ', period_label,
                          '   |   Season: ', season,
-                         '   |   Variable: ', variable, '\n'))
-    dash_incbasin(dataset, period, season, 'FLOW', 'Q_AREA',
-                  paste0('Mean Annual Flow per Unit Area',
+                         '   |   Variable: ', variable,
+                         '   |   Term: ', 'Load per Unit Area', '\n'))
+    dash_incbasin(dataset, period, season, variable, 'C',
+                  paste0('Change in Annual FWM Concentration\n',
                          'Period: ', period_label,
                          '   |   Season: ', season,
-                         '   |   Variable: ', variable, '\n'))
+                         '   |   Variable: ', variable,
+                         '   |   Term: ', 'FWM Concentration', '\n'))
     dev.off()
     Sys.sleep(2)
   }
+
+  variable <- 'Flow'
+  filename <- file.path('pdf', tolower(dataset),
+                        'loads-maps-incr-basin', period,
+                        paste0('loads-incr-basin-', period_label, '-', tolower(variable), '.pdf'))
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=11, height=8.5)
+  dash_incbasin(dataset, period, season, 'FLOW', 'Q_AREA',
+                paste0('Mean Annual Flow per Unit Area\n',
+                       'Period: ', period_label,
+                       '   |   Season: ', season,
+                       '   |   Variable: ', variable,
+                       '   |   Term: ', 'Flow per Unit Area', '\n'))
+  dev.off()
 }
 
 # summary maps
