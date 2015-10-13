@@ -138,36 +138,6 @@ q.ref <- rbind(select(q.ref.power, -FLAG), q.ref.sycan, q.ref.beatty)
 q <- rbind(q.power, q.sycan, q.beatty) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=stn_order))
 
-ggplot(q, aes(REF_FLOW, FLOW)) +
-  geom_point(size=1) +
-  geom_smooth(method='loess') +
-  facet_wrap(~SITE_NAME, scales='free')
-
-ggplot(q, aes(REF_FLOW, FLOW)) +
-  geom_point(size=1) +
-  geom_smooth(method='loess') +
-  log_y +
-  log_x +
-  facet_wrap(~SITE_NAME, scales='free')
-
-mutate(q, WDAY=water_day(DATE)) %>%
-  filter(!is.na(RATIO)) %>%
-  ggplot(aes(WDAY, RATIO)) +
-  geom_point(size=1) +
-  facet_wrap(~SITE_NAME, scales='free')
-
-mutate(q, WDAY=water_day(DATE)) %>%
-  filter(!is.na(RATIO)) %>%
-  ggplot(aes(WDAY, RATIO/REF_FLOW)) +
-  geom_point(size=1) +
-  facet_wrap(~SITE_NAME, scales='free')
-
-mutate(q, WDAY=water_day(DATE)) %>%
-  filter(!is.na(RATIO)) %>%
-  ggplot(aes(REF_FLOW, RATIO)) +
-  geom_point(size=1) +
-  facet_wrap(~SITE_NAME, scales='free')
-
 # compute ----
 ratios <- q %>%
   filter(!is.na(FLOW), !is.na(REF_FLOW)) %>%
@@ -175,15 +145,6 @@ ratios <- q %>%
   summarise(N=n(),
             RATIO=mean(FLOW)/mean(REF_FLOW)) %>%
   ungroup
-
-ratios %>%
-  select(MONTH, SITE_NAME, RATIO) %>%
-  spread(SITE_NAME, RATIO)
-
-mutate(ratios, MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
-  ggplot(aes(MONTH, RATIO)) +
-  geom_bar(stat='identity') +
-  facet_wrap(~SITE_NAME)
 
 # merge flows with ratios
 q <- mutate(q, MONTH=month(DATE)) %>%
@@ -209,7 +170,50 @@ q.model <- mutate(q,
 
 q.out <- select(q.model, SITE_NAME, DATE, Q=PRED_RESID)
 
+# validation ----
+q.valid <- filter(q.owrd, SITE_NAME %in% c('SF', 'NF', 'Godowa', 'Lone_Pine')) %>%
+  rename(VALID_Q=FLOW) %>%
+  mutate(SITE=paste0('OWRD:', SITE)) %>%
+  select(-SOURCE)
+q.valid <- left_join(q.valid, q.out, by=c('SITE_NAME', 'DATE')) %>%
+  filter(!is.na(Q)) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=c('Lone_Pine', 'Godowa', 'SF', 'NF'))) %>%
+  arrange(SITE_NAME, DATE)
+
 # explore ----
+
+ratios %>%
+  select(MONTH, SITE_NAME, RATIO) %>%
+  spread(SITE_NAME, RATIO)
+
+ggplot(q, aes(REF_FLOW, FLOW)) +
+  geom_point(size=1) +
+  geom_smooth(method='loess') +
+  facet_wrap(~SITE_NAME, scales='free')
+
+mutate(q, WDAY=water_day(DATE)) %>%
+  filter(!is.na(RATIO)) %>%
+  ggplot(aes(WDAY, RATIO)) +
+  geom_point(size=1) +
+  facet_wrap(~SITE_NAME, scales='free')
+
+mutate(q, WDAY=water_day(DATE)) %>%
+  filter(!is.na(RATIO)) %>%
+  ggplot(aes(WDAY, RATIO/REF_FLOW)) +
+  geom_point(size=1) +
+  facet_wrap(~SITE_NAME, scales='free')
+
+mutate(q, WDAY=water_day(DATE)) %>%
+  filter(!is.na(RATIO)) %>%
+  ggplot(aes(REF_FLOW, RATIO)) +
+  geom_point(size=1) +
+  facet_wrap(~SITE_NAME, scales='free')
+
+mutate(ratios, MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
+  ggplot(aes(MONTH, RATIO)) +
+  geom_bar(stat='identity') +
+  facet_wrap(~SITE_NAME)
+
 filter(q.model, CUMISNA>0, !is.na(LN_RESID)) %>%
   ggplot(aes(DATE, LN_RESID)) +
   geom_point(size=1) +
@@ -405,6 +409,165 @@ p <- ratios %>%
   labs(x="Month", y="Mean Flow Ratio [Measured/Reference]",
        title="Mean Monthly Flow Ratio used to Interpolate Measured Flows") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+print(p)
+
+dev.off()
+
+if (!file.exists(file.path('pdf', 'flow-model'))) {
+  dir.create(file.path('pdf', 'flow-model'))
+}
+
+
+filename <- file.path('pdf', 'flow-model', 'flow-scatter-ref-vs-site.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+
+p <- filter(q, !is.na(FLOW)) %>%
+  ggplot(aes(REF_FLOW, FLOW)) +
+  geom_point(size=1) +
+  log_y +
+  log_x +
+  geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
+  scale_color_manual('', values=c('red')) +
+  facet_wrap(~SITE_NAME, scales='free') +
+  labs(x="Flow @ Reference Site (cfs)", y="Flow @ WQ Station (cfs)",
+       title="Measured Biweekly Flow vs. Reference Flow") +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+
+dev.off()
+
+filename <- file.path('pdf', 'flow-model', 'flow-scatter-ref-vs-site.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+
+p <- filter(q, !is.na(FLOW)) %>%
+  ggplot(aes(REF_FLOW, FLOW)) +
+  geom_point(size=1) +
+  log_y +
+  log_x +
+  geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
+  scale_color_manual('', values=c('red')) +
+  facet_wrap(~SITE_NAME, scales='free') +
+  labs(x="Flow @ Reference Site (cfs)", y="Flow @ WQ Station (cfs)",
+       title="Measured Biweekly Flow vs. Reference Flow") +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+
+dev.off()
+
+filename <- file.path('pdf', 'flow-model', 'flow-timeseries.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+
+p1 <- filter(q, SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan')) %>%
+  ggplot(aes(DATE, REF_FLOW)) +
+  geom_line(aes(color='Reference'), show_guide = TRUE) +
+  geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
+             show_guide = TRUE) +
+  log_y +
+  scale_color_manual('', values=c('Reference'='grey50', 'Biweekly'='red')) +
+  facet_wrap(~SITE_NAME, scales='free') +
+  labs(x="Date", y="Flow (cfs)",
+       title="Biweekly Measured and Daily Reference Flows") +
+  guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid'),
+                                                 shape=c(16, NA)))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
+p2 <- filter(q, !(SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan'))) %>%
+  ggplot(aes(DATE, REF_FLOW)) +
+  geom_line(aes(color='Reference'), show_guide = TRUE) +
+  geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
+             show_guide = TRUE) +
+  log_y +
+  scale_color_manual('', values=c('Reference'='grey50', 'Biweekly'='red')) +
+  facet_wrap(~SITE_NAME, scales='free') +
+  labs(x="Date", y="Flow (cfs)",
+       title="Biweekly Measured and Daily Reference Flows") +
+  guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid'),
+                                                 shape=c(16, NA)))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
+
+print(p1)
+print(p2)
+
+dev.off()
+
+
+filename <- file.path('pdf', 'flow-model', 'flow-residual-timeseries.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+p <- q.model %>%
+  filter(!is.na(FLOW)) %>%
+  ggplot(aes(DATE, LN_RESID)) +
+  geom_hline(yint=0) +
+  geom_point(size=1) +
+  facet_wrap(~SITE_NAME, ncol=2) +
+  labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]",
+       title="Timeseries of Flow Model Residuals") +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
+print(p)
+dev.off()
+
+filename <- file.path('pdf', 'flow-model', 'flow-residual-scatter.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+p <- q.model %>%
+  filter(!is.na(FLOW)) %>%
+  ggplot(aes(FLOW, LN_RESID)) +
+  geom_hline(yint=0) +
+  geom_point(size=1) +
+  facet_wrap(~SITE_NAME, ncol=4, scale='free_x') +
+  labs(x="Measured Biweekly Flow (cfs)",
+       y="Log Flow Residual\nln[Measured/Scaled Reference]",
+       title="Comparison of Flow Model Residuals to Measured Flow") +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
+print(p)
+dev.off()
+
+filename <- file.path('pdf', 'flow-model', 'flow-validation-timeseries.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+
+p <- q.valid %>%
+  gather(TERM, VALUE, VALID_Q, Q) %>%
+  ggplot(aes(DATE, VALUE, color=TERM)) +
+  geom_line(alpha=0.7) +
+  log_y +
+  labs(x="Date", y="Flow (cfs)",
+       title="Flow Model Validation Timeseries") +
+  scale_color_manual('', values=c('VALID_Q'='grey50', 'Q'='orangered'),
+                     labels=c('VALID_Q'='OWRD Validation', 'Q'='Predicted')) +
+  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12),
+        legend.position='top')
+print(p)
+
+dev.off()
+
+
+filename <- file.path('pdf', 'flow-model', 'flow-validation-scatter.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+
+p <- q.valid %>%
+  ggplot(aes(VALID_Q, Q)) +
+  geom_point(size=1, alpha=0.7) +
+  geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
+  log_x +
+  log_y +
+  scale_color_manual('', values='red') +
+  labs(x="Flow @ OWRD Station (cfs)", y="Predicted Flow (cfs)",
+       title="Flow Model Validation Comparison") +
+  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
 print(p)
 
 dev.off()
