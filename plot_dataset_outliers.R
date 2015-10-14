@@ -11,8 +11,8 @@ load('kt_sprague.Rdata')
 outliers <- readRDS('outliers.Rdata')
 source('functions.R')
 
-if (!file.exists(file.path('pdf', 'outliers'))) {
-  dir.create(file.path('pdf', 'outliers'))
+if (!file.exists(file.path('pdf', 'dataset', 'outliers'))) {
+  dir.create(file.path('pdf', 'dataset', 'outliers'))
 }
 
 # load data
@@ -176,25 +176,15 @@ plot_data <- function(variable, site, log.trans) {
                           p.var1, p.var2, p.var3,
                           p.site1, p.site2, p.site3),
                ncol=3,
-               top=paste0('\nOutlier Detection Plots\nVariable: ', variable, ', Site: ', site, '\nBlack = Not Outlier, Red = Outlier for this Site/Variable, Blue = Outlier for Comparison Site/Variable'))
+               top=paste0('Variable: ', variable, ', Station: ', site, '\nBlack = Not Outlier, Red = Outlier for this Variable/Site, Blue = Outlier for Comparison Variable/Site'))
 }
 # plot_data(variable='TP', site='Power', log.trans=TRUE)
 
 # pdf plots ----
 for (variable in c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')) {
-  filename <- file.path('pdf', 'outliers', paste0('dataset-outliers-', tolower(variable), '.pdf'))
+  filename <- file.path('pdf', 'dataset', 'outliers', paste0('dataset-outliers-', tolower(variable), '.pdf'))
   cat('Printing:', filename, '\n')
   pdf(filename, width=11, height=8.5)
-  p <- filter(wq, VAR==variable) %>%
-    ggplot(aes(DATE, VALUE, color=FLAGGED, size=FLAGGED)) +
-    geom_point() +
-    scale_color_manual('Outlier', values=c('FALSE'='grey50', 'TRUE'='red')) +
-    scale_size_manual('Outlier', values=c('FALSE'=1, 'TRUE'=3)) +
-    labs(y=paste0(variable, ' (mg/L)'), x='Date') +
-    log_y +
-    facet_wrap(~SITE_NAME, scales='free_x') +
-    ggtitle(paste0('Outlier Summary\nVariable: ', variable))
-  print(p)
 
   for (site in levels(stn.kt_sprague$SITE_NAME)) {
     cat('..', site, '\n')
