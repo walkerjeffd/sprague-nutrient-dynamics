@@ -32,7 +32,7 @@ wq <- wq[-idx, ]
 variable <- 'TP'
 site <- 'Power'
 
-filename <- file.path('pdf', 'dataset-scatterplots-variable.pdf')
+filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-variable.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 for (site in levels(wq$SITE_NAME)) {
@@ -46,14 +46,14 @@ for (site in levels(wq$SITE_NAME)) {
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
     ggpairs(upper=list(continuous="points", params=c(size=1)),
             lower=list(continuous="points", params=c(size=1)),
-            title=paste0('Variable Comparison Plots (Values are Log10 Transformed and Exclude Outliers), Site: ', site),
+            title=paste0('Station: ', site),
             params=list(labelSize=6)) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
   print(p, left=0.5, bottom=0.5)
 }
 dev.off()
 
-filename <- file.path('pdf', 'dataset-scatterplots-site.pdf')
+filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-station.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 for (variable in levels(wq$VAR)) {
@@ -70,17 +70,19 @@ for (variable in levels(wq$VAR)) {
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
     ggpairs(upper=list(continuous="points", params=c(size=1)),
             lower=list(continuous="points", params=c(size=1)),
-            title=paste0('Site Comparison Plots (Values are Log10 Transformed and Exclude Outliers), Variable: ', variable)) +
+            title=paste0('Variable: ', variable)) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
   print(p, left=0.5, bottom=0.5)
   Sys.sleep(1)
 }
 dev.off()
 
+
+
 log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
-filename <- file.path("pdf", "dataset-seasonal-patterns.pdf")
+filename <- file.path("pdf", "dataset", "dataset-seasonal-patterns.pdf")
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- mutate(wq,

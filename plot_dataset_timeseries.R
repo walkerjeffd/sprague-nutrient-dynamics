@@ -53,7 +53,7 @@ dev.off()
 
 
 # timeseries plots ----
-filename <- file.path('pdf', 'dataset-timeseries.pdf')
+filename <- file.path('pdf', 'dataset', 'dataset-timeseries.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- filter(wq.kt_sprague$RAW, VAR %in% detection_limits$VAR) %>%

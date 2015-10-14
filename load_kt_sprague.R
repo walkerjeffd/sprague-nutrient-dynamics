@@ -316,7 +316,11 @@ filter(df.rpd, !RPD_PASS) %>%
   scale_x_continuous(labels=scales::percent)
 
 # pdf plots
-filename <- file.path('pdf', 'dataset-rpd-test.pdf')
+if (!file.exists(file.path('pdf', 'dataset'))) {
+  dir.create(file.path('pdf', 'dataset'))
+}
+
+filename <- file.path('pdf', 'dataset', 'dataset-rpd-test.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 
