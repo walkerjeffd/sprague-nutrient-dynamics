@@ -332,6 +332,8 @@ trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
 
 cat('Saving trend results to trends.Rdata...\n')
 saveRDS(trends, file='trends.Rdata')
+cat('Saving trend results to csv/trends.csv...\n')
+write.csv(trends, file=file.path('csv', 'trends.csv'), row.names=FALSE)
 
 # plot functions ----
 
