@@ -44,7 +44,6 @@ df_site <- loads_df[['site']] %>%
 
 df_wyr <- loads_df[['wyr']] %>%
   filter(DATASET=="POR",
-         SEASON=="Annual",
          SITE_NAME %in% subbasin_area$SITE_NAME) %>%
   # convert load/flow to daily
   mutate(VALUE=ifelse(TERM != 'C', VALUE/N_DAY, VALUE),
@@ -89,35 +88,40 @@ if (!file.exists(file.path('pdf', tolower(dataset), 'loads-network'))) {
   dir.create(file.path('pdf', tolower(dataset), 'loads-network'))
 }
 
-filename <- file.path('pdf', tolower(dataset), 'loads-network',
-                      'loads-network-term-annual.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=17, height=11)
+for (season in unique(as.character(df_wyr$SEASON))) {
+  season_label <- str_split(season, "[ ]")[[1]][1]
+  filename <- file.path('pdf', tolower(dataset), 'loads-network',
+                        paste0('loads-network-term-', tolower(season_label), '.pdf'))
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=17, height=11)
 
-for (term in c('Q', 'L', 'C')) {
-  cat('..', term, '\n')
-  p <- filter(df_wyr, TERM==term) %>%
-    ggplot() +
-    geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
-    geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
-                 data=filter(df_segments_wyr, TERM==term),
-                 alpha=0.5) +
-    geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
-    facet_grid(VAR~WYEAR, scales='free_y') +
-    scale_color_discrete('') +
-    scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
-    scale_x_continuous(label=scales::comma) +
-    scale_y_continuous(label=scales::comma) +
-    labs(x='Cumulative Drainage Area (km2)', y=term_labels[[term]],
-         title=paste0('Annual Mean vs Cumulative Drainage Area\n',
-                      'Term: ', term_labels[[term]])) +
-    theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
-          aspect.ratio=1,
-          strip.background=element_blank(),
-          strip.text=element_text(face='bold'))
-  print(p)
+  for (term in c('Q', 'L', 'C')) {
+    cat('..', term, '\n')
+    p <- filter(df_wyr, TERM==term, SEASON==season) %>%
+      ggplot() +
+      geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
+      geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
+                   data=filter(df_segments_wyr, TERM==term, SEASON==season),
+                   alpha=0.5) +
+      geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
+      facet_grid(VAR~WYEAR, scales='free_y') +
+      scale_color_discrete('') +
+      scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
+      scale_x_continuous(label=scales::comma) +
+      scale_y_continuous(label=scales::comma) +
+      labs(x='Cumulative Drainage Area (km2)', y=term_labels[[term]],
+           title=paste0('Annual Mean vs Cumulative Drainage Area\n',
+                        'Season: ', season,
+                        '  |  Term: ', term_labels[[term]])) +
+      theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+            aspect.ratio=1,
+            strip.background=element_blank(),
+            strip.text=element_text(face='bold'))
+    print(p)
+  }
+  dev.off()
 }
-dev.off()
+
 
 dataset <- 'POR'
 for (period in c("P2002", "P2010")) {
