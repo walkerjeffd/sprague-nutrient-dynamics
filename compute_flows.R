@@ -573,10 +573,12 @@ print(p)
 dev.off()
 
 # report ----
-filename <- 'report/method-flow-station-map.png'
+filename <- 'report/map-flow-station.png'
 cat("\nSaving reference station map to:", filename, '\n')
 png(filename, width=8, height=5, res=200, units='in')
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+            color='deepskyblue', size=0.2) +
   geom_polygon(aes(x = long, y = lat, group = group),
                data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
                color = 'grey50', fill = NA, size = 0.2) +
