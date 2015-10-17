@@ -14,8 +14,9 @@ cat("Loading KT Synoptic dataset...\n\n")
 DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----
-# df <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_20141008.csv'), stringsAsFactors=FALSE)
-df <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_synoptic_20141008.csv'), stringsAsFactors=FALSE)
+df_synoptic <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_synoptic_20141008.csv'), stringsAsFactors=FALSE)
+df_springs <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_springs_20141008.csv'), stringsAsFactors=FALSE)
+df <- rbind(df_synoptic, df_springs)
 
 df <- plyr::rename(df, c("INDEX"="INDEX",
                          "DATE"="DATE",
@@ -141,10 +142,18 @@ stn.raw <- mutate(stn.raw,
                   LON_S=substr(LON_DMS, 6, 9),
                   LAT_DD=as.numeric(LAT_D) + (as.numeric(LAT_M) + as.numeric(LAT_S)/10/60)/60,
                   LON_DD=-(as.numeric(LON_D) + (as.numeric(LON_M) + as.numeric(LON_S)/10/60)/60))
-stn.kt_synoptic <- select(stn.raw, SITE, SITE_DESCRIPTION, LATITUDE=LAT_DD, LONGITUDE=LON_DD)
-write.csv(stn.kt_synoptic, file='csv/stn_kt_synoptic_raw.csv', row.names=FALSE)
+stn.kt_synoptic_raw <- select(stn.raw, SITE, SITE_DESCRIPTION, LATITUDE=LAT_DD, LONGITUDE=LON_DD)
+write.csv(stn.kt_synoptic_raw, file='csv/stn_kt_synoptic_raw.csv', row.names=FALSE)
+# MANUALLY EDIT csv/stn_kt_synoptic_raw.csv -> csv/stn_kt_synoptic.csv
+stn.kt_synoptic <- read.csv(file=file.path('csv', 'stn_kt_synoptic.csv'), stringsAsFactors=FALSE)
 
 # reshape data ----
+df <- filter(df, SITE %in% stn.kt_synoptic$SITE)
+
+df <- select(df, -SITE_DESCRIPTION)
+
+df <- left_join(df, select(stn.kt_synoptic, SITE, SITE_DESCRIPTION), by="SITE")
+
 df <- gather(df, VAR.UNITS, VALUE, FLOW_cfs:TSS_ppm) %>%
   separate(VAR.UNITS, c('VAR', 'UNITS'), sep='[_]') %>%
   select(DATE, DATETIME, SITE, SITE_DESCRIPTION, VAR, UNITS, VALUE, NOTES) %>%
