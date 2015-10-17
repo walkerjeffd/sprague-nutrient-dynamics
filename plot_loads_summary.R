@@ -21,70 +21,6 @@ term_colors <- c('L'='olivedrab3',
                  'Q'='steelblue',
                  'Q_AREA'='steelblue')
 
-# compare datasets ----
-# compare_dataset <- lapply(names(loads), function(dataset) {
-#   lapply(names(loads[[dataset]]), function(variable) {
-#     lapply(names(loads[[dataset]][[variable]]), function(site) {
-#       x <- loads[[dataset]][[variable]][[site]][['out']][['wyr']] %>%
-#         mutate(DATASET=dataset,
-#                SITE_NAME=site,
-#                VAR=variable)
-#       x
-#     }) %>%
-#       rbind_all
-#   }) %>%
-#     rbind_all
-# }) %>%
-#   rbind_all %>%
-#   mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels),
-#          VAR=factor(VAR),
-#          DATASET=ordered(DATASET, dataset_levels))
-#
-# upper_limits <- wq.kt_sprague[['POR']] %>%
-#   group_by(VAR) %>%
-#   summarise(DL=median(DL)) %>%
-#   filter(!is.na(DL))
-# lower_limits <- wq.kt_sprague[['RECENT']] %>%
-#   group_by(VAR) %>%
-#   summarise(DL=median(DL)) %>%
-#   filter(!is.na(DL))
-#
-# fits <- lapply(names(loads), function(dataset) {
-#   lapply(names(loads[[dataset]]), function(variable) {
-#     lapply(names(loads[[dataset]][[variable]]), function(site) {
-#       x <- loads[[dataset]][[variable]][[site]]$stats %>% as.data.frame
-#       x$DATASET <- dataset
-#       x$VAR <- variable
-#       x$SITE_NAME <- site
-#       x
-#     }) %>%
-#       rbind_all
-#   }) %>%
-#     rbind_all
-# }) %>%
-#   rbind_all %>%
-#   mutate(DATASET=ordered(DATASET, dataset_levels),
-#          SITE_NAME=ordered(SITE_NAME, levels=site_name_levels))
-#
-# params <- lapply(names(loads), function(dataset) {
-#   lapply(names(loads[[dataset]]), function(variable) {
-#     lapply(names(loads[[dataset]][[variable]]), function(site) {
-#       model <- loads[[dataset]][[variable]][[site]]$model
-#       x <- broom::tidy(model)
-#       x$DATASET <- dataset
-#       x$VAR <- variable
-#       x$SITE_NAME <- site
-#       x
-#     }) %>%
-#       rbind_all
-#   }) %>%
-#     rbind_all
-# }) %>%
-#   rbind_all %>%
-#   mutate(DATASET=ordered(DATASET, dataset_levels),
-#          SITE_NAME=ordered(SITE_NAME, levels=site_name_levels))
-
-
 # pdf: summary ----
 for (dataset in c('POR')) {
   cat('Printing:', file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), '\n')
@@ -450,9 +386,18 @@ loads_wyr_por_tp <- lapply(names(loads[['POR']][['TP']]), function (site_name) {
   separate(TERM_STAT, c('TERM', 'STAT')) %>%
   spread(STAT, VALUE)
 
-loads_wyr_por <- filter(loads_df$wyr, DATASET=="POR", SEASON=="Annual") %>%
-  filter(TERM %in% c("C", "Q_AREA"),
-         SITE_NAME %in% stn.kt_sprague$SITE_NAME)
+loads_wyr_por <- lapply(names(loads[['POR']]), function (variable) {
+    lapply(names(loads[['POR']][[variable]]), function (site_name) {
+      x <- loads[['POR']][[variable]][[site_name]][['out']][['wyr']]
+      x$SITE_NAME <- site_name
+      x$VAR <- variable
+      x
+    }) %>%
+      rbind_all
+  }) %>%
+  rbind_all %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels),
+         VAR=ordered(VAR, levels=names(loads[['POR']])))
 
 filename <- 'report/results-load-annual-tp.png'
 cat('Saving report figure:', filename, '\n')
@@ -480,14 +425,14 @@ dev.off()
 filename <- 'report/results-load-annual.png'
 cat('Saving report figure:', filename, '\n')
 png(filename, width=10, height=8, res=200, units='in')
-p <- ggplot(filter(loads_wyr_por, TERM=="C"), aes(factor(WYEAR), VALUE)) +
+p <- ggplot(loads_wyr_por, aes(factor(WYEAR), C)) +
   geom_bar(stat='identity', fill='orangered') +
-  geom_bar(stat='identity', fill='steelblue', data=filter(loads_wyr_por, TERM=="Q_AREA")) +
+  geom_errorbar(aes(ymin=C-C_se, ymax=C+C_se), width=0.4, size=0.2) +
   facet_grid(VAR~SITE_NAME, scales='free_y') +
   scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014)) +
   scale_y_continuous(labels=scales::comma) +
   labs(x='Water Year',
-       y='FWM Concentration (ppb) / Flow per Unit Area (cm/yr)') +
+       y='FWM Concentration (ppb)') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
