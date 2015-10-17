@@ -334,12 +334,6 @@ trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
          SIGNIF=ordered(as.character(SIGNIF), levels=c("p<0.05","0.05<p<0.10","p>0.10"))) %>%
   droplevels
 
-# save trends ----
-cat('Saving trend results to trends.Rdata...\n')
-saveRDS(trends, file='trends.Rdata')
-cat('Saving trend results to csv/trends.csv...\n')
-write.csv(trends, file=file.path('csv', 'trends.csv'), row.names=FALSE)
-
 # precip trends ----
 trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRUE) {
   x <- x.mon %>%
@@ -419,9 +413,18 @@ trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
   df
 }) %>%
   rbind_all() %>%
-  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME))) %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME)),
+         TERM="P",
+         VAR="PRECIP") %>%
   droplevels()
 
+# save trends ----
+cat('Saving trend results to trends.Rdata...\n')
+rbind(trends, trend.prcp) %>%
+  saveRDS(file='trends.Rdata')
+cat('Saving trend results to csv/trends.csv...\n')
+rbind(trends, trend.prcp) %>%
+  write.csv(file=file.path('csv', 'trends.csv'), row.names=FALSE)
 
 # plot functions ----
 plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
@@ -694,7 +697,8 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
 
   ylabel <- paste0('Precip', ' [', units, ']')
 
-  title <- paste0('Precipitation Trends\nDataset: PRISM  |  Site: ', site_name)
+  title <- paste0('Period: WY2002-2014  |  Site: ', site_name,
+                  '  |  Variable: Precipitation')
 
   p.mon.ts <- x.mon %>%
     ggplot() + aes_string(x='DDATE', y=term, color='SEASON') +
