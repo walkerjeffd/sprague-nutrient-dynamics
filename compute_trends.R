@@ -22,6 +22,8 @@ load('prism.Rdata')
 
 source('functions.R')
 
+# load data ----
+
 df_wyr <- loads_df[['wyr']] %>%
   filter(DATASET=="POR",
          TERM %in% c('Q', 'L', 'C'),
@@ -60,6 +62,7 @@ df_mon <- filter(df_mon, VAR!='FLOW') %>%
   select(-Q) %>%
   left_join(df_mon.flow, by=c('SITE_NAME', 'DATE'))
 
+# trend functions ----
 trend.sk <- function(x, value_var, months, month_label, years, log_trans=TRUE, water_year=TRUE) {
   # months <- 1:4
   # month_label <- 'Annual'
@@ -308,6 +311,7 @@ trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
 #             log_trans=TRUE,
 #             water_year=TRUE)
 
+# compute trends ----
 cat('Computing trend analysis...\n\n')
 trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
   cat('..', variable, '\n')
@@ -330,13 +334,96 @@ trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
          SIGNIF=ordered(as.character(SIGNIF), levels=c("p<0.05","0.05<p<0.10","p>0.10"))) %>%
   droplevels
 
+# save trends ----
 cat('Saving trend results to trends.Rdata...\n')
 saveRDS(trends, file='trends.Rdata')
 cat('Saving trend results to csv/trends.csv...\n')
 write.csv(trends, file=file.path('csv', 'trends.csv'), row.names=FALSE)
 
-# plot functions ----
+# precip trends ----
+trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRUE) {
+  x <- x.mon %>%
+    mutate(MONTH=month(MONTHYEAR))
 
+  value_var <- 'PRCP'
+
+  df.seasonal <- trend.sk(x, value_var=value_var,
+                          months=1:12, month_label='All Months',
+                          years=years, log_trans=log_trans, water_year=water_year)
+  df.4_9 <- trend.sk(x, value_var=value_var,
+                     months=4:9, month_label='Apr-Sep',
+                     years=years, log_trans=log_trans, water_year=water_year)
+  df.10_3 <- trend.sk(x, value_var=value_var,
+                      months=c(1:3, 10:12), month_label='Oct-Mar',
+                      years=years, log_trans=log_trans, water_year=water_year)
+  df.fall <- trend.sk(x, value_var=value_var,
+                      months=c(10:12), month_label='Oct-Dec',
+                      years=years, log_trans=log_trans, water_year=water_year)
+  df.winter <- trend.sk(x, value_var=value_var,
+                        months=1:3, month_label='Jan-Mar',
+                        years=years, log_trans=log_trans, water_year=water_year)
+  df.spring <- trend.sk(x, value_var=value_var,
+                        months=4:6, month_label='Apr-Jun',
+                        years=years, log_trans=log_trans, water_year=water_year)
+  df.summer <- trend.sk(x, value_var=value_var,
+                        months=7:9, month_label='Jul-Sep',
+                        years=years, log_trans=log_trans, water_year=water_year)
+  df <- rbind(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
+
+  for (m in 1:12) {
+    df.m <- trend.sk(x=x, value_var=value_var,
+                     months=m, month_label=as.character(m),
+                     years=years, log_trans=log_trans, water_year=water_year)
+    df <- rbind(df, df.m)
+  }
+
+  df.mk <- trend.mk(x=x.wyr, value_var=value_var,
+                    years=years, month_label='Annual-MK',
+                    log_trans=log_trans, water_year=water_year)
+  df.lm <- trend.lm(x=x.wyr, value_var=value_var,
+                    years=years, month_label='Annual-Reg',
+                    log_trans=log_trans, water_year=water_year)
+
+  df <- rbind(df, df.mk, df.lm)
+  df <- mutate(df,
+               MONTH_LABEL=ordered(MONTH_LABEL,
+                                   levels=c(as.character(10:12), as.character(1:9),
+                                            'Oct-Dec','Jan-Mar','Apr-Jun','Jul-Sep',
+                                            'Oct-Mar','Apr-Sep','All Months',
+                                            'Annual-MK','Annual-Reg')),
+               TERM=ordered(TERM, levels=names(term_labs)))
+
+  df
+}
+
+prism.mon <- mutate(prism_subbasin,
+                    DATASET='PRISM',
+                    DATE=MONTHYEAR,
+                    VAR='PRCP',
+                    N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
+                    PRCP=PRCP/N.DAY) %>% # mean mm/day
+  filter(WYEAR>=2002, WYEAR<=2014,
+         SITE_NAME %in% levels(df_mon$SITE_NAME)) %>%
+  droplevels
+prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR) %>%
+  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) # mm/day
+
+cat('Computing precip trends...\n')
+trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
+  df <- trend.batch.prcp(filter(prism.mon, SITE_NAME==site),
+                         filter(prism.wyr, SITE_NAME==site),
+                         years=2002:2014,
+                         log_trans=FALSE,
+                         water_year=TRUE)
+  df$SITE_NAME <- site
+  df
+}) %>%
+  rbind_all() %>%
+  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME))) %>%
+  droplevels()
+
+
+# plot functions ----
 plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
   x.trend <- filter(trends, VAR=='TP', TERM=='Q', MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep'), LOG==log_trans) %>%
     mutate(VAR='Flow',
@@ -394,7 +481,7 @@ plot_dot_season <- function(variable, seasons=c('All Months', 'Oct-Mar', 'Apr-Se
 
   title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Variable: ', variable)
 
-    ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
+  ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(), shape=16, size=4, color='white') +
     geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
@@ -511,6 +598,7 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
   }
 
   p.mon <- x.mon %>%
+    mutate(MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
     ggplot() +
     aes_string(x='WYEAR', y=term) +
     geom_point(size=1.5) +
@@ -575,196 +663,7 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
 }
 # plot_diagnostic(site_name='Power', variable='TP', term='C')
 
-# pdf ----
-filename <- file.path('pdf', tolower(dataset), paste0('trends-summary-term.pdf'))
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5, useDingbats = FALSE)
-plot_dot_season_flow(only4=TRUE)
-plot_dot_term(term='L', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-plot_dot_term(term='C', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
-dev.off()
-
-filename <- file.path('pdf', tolower(dataset), paste0('trends-summary-variable.pdf'))
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-for (variable in as.character(unique(df_mon$VAR))) {
-  print(plot_dot_season(variable=variable, seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'), log_trans=TRUE))
-}
-dev.off()
-
-if (!file.exists(file.path('pdf', tolower(dataset), 'trends'))) {
-  dir.create(file.path('pdf', tolower(dataset), 'trends'))
-}
-dataset <- 'POR'
-for (variable in as.character(unique(df_mon$VAR))) {
-  filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', tolower(variable), '.pdf'))
-  cat('Printing:', filename, '\n')
-  cat('..', variable, '\n')
-  pdf(filename, width=11, height=8.5)
-  for (site_name in as.character(unique(df_mon$SITE_NAME))) {
-    cat('....', site_name, '\n')
-    for (term in c('C', 'L')) {
-      cat('......', term, '\n')
-      plot_diagnostic(site_name=site_name, variable=variable, term=term, log_trans=TRUE)
-      Sys.sleep(1)
-    }
-  }
-  dev.off()
-  Sys.sleep(1)
-}
-
-filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', 'flow', '.pdf'))
-cat('Printing:', filename, '\n')
-cat('..', 'FLOW', '\n')
-pdf(filename, width=11, height=8.5)
-for (site_name in as.character(unique(df_mon$SITE_NAME))) {
-  cat('....', site_name, '\n')
-  for (term in c('Q')) {
-    cat('......', term, '\n')
-    plot_diagnostic(site_name=site_name, variable="TP", term=term, log_trans=TRUE)
-    Sys.sleep(1)
-  }
-}
-dev.off()
-
-# pdf(file.path('pdf', 'trends-dataset-comparison.pdf'), width=11, height=8.5)
-# filter(trends, TERM=='C', MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep'), LOG==TRUE,
-#        VAR %in% dataset_vars[['POR']], SITE_NAME %in% dataset_sites[['POR']]) %>%
-#   mutate(MONTH_LABEL=ordered(MONTH_LABEL, levels=c('All Months', 'Oct-Mar', 'Apr-Sep')),
-#          TERM_LABEL=plyr::revalue(TERM, term_labs),
-#          TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
-#          VAR=ordered(VAR, levels=c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23'))) %>%
-#   ggplot(aes(SITE_NAME, SLOPE.PCT)) +
-#   geom_hline(yint=0, color='grey20') +
-#   geom_bar(aes(group=DATASET), fill='white', stat='identity', position='dodge') +
-#   geom_bar(aes(fill=DATASET, alpha=SIGNIF), stat='identity', color='black', position='dodge') +
-#   scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
-#   scale_fill_manual('Dataset', labels=c('POR'='POR', 'RECENT'='RECENT'),
-#                     values=c('POR'='steelblue', 'RECENT'='chartreuse3')) +
-#   scale_y_continuous(labels=percent) +
-#   labs(y='Trend Slope (%/yr)', x='') +
-#   ggtitle('Comparison of Trend Slopes and Significance by Dataset | FWM Concentration') +
-#   facet_grid(VAR~MONTH_LABEL, scales='free_y') +
-#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
-# filter(trends, TERM=='L', MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep'), LOG==TRUE,
-#        VAR %in% dataset_vars[['POR']], SITE_NAME %in% dataset_sites[['POR']]) %>%
-#   mutate(MONTH_LABEL=ordered(MONTH_LABEL, levels=c('All Months', 'Oct-Mar', 'Apr-Sep')),
-#          TERM_LABEL=plyr::revalue(TERM, term_labs),
-#          TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
-#          VAR=ordered(VAR, levels=c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23'))) %>%
-#   ggplot(aes(SITE_NAME, SLOPE.PCT)) +
-#   geom_hline(yint=0, color='grey20') +
-#   geom_bar(aes(group=DATASET), fill='white', stat='identity', position='dodge') +
-#   geom_bar(aes(fill=DATASET, alpha=SIGNIF), stat='identity', color='black', position='dodge') +
-#   scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
-#   scale_fill_manual('Dataset', labels=c('POR'='POR', 'RECENT'='RECENT'),
-#                     values=c('POR'='steelblue', 'RECENT'='chartreuse3')) +
-#   scale_y_continuous(labels=percent) +
-#   labs(y='Trend Slope (%/yr)', x='') +
-#   ggtitle('Comparison of Trend Slopes and Significance by Dataset | Load') +
-#   facet_grid(VAR~MONTH_LABEL, scales='free_y') +
-#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
-# filter(trends, TERM=='L', MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep'), LOG==TRUE,
-#        VAR=='TP', SITE_NAME %in% dataset_sites[['POR']]) %>%
-#   mutate(VAR='FLOW',
-#          MONTH_LABEL=ordered(MONTH_LABEL, levels=c('All Months', 'Oct-Mar', 'Apr-Sep')),
-#          TERM_LABEL=plyr::revalue(TERM, term_labs),
-#          TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs))) %>%
-#   ggplot(aes(SITE_NAME, SLOPE.PCT)) +
-#   geom_hline(yint=0, color='grey20') +
-#   geom_bar(aes(group=DATASET), fill='white', stat='identity', position='dodge') +
-#   geom_bar(aes(fill=DATASET, alpha=SIGNIF), stat='identity', color='black', position='dodge') +
-#   scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
-#   scale_fill_manual('Dataset', labels=c('POR'='POR', 'RECENT'='RECENT'),
-#                     values=c('POR'='steelblue', 'RECENT'='chartreuse3')) +
-#   scale_y_continuous(labels=percent) +
-#   labs(y='Trend Slope (%/yr)', x='') +
-#   ggtitle('Comparison of Trend Slopes and Significance by Dataset') +
-#   facet_grid(VAR~MONTH_LABEL, scales='free_y') +
-#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1))
-# dev.off()
-
-# precip trends ----
-trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=FALSE, water_year=TRUE) {
-  x <- x.mon %>%
-    mutate(MONTH=month(MONTHYEAR))
-
-  value_var <- 'PRCP'
-
-  df.seasonal <- trend.sk(x, value_var=value_var,
-                          months=1:12, month_label='All Months',
-                          years=years, log_trans=log_trans, water_year=water_year)
-  df.4_9 <- trend.sk(x, value_var=value_var,
-                     months=4:9, month_label='Apr-Sep',
-                     years=years, log_trans=log_trans, water_year=water_year)
-  df.10_3 <- trend.sk(x, value_var=value_var,
-                      months=c(1:3, 10:12), month_label='Oct-Mar',
-                      years=years, log_trans=log_trans, water_year=water_year)
-  df.fall <- trend.sk(x, value_var=value_var,
-                      months=c(10:12), month_label='Oct-Dec',
-                      years=years, log_trans=log_trans, water_year=water_year)
-  df.winter <- trend.sk(x, value_var=value_var,
-                        months=1:3, month_label='Jan-Mar',
-                        years=years, log_trans=log_trans, water_year=water_year)
-  df.spring <- trend.sk(x, value_var=value_var,
-                        months=4:6, month_label='Apr-Jun',
-                        years=years, log_trans=log_trans, water_year=water_year)
-  df.summer <- trend.sk(x, value_var=value_var,
-                        months=7:9, month_label='Jul-Sep',
-                        years=years, log_trans=log_trans, water_year=water_year)
-  df <- rbind(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
-
-  for (m in 1:12) {
-    df.m <- trend.sk(x=x, value_var=value_var,
-                     months=m, month_label=as.character(m),
-                     years=years, log_trans=log_trans, water_year=water_year)
-    df <- rbind(df, df.m)
-  }
-
-  df.mk <- trend.mk(x=x.wyr, value_var=value_var,
-                    years=years, month_label='Annual-MK',
-                    log_trans=log_trans, water_year=water_year)
-  df.lm <- trend.lm(x=x.wyr, value_var=value_var,
-                    years=years, month_label='Annual-Reg',
-                    log_trans=log_trans, water_year=water_year)
-
-  df <- rbind(df, df.mk, df.lm)
-  df <- mutate(df,
-               MONTH_LABEL=ordered(MONTH_LABEL,
-                                   levels=c(as.character(10:12), as.character(1:9),
-                                            'Oct-Dec','Jan-Mar','Apr-Jun','Jul-Sep',
-                                            'Oct-Mar','Apr-Sep','All Months',
-                                            'Annual-MK','Annual-Reg')),
-               TERM=ordered(TERM, levels=names(term_labs)))
-
-  df
-}
-
-prism.mon <- mutate(prism_subbasin,
-                    DATASET='PRISM',
-                    DATE=MONTHYEAR,
-                    VAR='PRCP',
-                    N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
-                    PRCP=PRCP/N.DAY) %>% # mean mm/day
-  filter(WYEAR>=2002, WYEAR<=2014)
-prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR) %>%
-  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) # mm/day
-
-cat('Computing precip trends...\n')
-trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
-  df <- trend.batch.prcp(filter(prism.mon, SITE_NAME==site),
-                         filter(prism.wyr, SITE_NAME==site),
-                         years=2002:2014,
-                         log_trans=FALSE,
-                         water_year=TRUE)
-  df$SITE_NAME <- site
-  df
-}) %>%
-  rbind_all() %>%
-  mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME)))
-
-
-plot_diagnostic_prcp <- function(site_name, log_trans=FALSE) {
+plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
   term <- 'PRCP'
   x.trend <- filter(trend.prcp, SITE_NAME==site_name, LOG==log_trans)
   x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall') %>%
@@ -828,6 +727,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=FALSE) {
   }
 
   p.mon <- x.mon %>%
+    mutate(MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
     ggplot() + aes_string(x='WYEAR', y=term) +
     geom_point(size=1.5) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE),
@@ -886,9 +786,9 @@ plot_diagnostic_prcp <- function(site_name, log_trans=FALSE) {
                heights=c(10/24, 6/24, 8/24),
                top=title)
 }
-# plot_diagnostic_prcp(site_name='Power')
+# plot_diagnostic_prcp(site_name='Power', log_trans=FALSE)
 
-plot_dot_precip <- function(seasons=c('All Months', 'Oct-Mar', 'Apr-Sep')) {
+plot_dot_precip <- function(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')) {
   x.trend <- filter(trend.prcp, MONTH_LABEL %in% seasons) %>%
     mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=seasons),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
@@ -909,17 +809,75 @@ plot_dot_precip <- function(seasons=c('All Months', 'Oct-Mar', 'Apr-Sep')) {
 }
 # plot_dot_precip()
 
-filename <- file.path('pdf', 'trends-precip.pdf')
+
+# pdf ----
+filename <- file.path('pdf', tolower(dataset), paste0('trends-summary-term.pdf'))
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5, useDingbats = FALSE)
+plot_dot_season_flow(only4=TRUE)
+plot_dot_term(term='L', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
+plot_dot_term(term='C', seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
+dev.off()
+
+filename <- file.path('pdf', tolower(dataset), paste0('trends-summary-variable.pdf'))
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
-p.2 <- plot_dot_precip()
+for (variable in as.character(unique(df_mon$VAR))) {
+  print(plot_dot_season(variable=variable, seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'), log_trans=TRUE))
+}
+dev.off()
+
+if (!file.exists(file.path('pdf', tolower(dataset), 'trends'))) {
+  dir.create(file.path('pdf', tolower(dataset), 'trends'))
+}
+dataset <- 'POR'
+for (variable in as.character(unique(df_mon$VAR))) {
+  filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', tolower(variable), '.pdf'))
+  cat('Printing:', filename, '\n')
+  cat('..', variable, '\n')
+  pdf(filename, width=11, height=8.5)
+  for (site_name in as.character(unique(df_mon$SITE_NAME))) {
+    cat('....', site_name, '\n')
+    for (term in c('C', 'L')) {
+      cat('......', term, '\n')
+      plot_diagnostic(site_name=site_name, variable=variable, term=term, log_trans=TRUE)
+      Sys.sleep(1)
+    }
+  }
+  dev.off()
+  Sys.sleep(1)
+}
+
+filename <- file.path('pdf', tolower(dataset), 'trends', paste0('trends-', 'flow', '.pdf'))
+cat('Printing:', filename, '\n')
+cat('..', 'FLOW', '\n')
+pdf(filename, width=11, height=8.5)
+for (site_name in as.character(unique(df_mon$SITE_NAME))) {
+  cat('....', site_name, '\n')
+  for (term in c('Q')) {
+    cat('......', term, '\n')
+    plot_diagnostic(site_name=site_name, variable="TP", term=term, log_trans=TRUE)
+    Sys.sleep(1)
+  }
+}
+dev.off()
+
+filename <- file.path('pdf', 'por', 'trends-summary-precip.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+p.2 <- plot_dot_precip(seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'))
 p.4 <- plot_dot_precip(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
 grid.arrange(grobs=list(p.2, p.4),
              nrow=2,
              top=paste0('\nSeasonal Kendall Trend Slopes\nDataset: PRISM | Period: WY2002-WY2014, Variable: Precip'))
+dev.off()
+
+filename <- file.path('pdf', 'por', 'trends', 'trends-precip.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 for (site in unique(trend.prcp$SITE_NAME)) {
   cat('..', site, '\n')
-  plot_diagnostic_prcp(site_name=site)
+  plot_diagnostic_prcp(site_name=site, log_trans=FALSE)
   Sys.sleep(1)
 }
 dev.off()
@@ -935,21 +893,23 @@ trend_rep_q <- filter(trends,
                       MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
                       LOG==TRUE) %>%
   mutate(VAR="FLOW")
+trend_rep_p <- filter(trend.prcp,
+                      MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
+                      LOG==FALSE) %>%
+  mutate(VAR="PRECIP",
+         TERM="P")
 
-trend_rep_c <- rbind(trend_rep_c, trend_rep_q) %>%
+
+trend_rep_c <- trend_rep_c %>%
   mutate(MONTH_LABEL=ordered(as.character(MONTH_LABEL),
                              levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')),
          TERM_LABEL=plyr::revalue(TERM, term_labs),
          TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
-         VAR=as.character(VAR),
-         VAR_LABEL=ifelse(VAR=="FLOW", "Flow", paste(VAR, '', sep='')),
-         VAR=ordered(VAR, levels=c('FLOW', 'TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23')),
          SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME)))) %>%
   arrange(VAR) %>%
-  mutate(VAR_LABEL=ordered(VAR_LABEL, levels=unique(VAR_LABEL)),
-         SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
+  mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-p <- ggplot(trend_rep, aes(SLOPE.PCT, SITE_NAME)) +
+p <- ggplot(trend_rep_c, aes(SLOPE.PCT, SITE_NAME)) +
   geom_vline(xint=0) +
   geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
   geom_point(mapping=aes(), shape=16, size=3, color='white') +
@@ -959,7 +919,7 @@ p <- ggplot(trend_rep, aes(SLOPE.PCT, SITE_NAME)) +
   scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
   scale_x_continuous(labels=scales::percent) +
   labs(x='Trend Slope (%/yr)', y='') +
-  facet_grid(VAR_LABEL~MONTH_LABEL) +
+  facet_grid(VAR~MONTH_LABEL) +
   theme(strip.background=element_blank(),
         strip.text=element_text(face='bold'))
 
@@ -973,8 +933,9 @@ trend_rep_tp <- filter(trends,
                        VAR=='TP',
                        MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
                        LOG==TRUE) %>%
-  mutate(TERM_LABEL=plyr::revalue(TERM, c("C"="TP Conc", "Q"="Flow", "L"="TP Load")),
-         TERM_LABEL=ordered(TERM_LABEL, levels=c("Flow", "TP Load", "TP Conc")),
+  rbind(trend_rep_p) %>%
+  mutate(TERM_LABEL=plyr::revalue(TERM, c("C"="TP Conc", "Q"="Flow", "L"="TP Load", "P"="Precip")),
+         TERM_LABEL=ordered(TERM_LABEL, levels=c("Precip", "Flow", "TP Load", "TP Conc")),
          MONTH_LABEL=ordered(as.character(MONTH_LABEL),
                              levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')))
 
@@ -995,6 +956,6 @@ p <- ggplot(trend_rep_tp, aes(SLOPE.PCT, SITE_NAME)) +
 
 filename <- 'report/results-trend-tp.png'
 cat('Saving report figure to:', filename, '\n')
-png(filename, width=10, height=5, res=200, units='in')
+png(filename, width=10, height=6, res=200, units='in')
 print(p)
 dev.off()
