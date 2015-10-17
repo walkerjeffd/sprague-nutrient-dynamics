@@ -5,7 +5,7 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
-load('sprague/kt_sprague.Rdata')
+load('kt_sprague.Rdata')
 load('gis.Rdata')
 
 q <- filter(wq.kt_sprague$RAW, VAR=="FLOW", SITE_NAME %in% c("NF", "NF_Ivory")) %>%
