@@ -142,7 +142,7 @@ tp_medians <- filter(wq.kt_synoptic,
 
 filename <- 'report/synoptic-tp.png'
 cat('Saving report figure to:', filename, '\n')
-png(filename, width=8, height=3, res=200, units='in')
+png(filename, width=10, height=8, res=200, units='in')
 
 p <- wq.kt_synoptic %>%
   filter(VAR %in% c("TP")) %>%
@@ -151,9 +151,8 @@ p <- wq.kt_synoptic %>%
   geom_hline(aes(yintercept=MEDIAN, color="Median"), data=tp_medians, linetype=2,
              show_guide=TRUE) +
   scale_color_manual('', values='red') +
-  facet_grid(~SITE_DESCRIPTION, scales="free_y") +
-  scale_x_datetime(labels=scales::date_format("%m/%Y")) +
-  scale_y_continuous(limits=c(0, NA)) +
+  facet_wrap(~SITE_DESCRIPTION) +
+  scale_x_datetime(labels=scales::date_format("%m-%Y")) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         strip.background=element_blank(),
         strip.text=element_text(face='bold')) +
