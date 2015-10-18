@@ -26,6 +26,15 @@ end_date <- as.Date('2014-09-30')
 start_date_ivory <- as.Date('2008-10-01')
 end_date_ivory <- as.Date('2014-09-30')
 
+ref_sites <- c('Power'='USGS-11501000',
+               'Lone_Pine'='USGS-11501000',
+               'Godowa'='OWRD-11497500',
+               'Sycan'='OWRD-11499100',
+               'SF'='OWRD-11497500',
+               'NF'='OWRD-11497500',
+               'SF_Ivory'='OWRD-11497500',
+               'NF_Ivory'='OWRD-11497500')
+
 # load usgs ----
 load('usgs.Rdata')
 stn.usgs <- mutate(stn.usgs,
@@ -66,14 +75,7 @@ stn.ref <- filter(stn, (SOURCE=="USGS" & SITE_NAME=="Power") | (SOURCE=="OWRD" &
 stn.kt_sprague <- stn.kt_sprague %>%
   left_join(data.frame(SITE_NAME=stn.kt_sprague$SITE_NAME,
                        REF_LABEL=plyr::revalue(stn.kt_sprague$SITE_NAME,
-                                               c('Power'='USGS-11501000',
-                                                 'Lone_Pine'='USGS-11501000',
-                                                 'Godowa'='OWRD-11497500',
-                                                 'Sycan'='OWRD-11499100',
-                                                 'SF'='OWRD-11497500',
-                                                 'NF'='OWRD-11497500',
-                                                 'SF_Ivory'='OWRD-11497500',
-                                                 'NF_Ivory'='OWRD-11497500')),
+                                               ref_sites),
                        stringsAsFactors=FALSE),
             by='SITE_NAME')
 
@@ -650,3 +652,78 @@ list(ratios=ratios,
   saveRDS(file='flows.Rdata')
 
 cat('\n\n')
+
+
+
+
+site <- 'Power'
+pdf(file.path('pdf', 'flow-model', 'flow-model-summary.pdf'), width=11, height=8.5)
+for (site in levels(q$SITE_NAME)) {
+  cat('..', site, '\n')
+  p.ts <- filter(q, SITE_NAME==site) %>%
+    ggplot(aes(DATE, REF_FLOW)) +
+    geom_line(aes(color='Reference'), size=0.25, show_guide = TRUE) +
+    geom_line(aes(x=DATE, y=Q, color='Interpolated'),
+              data=filter(q.out, SITE_NAME==site),
+              size=0.1,
+              show_guide = TRUE) +
+    geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
+               show_guide = TRUE) +
+    log_y +
+    scale_color_manual('',
+                       values=c('Reference'='grey50',
+                                'Biweekly'='red',
+                                'Interpolated'='red')) +
+    labs(x="Date", y="Flow (cfs)") +
+    guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid', 'solid'),
+                                                   shape=c(16, NA, NA)))) +
+    theme(legend.position='bottom')
+
+  p.scatter <- filter(q, SITE_NAME==site) %>%
+    ggplot(aes(REF_FLOW, FLOW)) +
+    geom_point(size=1) +
+    log_y +
+    log_x +
+    geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
+    scale_color_manual('', values=c('red')) +
+    labs(x="Flow @ Reference Site (cfs)", y=paste0("Flow @ ", site, " (cfs)")) +
+    theme(legend.position='bottom')
+
+  p.resid <- filter(q.model, SITE_NAME==site) %>%
+    filter(!is.na(FLOW)) %>%
+    ggplot(aes(DATE, LN_RESID)) +
+    geom_hline(yint=0) +
+    geom_point(size=1) +
+    labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]")
+
+  p.resid.flow <- filter(q.model, SITE_NAME==site) %>%
+    filter(!is.na(FLOW)) %>%
+    ggplot(aes(FLOW, LN_RESID)) +
+    geom_hline(yint=0) +
+    geom_point(size=1) +
+    labs(x="Measured Biweekly Flow (cfs)",
+         y="Log Flow Residual\nln[Measured/Scaled Reference]") +
+    theme(strip.background=element_blank(),
+          strip.text=element_text(face='bold', size=12))
+
+  p.ratio <- filter(q.model, !is.na(FLOW), SITE_NAME==site) %>%
+    mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
+    ggplot(aes(MONTH, RATIO)) +
+    geom_hline(yint=1, color='gray50') +
+    geom_boxplot(outlier.size=1.5) +
+    geom_point(aes(MONTH, RATIO, color="Mean"),
+               data=filter(ratios, SITE_NAME==site) %>%
+                 mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))),
+               show_guide=TRUE) +
+    scale_color_manual('', values='orangered') +
+    labs(x="Month", y="Flow Ratio [Measured/Reference]") +
+    theme(legend.position=c(0, 1),
+          legend.justification=c(0, 1),
+          legend.background=element_blank())
+
+  grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
+               layout_matrix=rbind(c(1, 1, 2), c(3, 4, 5)),
+               top=paste0('\nStreamflow Model Diagnostics\nSite: ', site,
+                          '  |  Reference Site: ', ref_sites[[site]]))
+}
+dev.off()
