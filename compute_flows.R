@@ -177,7 +177,8 @@ q.valid <- filter(q.owrd, SITE_NAME %in% c('SF', 'NF', 'Godowa', 'Lone_Pine')) %
   rename(VALID_Q=FLOW) %>%
   mutate(SITE=paste0('OWRD:', SITE)) %>%
   select(-SOURCE)
-q.valid <- left_join(q.valid, q.out, by=c('SITE_NAME', 'DATE')) %>%
+q.valid <- left_join(q.valid, select(q, SITE_NAME, DATE, Q=FLOW),
+                     by=c('SITE_NAME', 'DATE')) %>%
   filter(!is.na(Q)) %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=c('Lone_Pine', 'Godowa', 'SF', 'NF'))) %>%
   arrange(SITE_NAME, DATE)
@@ -285,376 +286,9 @@ print(p)
 dev.off()
 
 # flow model ----
-filename <- file.path('pdf', 'flow-model.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group),
-               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
-               color = 'grey50', fill = NA, size = 0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-               color = 'black', fill = NA, size = 0.2) +
-  geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
-             data = stn.map) +
-  geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
-            data = stn.ref, fontface='bold', hjust=1.1, size=4) +
-  geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
-            data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=4, hjust=1) +
-  geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
-            data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=4, hjust=0) +
-  scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
-  scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
-  scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
-                                                  'OWRD-11497500'='deepskyblue',
-                                                  'OWRD-11499100'='chartreuse3')) +
-  guides(fill=guide_legend(override.aes=list(shape=21))) +
-  ggtitle('KT and Reference Flow Stations')
-print(p)
-makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
-
-p <- ggplot(q.model, aes(DATE)) +
-  geom_line(aes(y=PRED), color='gray50') +
-  geom_point(aes(y=FLOW), size=1.5, color='orangered') +
-  labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Daily Predicted Flows from Reference Station (gray)') +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-print(p)
-
-p <- ggplot(q.model, aes(DATE)) +
-  geom_line(aes(y=PRED), color='gray50') +
-  geom_point(aes(y=FLOW), size=1.5, color='orangered') +
-  labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Daily Predicted Flows from Reference Station (gray)\nLog Scale') +
-  log_y +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-print(p)
-
-p <- ggplot(q.model, aes(DATE)) +
-  geom_line(aes(y=PRED_RESID), color='gray50') +
-  geom_point(aes(y=FLOW), size=1.5, color='orangered') +
-  labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Interpolated Daily Flows from Reference Station (gray)') +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-print(p)
-
-p <- ggplot(q.model, aes(DATE)) +
-  geom_line(aes(y=PRED_RESID), color='gray50') +
-  geom_point(aes(y=FLOW), size=1.5, color='orangered') +
-  labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Interpolated Daily Flows from Reference Station (gray)\nLog Scale') +
-  log_y +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
-  theme(panel.grid.minor.y=element_blank())
-print(p)
-
-p <- filter(q.model, !is.na(FLOW)) %>%
-  ggplot(aes(FLOW, LN_RESID)) +
-  geom_hline(yint=0) +
-  geom_point(size=1) +
-  labs(x='log[ Measured KT Flow (cfs) ]', y='log[ Flow Residual (cfs) ]\nMeasured KT - Scaled Reference', title='Flow Residuals vs KT Measured') +
-  facet_wrap(~SITE_NAME, scales='free', nrow=2) +
-  log_x +
-  theme(panel.grid.minor.x=element_blank(),
-        axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
-print(p)
-
-p <- filter(q.model, !is.na(FLOW)) %>%
-  ggplot(aes(DATE, LN_RESID)) +
-  geom_hline(yint=0) +
-  geom_point(size=1) +
-  labs(x='', y='log[ Flow Residual ]', title='Timeseries of Flow Residuals') +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-print(p)
-
-p <- filter(q.model, !is.na(FLOW)) %>%
-  mutate(WDAY=water_day(DATE),
-         WDATE=ymd('2001-10-01') + days(WDAY)) %>%
-  ggplot(aes(WDATE, LN_RESID)) +
-  geom_hline(yint=0) +
-  geom_point(size=1) +
-  labs(x='Water Year Day', y='log[ Flow Residual ]', title='Seasonality of Flow Residuals') +
-  scale_x_datetime(labels=scales::date_format('%b %d')) +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-print(p)
-
-p <- filter(q.model) %>%
-  mutate(WDAY=water_day(DATE),
-         WDATE=ymd('2001-10-01') + days(WDAY)) %>%
-  select(SITE_NAME, WDATE, PRED, FLOW) %>%
-  gather(TERM, VALUE, PRED, FLOW) %>%
-  ggplot(aes(WDATE, VALUE, color=TERM)) +
-  geom_point(size=1) +
-  scale_color_manual('', values=c('PRED'='deepskyblue', 'FLOW'='orangered'),
-                     labels=c(PRED='Scaled Reference', FLOW='Measured')) +
-  labs(x='Water Year Day', y='Flow (cfs)', title='Seasonality of Estimated and Measured Flows') +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
-  log_y +
-  scale_x_datetime(labels=scales::date_format('%b %d')) +
-  guides(colour=guide_legend(override.aes = list(size=2))) +
-  theme(panel.grid.minor.y=element_blank(),
-        legend.position='top')
-print(p)
-
-p <- filter(q.model, !is.na(FLOW)) %>%
-  mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
-  ggplot(aes(MONTH, RATIO)) +
-  geom_hline(yint=1, color='gray50') +
-  geom_boxplot(outlier.size=1.5) +
-  ylim(0, NA) +
-  labs(x="Month", y="Flow Ratio [Measured/Reference]",
-       title="Distributions of Flow Ratios used to Interpolate Measured Flows") +
-  facet_wrap(~SITE_NAME, nrow=2)
-print(p)
-
-p <- ratios %>%
-  mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
-  ggplot(aes(MONTH, RATIO)) +
-  geom_hline(yint=1, color='gray50') +
-  geom_bar(stat='identity') +
-  facet_wrap(~SITE_NAME, nrow=2) +
-  labs(x="Month", y="Mean Flow Ratio [Measured/Reference]",
-       title="Mean Monthly Flow Ratio used to Interpolate Measured Flows") +
-  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
-print(p)
-
-dev.off()
-
 if (!file.exists(file.path('pdf', 'flow-model'))) {
   dir.create(file.path('pdf', 'flow-model'))
 }
-
-
-filename <- file.path('pdf', 'flow-model', 'flow-scatter-ref-vs-site.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-
-p <- filter(q, !is.na(FLOW)) %>%
-  ggplot(aes(REF_FLOW, FLOW)) +
-  geom_point(size=1) +
-  log_y +
-  log_x +
-  geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
-  scale_color_manual('', values=c('red')) +
-  facet_wrap(~SITE_NAME, scales='free') +
-  labs(x="Flow @ Reference Site (cfs)", y="Flow @ WQ Station (cfs)",
-       title="Measured Biweekly Flow vs. Reference Flow") +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold'))
-print(p)
-
-dev.off()
-
-filename <- file.path('pdf', 'flow-model', 'flow-scatter-ref-vs-site.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-
-p <- filter(q, !is.na(FLOW)) %>%
-  ggplot(aes(REF_FLOW, FLOW)) +
-  geom_point(size=1) +
-  log_y +
-  log_x +
-  geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
-  scale_color_manual('', values=c('red')) +
-  facet_wrap(~SITE_NAME, scales='free') +
-  labs(x="Flow @ Reference Site (cfs)", y="Flow @ WQ Station (cfs)",
-       title="Measured Biweekly Flow vs. Reference Flow") +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold'))
-print(p)
-
-dev.off()
-
-filename <- file.path('pdf', 'flow-model', 'flow-timeseries.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-
-p1 <- filter(q, SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan')) %>%
-  ggplot(aes(DATE, REF_FLOW)) +
-  geom_line(aes(color='Reference'), show_guide = TRUE) +
-  geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
-             show_guide = TRUE) +
-  log_y +
-  scale_color_manual('', values=c('Reference'='grey50', 'Biweekly'='red')) +
-  facet_wrap(~SITE_NAME, scales='free') +
-  labs(x="Date", y="Flow (cfs)",
-       title="Biweekly Measured and Daily Reference Flows") +
-  guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid'),
-                                                 shape=c(16, NA)))) +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12))
-p2 <- filter(q, !(SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan'))) %>%
-  ggplot(aes(DATE, REF_FLOW)) +
-  geom_line(aes(color='Reference'), show_guide = TRUE) +
-  geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
-             show_guide = TRUE) +
-  log_y +
-  scale_color_manual('', values=c('Reference'='grey50', 'Biweekly'='red')) +
-  facet_wrap(~SITE_NAME, scales='free') +
-  labs(x="Date", y="Flow (cfs)",
-       title="Biweekly Measured and Daily Reference Flows") +
-  guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid'),
-                                                 shape=c(16, NA)))) +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12))
-
-print(p1)
-print(p2)
-
-dev.off()
-
-
-filename <- file.path('pdf', 'flow-model', 'flow-residual-timeseries.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-p <- q.model %>%
-  filter(!is.na(FLOW)) %>%
-  ggplot(aes(DATE, LN_RESID)) +
-  geom_hline(yint=0) +
-  geom_point(size=1) +
-  facet_wrap(~SITE_NAME, ncol=2) +
-  labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]",
-       title="Timeseries of Flow Model Residuals") +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12))
-print(p)
-dev.off()
-
-filename <- file.path('pdf', 'flow-model', 'flow-residual-scatter.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-p <- q.model %>%
-  filter(!is.na(FLOW)) %>%
-  ggplot(aes(FLOW, LN_RESID)) +
-  geom_hline(yint=0) +
-  geom_point(size=1) +
-  facet_wrap(~SITE_NAME, ncol=4, scale='free_x') +
-  labs(x="Measured Biweekly Flow (cfs)",
-       y="Log Flow Residual\nln[Measured/Scaled Reference]",
-       title="Comparison of Flow Model Residuals to Measured Flow") +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12))
-print(p)
-dev.off()
-
-filename <- file.path('pdf', 'flow-model', 'flow-validation-timeseries.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-
-p <- q.valid %>%
-  gather(TERM, VALUE, VALID_Q, Q) %>%
-  ggplot(aes(DATE, VALUE, color=TERM)) +
-  geom_line(alpha=0.7) +
-  log_y +
-  labs(x="Date", y="Flow (cfs)",
-       title="Flow Model Validation Timeseries") +
-  scale_color_manual('', values=c('VALID_Q'='grey50', 'Q'='orangered'),
-                     labels=c('VALID_Q'='OWRD Validation', 'Q'='Predicted')) +
-  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12),
-        legend.position='top')
-print(p)
-
-dev.off()
-
-
-filename <- file.path('pdf', 'flow-model', 'flow-validation-scatter.pdf')
-cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
-
-p <- q.valid %>%
-  ggplot(aes(VALID_Q, Q)) +
-  geom_point(size=1, alpha=0.7) +
-  geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
-  log_x +
-  log_y +
-  scale_color_manual('', values='red') +
-  labs(x="Flow @ OWRD Station (cfs)", y="Predicted Flow (cfs)",
-       title="Flow Model Validation Comparison") +
-  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12))
-print(p)
-
-dev.off()
-
-# report ----
-filename <- 'report/map-flow-station.png'
-cat("\nSaving reference station map to:", filename, '\n')
-png(filename, width=8, height=5, res=200, units='in')
-p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
-            color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group),
-               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
-               color = 'grey50', fill = NA, size = 0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-               color = 'black', fill = NA, size = 0.2) +
-  geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
-             data = stn.map) +
-  geom_text(aes(x = LON-ifelse(SITE!='11497500', 0, 0.02),
-                y = LAT, label = REF_LABEL,
-                hjust = ifelse(SITE!='11497500', 0.5, 1),
-                vjust = ifelse(SITE!='11497500', -1, 1)),
-            data = stn.ref, fontface='bold', size=4) +
-  geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
-            data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=3, hjust=1) +
-  geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
-            data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=3, hjust=0) +
-  scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
-  scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
-  scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
-                                                  'OWRD-11497500'='deepskyblue',
-                                                  'OWRD-11499100'='chartreuse3')) +
-  guides(fill=guide_legend(override.aes=list(shape=21))) +
-  geom_text(x=-120.61, y=42.17,
-            label='Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.',
-            size=3,
-            hjust=1,
-            color='grey50')
-print(p)
-dev.off()
-
-filename <- 'report/results-flow-daily-ts.png'
-cat("Saving daily flows to:", filename, '\n')
-png(filename, width=8, height=6, res=200, units='in')
-p <- ggplot(q.model, aes(DATE)) +
-  geom_line(aes(y=PRED_RESID, color="Estimated Daily\nFlows")) +
-  geom_point(aes(y=FLOW, color='Measured Biweekly\nFlow'), size=1) +
-  scale_color_manual('', values=c('grey50', 'orangered')) +
-  labs(x='Date', y='Flow (cfs)') +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
-  guides(colour = guide_legend(override.aes=list(linetype=c('solid', 'blank'),
-                                                 shape=c(NA, 16)))) +
-  theme(legend.position='top')
-print(p)
-dev.off()
-
-filename <- 'report/results-flow-annual-ts.png'
-cat("Saving annual flows to:", filename, '\n')
-png(filename, width=8, height=6, res=200, units='in')
-p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
-  group_by(SITE_NAME, WYEAR) %>%
-  summarise(N=n(),
-            Q=mean(Q)) %>%
-  ungroup %>%
-  filter(N>=365) %>%
-  ggplot(aes(WYEAR, Q)) +
-  geom_bar(stat='identity') +
-  labs(x='Water Year', y='Annual Mean Flow (cfs)') +
-  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
-print(p)
-dev.off()
-
-# save ----
-cat('Saving flows to flows.Rdata...\n')
-
-# units in cfs
-list(ratios=ratios,
-     model=q.model,
-     df=q.out) %>%
-  saveRDS(file='flows.Rdata')
-
-cat('\n\n')
-
-
-
 
 site <- 'Power'
 pdf(file.path('pdf', 'flow-model', 'flow-model-summary.pdf'), width=11, height=8.5)
@@ -727,3 +361,380 @@ for (site in levels(q$SITE_NAME)) {
                           '  |  Reference Site: ', ref_sites[[site]]))
 }
 dev.off()
+
+# filename <- file.path('pdf', 'flow-model.pdf')
+# cat('Printing:', filename, '\n')
+# pdf(filename, width=11, height=8.5)
+# p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+#   geom_polygon(aes(x = long, y = lat, group = group),
+#                data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
+#                color = 'grey50', fill = NA, size = 0.2) +
+#   geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+#                color = 'black', fill = NA, size = 0.2) +
+#   geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
+#              data = stn.map) +
+#   geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
+#             data = stn.ref, fontface='bold', hjust=1.1, size=4) +
+#   geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
+#             data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=4, hjust=1) +
+#   geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
+#             data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=4, hjust=0) +
+#   scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
+#   scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
+#   scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
+#                                                   'OWRD-11497500'='deepskyblue',
+#                                                   'OWRD-11499100'='chartreuse3')) +
+#   guides(fill=guide_legend(override.aes=list(shape=21))) +
+#   ggtitle('KT and Reference Flow Stations')
+# print(p)
+# makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.')
+#
+# p <- ggplot(q.model, aes(DATE)) +
+#   geom_line(aes(y=PRED), color='gray50') +
+#   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
+#   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Daily Predicted Flows from Reference Station (gray)') +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+# print(p)
+#
+# p <- ggplot(q.model, aes(DATE)) +
+#   geom_line(aes(y=PRED), color='gray50') +
+#   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
+#   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Daily Predicted Flows from Reference Station (gray)\nLog Scale') +
+#   log_y +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+# print(p)
+#
+# p <- ggplot(q.model, aes(DATE)) +
+#   geom_line(aes(y=PRED_RESID), color='gray50') +
+#   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
+#   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Interpolated Daily Flows from Reference Station (gray)') +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+# print(p)
+#
+# p <- ggplot(q.model, aes(DATE)) +
+#   geom_line(aes(y=PRED_RESID), color='gray50') +
+#   geom_point(aes(y=FLOW), size=1.5, color='orangered') +
+#   labs(x='', y='Flow (cfs)', title='KT Measured Flows (red) and Interpolated Daily Flows from Reference Station (gray)\nLog Scale') +
+#   log_y +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
+#   theme(panel.grid.minor.y=element_blank())
+# print(p)
+#
+# p <- filter(q.model, !is.na(FLOW)) %>%
+#   ggplot(aes(FLOW, LN_RESID)) +
+#   geom_hline(yint=0) +
+#   geom_point(size=1) +
+#   labs(x='log[ Measured KT Flow (cfs) ]', y='log[ Flow Residual (cfs) ]\nMeasured KT - Scaled Reference', title='Flow Residuals vs KT Measured') +
+#   facet_wrap(~SITE_NAME, scales='free', nrow=2) +
+#   log_x +
+#   theme(panel.grid.minor.x=element_blank(),
+#         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+# print(p)
+#
+# p <- filter(q.model, !is.na(FLOW)) %>%
+#   ggplot(aes(DATE, LN_RESID)) +
+#   geom_hline(yint=0) +
+#   geom_point(size=1) +
+#   labs(x='', y='log[ Flow Residual ]', title='Timeseries of Flow Residuals') +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+# print(p)
+#
+# p <- filter(q.model, !is.na(FLOW)) %>%
+#   mutate(WDAY=water_day(DATE),
+#          WDATE=ymd('2001-10-01') + days(WDAY)) %>%
+#   ggplot(aes(WDATE, LN_RESID)) +
+#   geom_hline(yint=0) +
+#   geom_point(size=1) +
+#   labs(x='Water Year Day', y='log[ Flow Residual ]', title='Seasonality of Flow Residuals') +
+#   scale_x_datetime(labels=scales::date_format('%b %d')) +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+# print(p)
+#
+# p <- filter(q.model) %>%
+#   mutate(WDAY=water_day(DATE),
+#          WDATE=ymd('2001-10-01') + days(WDAY)) %>%
+#   select(SITE_NAME, WDATE, PRED, FLOW) %>%
+#   gather(TERM, VALUE, PRED, FLOW) %>%
+#   ggplot(aes(WDATE, VALUE, color=TERM)) +
+#   geom_point(size=1) +
+#   scale_color_manual('', values=c('PRED'='deepskyblue', 'FLOW'='orangered'),
+#                      labels=c(PRED='Scaled Reference', FLOW='Measured')) +
+#   labs(x='Water Year Day', y='Flow (cfs)', title='Seasonality of Estimated and Measured Flows') +
+#   facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
+#   log_y +
+#   scale_x_datetime(labels=scales::date_format('%b %d')) +
+#   guides(colour=guide_legend(override.aes = list(size=2))) +
+#   theme(panel.grid.minor.y=element_blank(),
+#         legend.position='top')
+# print(p)
+#
+# p <- filter(q.model, !is.na(FLOW)) %>%
+#   mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
+#   ggplot(aes(MONTH, RATIO)) +
+#   geom_hline(yint=1, color='gray50') +
+#   geom_boxplot(outlier.size=1.5) +
+#   ylim(0, NA) +
+#   labs(x="Month", y="Flow Ratio [Measured/Reference]",
+#        title="Distributions of Flow Ratios used to Interpolate Measured Flows") +
+#   facet_wrap(~SITE_NAME, nrow=2)
+# print(p)
+#
+# p <- ratios %>%
+#   mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
+#   ggplot(aes(MONTH, RATIO)) +
+#   geom_hline(yint=1, color='gray50') +
+#   geom_bar(stat='identity') +
+#   facet_wrap(~SITE_NAME, nrow=2) +
+#   labs(x="Month", y="Mean Flow Ratio [Measured/Reference]",
+#        title="Mean Monthly Flow Ratio used to Interpolate Measured Flows") +
+#   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+# print(p)
+#
+# dev.off()
+
+
+# filename <- file.path('pdf', 'flow-model', 'flow-scatter-ref-vs-site.pdf')
+# cat('Printing:', filename, '\n')
+# pdf(filename, width=11, height=8.5)
+#
+# p <- filter(q, !is.na(FLOW)) %>%
+#   ggplot(aes(REF_FLOW, FLOW)) +
+#   geom_point(size=1) +
+#   log_y +
+#   log_x +
+#   geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
+#   scale_color_manual('', values=c('red')) +
+#   facet_wrap(~SITE_NAME, scales='free') +
+#   labs(x="Flow @ Reference Site (cfs)", y="Flow @ WQ Station (cfs)",
+#        title="Measured Biweekly Flow vs. Reference Flow") +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold'))
+# print(p)
+#
+# dev.off()
+#
+# filename <- file.path('pdf', 'flow-model', 'flow-scatter-ref-vs-site.pdf')
+# cat('Printing:', filename, '\n')
+# pdf(filename, width=11, height=8.5)
+#
+# p <- filter(q, !is.na(FLOW)) %>%
+#   ggplot(aes(REF_FLOW, FLOW)) +
+#   geom_point(size=1) +
+#   log_y +
+#   log_x +
+#   geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
+#   scale_color_manual('', values=c('red')) +
+#   facet_wrap(~SITE_NAME, scales='free') +
+#   labs(x="Flow @ Reference Site (cfs)", y="Flow @ WQ Station (cfs)",
+#        title="Measured Biweekly Flow vs. Reference Flow") +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold'))
+# print(p)
+#
+# dev.off()
+#
+# filename <- file.path('pdf', 'flow-model', 'flow-timeseries.pdf')
+# cat('Printing:', filename, '\n')
+# pdf(filename, width=11, height=8.5)
+#
+# p1 <- filter(q, SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan')) %>%
+#   ggplot(aes(DATE, REF_FLOW)) +
+#   geom_line(aes(color='Reference'), show_guide = TRUE) +
+#   geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
+#              show_guide = TRUE) +
+#   log_y +
+#   scale_color_manual('', values=c('Reference'='grey50', 'Biweekly'='red')) +
+#   facet_wrap(~SITE_NAME, scales='free') +
+#   labs(x="Date", y="Flow (cfs)",
+#        title="Biweekly Measured and Daily Reference Flows") +
+#   guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid'),
+#                                                  shape=c(16, NA)))) +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold', size=12))
+# p2 <- filter(q, !(SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan'))) %>%
+#   ggplot(aes(DATE, REF_FLOW)) +
+#   geom_line(aes(color='Reference'), show_guide = TRUE) +
+#   geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
+#              show_guide = TRUE) +
+#   log_y +
+#   scale_color_manual('', values=c('Reference'='grey50', 'Biweekly'='red')) +
+#   facet_wrap(~SITE_NAME, scales='free') +
+#   labs(x="Date", y="Flow (cfs)",
+#        title="Biweekly Measured and Daily Reference Flows") +
+#   guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid'),
+#                                                  shape=c(16, NA)))) +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold', size=12))
+#
+# print(p1)
+# print(p2)
+#
+# dev.off()
+#
+#
+# filename <- file.path('pdf', 'flow-model', 'flow-residual-timeseries.pdf')
+# cat('Printing:', filename, '\n')
+# pdf(filename, width=11, height=8.5)
+# p <- q.model %>%
+#   filter(!is.na(FLOW)) %>%
+#   ggplot(aes(DATE, LN_RESID)) +
+#   geom_hline(yint=0) +
+#   geom_point(size=1) +
+#   facet_wrap(~SITE_NAME, ncol=2) +
+#   labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]",
+#        title="Timeseries of Flow Model Residuals") +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold', size=12))
+# print(p)
+# dev.off()
+#
+# filename <- file.path('pdf', 'flow-model', 'flow-residual-scatter.pdf')
+# cat('Printing:', filename, '\n')
+# pdf(filename, width=11, height=8.5)
+# p <- q.model %>%
+#   filter(!is.na(FLOW)) %>%
+#   ggplot(aes(FLOW, LN_RESID)) +
+#   geom_hline(yint=0) +
+#   geom_point(size=1) +
+#   facet_wrap(~SITE_NAME, ncol=4, scale='free_x') +
+#   labs(x="Measured Biweekly Flow (cfs)",
+#        y="Log Flow Residual\nln[Measured/Scaled Reference]",
+#        title="Comparison of Flow Model Residuals to Measured Flow") +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold', size=12))
+# print(p)
+# dev.off()
+
+# report ----
+filename <- 'report/map-flow-station.png'
+cat("\nSaving reference station map to:", filename, '\n')
+png(filename, width=8, height=5, res=200, units='in')
+p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+            color='deepskyblue', size=0.2) +
+  geom_polygon(aes(x = long, y = lat, group = group),
+               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
+               color = 'grey50', fill = NA, size = 0.2) +
+  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+               color = 'black', fill = NA, size = 0.2) +
+  geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
+             data = stn.map) +
+  geom_text(aes(x = LON-ifelse(SITE!='11497500', 0, 0.02),
+                y = LAT, label = REF_LABEL,
+                hjust = ifelse(SITE!='11497500', 0.5, 1),
+                vjust = ifelse(SITE!='11497500', -1, 1)),
+            data = stn.ref, fontface='bold', size=4) +
+  geom_text(aes(x = LON-0.02, y = LAT, label = SITE_NAME),
+            data = filter(stn.kt_sprague, SITE_NAME=="Godowa"), size=3, hjust=1) +
+  geom_text(aes(x = LON+0.02, y = LAT, label = SITE_NAME),
+            data = filter(stn.kt_sprague, SITE_NAME!="Godowa"), size=3, hjust=0) +
+  scale_shape_manual('Station Type', values=c('KT'=21, 'Reference'=24)) +
+  scale_size_manual('Station Type', values=c('KT'=4, 'Reference'=5)) +
+  scale_fill_manual('Reference Station', values=c('USGS-11501000'='orangered',
+                                                  'OWRD-11497500'='deepskyblue',
+                                                  'OWRD-11499100'='chartreuse3')) +
+  guides(fill=guide_legend(override.aes=list(shape=21))) +
+  geom_text(x=-120.61, y=42.17,
+            label='Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.',
+            size=3,
+            hjust=1,
+            color='grey50')
+print(p)
+dev.off()
+
+filename <- 'report/results-flow-daily-ts.png'
+cat("Saving daily flows to:", filename, '\n')
+png(filename, width=8, height=6, res=200, units='in')
+p <- ggplot(q.model, aes(DATE)) +
+  geom_line(aes(y=PRED_RESID, color="Estimated Daily\nFlows")) +
+  geom_point(aes(y=FLOW, color='Measured Biweekly\nFlow'), size=1) +
+  scale_color_manual('', values=c('grey50', 'orangered')) +
+  labs(x='Date', y='Flow (cfs)') +
+  facet_wrap(~SITE_NAME, scales='free_y', nrow=4) +
+  guides(colour = guide_legend(override.aes=list(linetype=c('solid', 'blank'),
+                                                 shape=c(NA, 16)))) +
+  theme(legend.position='top')
+print(p)
+dev.off()
+
+filename <- 'report/results-flow-annual-ts.png'
+cat("Saving annual flows to:", filename, '\n')
+png(filename, width=8, height=6, res=200, units='in')
+p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(N=n(),
+            Q=mean(Q)) %>%
+  ungroup %>%
+  filter(N>=365) %>%
+  ggplot(aes(WYEAR, Q)) +
+  geom_bar(stat='identity') +
+  labs(x='Water Year', y='Annual Mean Flow (cfs)') +
+  facet_wrap(~SITE_NAME, scales='free_y', nrow=4)
+print(p)
+dev.off()
+
+#
+# filename <- file.path('report', 'flow-validation-timeseries.png')
+# cat('Printing:', filename, '\n')
+# png(filename, width=10, height=6, res=200, units='in')
+#
+# p <- q.valid %>%
+#   ggplot(aes(DATE, VALUE, color=TERM)) +
+#   geom_line(aes(color="Validation", y=VALID_Q), alpha=0.7, size=0.5) +
+#   geom_point(aes(color="Biweekly", y=Q), size=1.5) +
+#   log_y +
+#   labs(x="Date", y="Flow (cfs)") +
+#   scale_color_manual('', values=c('Validation'='grey50', 'Biweekly'='orangered')) +
+#   facet_wrap(~SITE_NAME+SITE, scales='free_y') +
+#   guides(colour=guide_legend(override.aes = list(linetype=c("blank", "solid"),
+#                                                  shape=c(16, NA)))) +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold', size=12),
+#         panel.grid.minor.y=element_blank())
+# print(p)
+#
+# dev.off()
+#
+# filename <- file.path('report', 'flow-validation-scatter.png')
+# cat('Printing:', filename, '\n')
+# png(filename, width=10, height=8, res=200, units='in')
+#
+# p <- q.valid %>%
+#   ggplot(aes(VALID_Q, Q)) +
+#   geom_point(size=1, alpha=0.7) +
+#   geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
+#   log_x +
+#   log_y +
+#   scale_color_manual('', values='red') +
+#   labs(x="Validation Flow @ OWRD Station (cfs)", y="Biweekly Flow @ WQ Station (cfs)") +
+#   facet_wrap(~SITE_NAME+SITE, scales='free') +
+#   theme(strip.background=element_blank(),
+#         strip.text=element_text(face='bold', size=12),
+#         panel.grid.minor=element_blank())
+# print(p)
+#
+# dev.off()
+#
+# q.valid.rmse <- group_by(q.valid, SITE_NAME, SITE) %>%
+#   summarise(START_DATE=min(DATE),
+#             END_DATE=max(DATE),
+#             N=n(),
+#             RMSE=sqrt(sum((VALID_Q-Q)^2)/N),
+#             VALID_Q=mean(VALID_Q),
+#             Q=mean(Q),
+#             REL_RMSE=RMSE/Q)
+
+# save ----
+cat('Saving flows to flows.Rdata...\n')
+
+# units in cfs
+list(ratios=ratios,
+     model=q.model,
+     df=q.out) %>%
+  saveRDS(file='flows.Rdata')
+
+cat('\n\n')
+
+
+
+
