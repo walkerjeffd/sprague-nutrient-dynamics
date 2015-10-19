@@ -7,6 +7,8 @@ theme_set(theme_bw())
 
 rm(list=ls())
 
+source('functions.R')
+
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading SNOTEL dataset...\n\n")
 
@@ -14,11 +16,11 @@ DATA_DIR <- getOption('UKL_DATA')
 
 # load data ----
 snotel_dir <- file.path(DATA_DIR, 'met', 'snotel')
-files <- c('QUARTZ MOUNTAIN'='706_QUARTZ MOUNTAIN_20150219.txt',
+files <- c(#'QUARTZ MOUNTAIN'='706_QUARTZ MOUNTAIN_20150219.txt',
            'SUMMER RIM'='800_SUMMER RIM_20150219.txt',
            'TAYLOR BUTTE'='810_TAYLOR BUTTE_20150219.txt',
-           'CRAZYMAN FLAT'='1010_CRAZYMAN FLAT_20150219.txt',
-           'SWAN LAKE MTN'='1077_SWAN LAKE MTN_20150219.txt')
+           'CRAZYMAN FLAT'='1010_CRAZYMAN FLAT_20150219.txt')
+           #'SWAN LAKE MTN'='1077_SWAN LAKE MTN_20150219.txt')
 
 snotel <- lapply(names(files), function(site_name) {
   fname <- files[[site_name]]
@@ -31,7 +33,12 @@ snotel <- lapply(names(files), function(site_name) {
 }) %>%
   do.call(rbind, .)
 
-snotel[['WYEAR']] <- wyear(snotel[['DATE']])
+snotel <- mutate(snotel,
+                 SWE_cm=SWE_in*2.54,
+                 WYEAR=fluxr::wyear(DATE),
+                 WDAY=water_day(DATE),
+                 WDAY_LABEL=as.Date("2001-10-01")+days(WDAY)) %>%
+  select(-SWE_in)
 
 snotel <- snotel %>%
   filter(WYEAR <= 2014)
@@ -43,31 +50,63 @@ stn.snotel <- filter(stn.snotel, SITE_NAME %in% unique(snotel$SITE_NAME))
 # aggregate by wyr ----
 snotel.wyr <- snotel %>%
   group_by(SITE_NAME, WYEAR) %>%
-  summarise(N=sum(!is.na(SWE_in)),
-            SWE_MEAN=mean(SWE_in, na.rm=TRUE),
-            SWE_MAX=max(SWE_in, na.rm=TRUE)) %>%
+  summarise(N=sum(!is.na(SWE_cm)),
+            SWE_MEAN_cm=mean(SWE_cm, na.rm=TRUE),
+            SWE_MAX_cm=max(SWE_cm, na.rm=TRUE)) %>%
   ungroup %>%
   filter(N>=300)
 
 snotel.wyr <- snotel %>%
   filter(month(DATE)==4, day(DATE)==1) %>%
-  select(SITE_NAME, WYEAR, SWE_APR=SWE_in) %>%
+  select(SITE_NAME, WYEAR, SWE_APR_cm=SWE_cm) %>%
   left_join(snotel.wyr, by=c('SITE_NAME', 'WYEAR')) %>%
-  select(SITE_NAME, WYEAR, N, SWE_APR, SWE_MEAN, SWE_MAX)
+  select(SITE_NAME, WYEAR, N, SWE_APR_cm, SWE_MEAN_cm, SWE_MAX_cm)
 
 filename <- "report/snotel-daily-ts.png"
 cat('\nSaving daily timeseries plot to:', filename, '\n')
-png(filename=filename, res=200, width=10, height=8, units = 'in')
-p <- mutate(snotel, SWE_cm=SWE_in*2.54) %>%
+png(filename=filename, res=200, width=10, height=6, units = 'in')
+p <- snotel %>%
   ggplot(aes(DATE, SWE_cm)) +
   geom_line() +
   labs(x="Date", y="Snow Water Equivalent (cm)") +
-  facet_wrap(~SITE_NAME, ncol=1) +
+  facet_wrap(~SITE_NAME, ncol=1, scales='free_y') +
   scale_x_datetime(breaks=scales::date_breaks('5 years'),
                    labels=scales::date_format('%Y'),
-                   limits=c(as.POSIXct('1981-12-31'), as.POSIXct('2014-09-30')))
+                   limits=c(as.POSIXct('1981-12-31'), as.POSIXct('2014-09-30'))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
 print(p)
 dev.off()
+
+filename <- "report/snotel-daily-water-day.png"
+cat('\nSaving water day plot plot to:', filename, '\n')
+png(filename=filename, res=200, width=10, height=4, units = 'in')
+p <- filter(snotel, WYEAR >= 2002) %>%
+  mutate(WYEAR_GRP=ifelse(WYEAR>=2013, paste0('WY', WYEAR), "WY2002-2012")) %>%
+  filter(WDAY<=280) %>%
+  ggplot(aes(WDAY_LABEL, SWE_cm, size=WYEAR_GRP,
+             linetype=WYEAR_GRP, color=WYEAR_GRP, group=WYEAR)) +
+  geom_line() +
+  scale_x_date(breaks=scales::date_breaks("1 month"),
+               labels=scales::date_format("%b")) +
+  facet_wrap(~SITE_NAME, scales='free', nrow=1) +
+  scale_color_manual('', values=c('WY2002-2012'='grey50',
+                                  'WY2013'='deepskyblue',
+                                  'WY2014'='orangered')) +
+  scale_size_manual('', values=c('WY2002-2012'=0.25,
+                                  'WY2013'=0.5,
+                                  'WY2014'=0.5)) +
+  scale_linetype_manual('', values=c('WY2002-2012'='solid',
+                                     'WY2013'='dashed',
+                                     'WY2014'='dashed')) +
+  labs(x="Water Year Date", y="Snow Water Equivalent (cm)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face="bold"))
+print(p)
+dev.off()
+
+
 
 # save ----
 filename <- 'csv/stn_snotel.csv'
