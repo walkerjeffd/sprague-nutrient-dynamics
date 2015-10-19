@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 library(lubridate)
 library(ggplot2)
 theme_set(theme_bw())
@@ -13,7 +14,9 @@ prcp <- filter(prism_subbasin, SITE_NAME=="Power") %>%
   mutate(N_MONTH=n()) %>%
   filter(N_MONTH==12)
 
-prcp <- mutate(prcp, MONTH=month(MONTHYEAR))
+prcp <- mutate(prcp,
+               MONTH=month(MONTHYEAR),
+               PRCP=PRCP/10)
 
 seasons <- list(Annual=1:12,
                 'Fall (Oct-Dec)'=c(10:12),
@@ -30,7 +33,9 @@ df_seasons <- lapply(names(seasons), function(s) {
 prcp <- left_join(df_seasons, prcp, by="MONTH")
 
 prcp_wyr <- group_by(prcp, WYEAR, SEASON) %>%
-  summarise(PRCP=sum(PRCP))
+  summarise(N_DAY=n(),
+            PRCP=sum(PRCP)) %>%
+  ungroup
 
 
 
@@ -101,7 +106,7 @@ p1 <- filter(prcp_wyr, WYEAR>=2002, SEASON!="Annual") %>%
   ggplot(aes(factor(WYEAR), PRCP, fill=SEASON)) +
   geom_bar(stat="identity", position="dodge") +
   facet_wrap(~SEASON, nrow=1) +
-  labs(x="", y="Precip (mm)") +
+  labs(x="", y="Precip (cm)") +
   theme(axis.text.x=element_text(angle=90, hjust=0, vjust=0.5),
         strip.background=element_blank(),
         strip.text=element_text(face="bold"))
@@ -109,7 +114,7 @@ p1 <- filter(prcp_wyr, WYEAR>=2002, SEASON!="Annual") %>%
 p2 <- filter(prcp_wyr, WYEAR>=2002, SEASON!="Annual") %>%
   ggplot(aes(factor(WYEAR), PRCP, fill=SEASON)) +
   geom_bar(stat="identity", position="stack") +
-  labs(x="", y="Precip (mm)") +
+  labs(x="", y="Precip (cm)") +
   theme(axis.text.x=element_text(angle=90, hjust=0, vjust=0.5))
 
 grid.arrange(grobs=list(p1, p2),
@@ -267,3 +272,76 @@ dev.off()
 
 
 
+# report ----
+filename <- 'report/precip-seasonal.png'
+cat('Saving report figure to:', filename, '\n')
+png(filename, width=10, height=4, res=200, units='in')
+p <- filter(prcp_wyr, WYEAR>=2002, SEASON!="Annual") %>%
+  ggplot(aes(factor(WYEAR), PRCP, fill=SEASON)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~SEASON, nrow=1) +
+  labs(x="Water Year", y="Precip (cm)") +
+  scale_fill_discrete('') +
+  theme(axis.text.x=element_text(angle=90, hjust=0, vjust=0.5),
+        strip.background=element_blank(),
+        strip.text=element_text(face="bold"))
+print(p)
+dev.off()
+
+filename <- 'report/precip-annual.png'
+cat('Saving report figure to:', filename, '\n')
+png(filename, width=10, height=4, res=200, units='in')
+p <- filter(prcp_wyr, WYEAR>=2002, SEASON!="Annual") %>%
+  ggplot(aes(factor(WYEAR), PRCP, fill=SEASON)) +
+  geom_bar(stat="identity", position="stack") +
+  scale_y_continuous(breaks=seq(0, 70, by=10)) +
+  scale_fill_discrete('') +
+  labs(x="Water Year", y="Precip (cm)") +
+  theme(axis.text.x=element_text(angle=90, hjust=0, vjust=0.5))
+print(p)
+dev.off()
+
+grid.arrange(grobs=list(p1, p2),
+             top="PRISM Dataset: Sprague River Basin")
+
+# flows ----
+mutate(q.usgs,
+       WYEAR=fluxr::wyear(DATE),
+       WDAY=water_day(DATE)) %>%
+  filter(WYEAR >= 2002,
+         WYEAR <= 2014,
+         SITE_NAME == 'Power') %>%
+  ggplot(aes(WDAY, FLOW, color=factor(WYEAR))) +
+  scale_y_log10() +
+  geom_line(aes(linetype=WYEAR %in% c(2013, 2014)))
+
+mutate(q.usgs,
+       WYEAR=fluxr::wyear(DATE),
+       WDAY=water_day(DATE)) %>%
+  filter(WYEAR >= 2002,
+         WYEAR <= 2014,
+         SITE_NAME == 'Power') %>%
+  ggplot(aes(WDAY, FLOW, color=factor(WYEAR))) +
+  scale_y_log10() +
+  geom_line(aes(linetype=WYEAR %in% c(2013, 2014))) +
+  facet_wrap(~WYEAR)
+
+# air temperature ----
+temp <- read.csv('~/Dropbox/Work/klamath/data/sprague/prism/prism_temp_beatty.csv', stringsAsFactors=FALSE)
+temp <- mutate(temp, MONTHYEAR=mdy(MONTHYEAR), WYEAR=fluxr::wyear(MONTHYEAR), MONTH=month(MONTHYEAR))
+
+temp %>%
+  ggplot(aes(MONTHYEAR)) +
+  geom_ribbon(aes(ymin=TMIN, ymax=TMAX), fill='grey80') +
+  geom_line(aes(y=TMEAN))
+
+temp %>%
+  mutate(WMONTH=ifelse(MONTH >= 10, MONTH-9, MONTH+3)) %>%
+  gather(VAR, VALUE, TMIN, TMAX, TMEAN) %>%
+  ggplot(aes(WMONTH, VALUE, group=WYEAR)) +
+  geom_line(aes(color=factor(WYEAR), linetype=WYEAR==2014)) +
+  facet_wrap(~VAR) +
+  scale_x_continuous(breaks=seq(1, 12),
+                     labels=c('Oct', 'Nov', 'Dec', 'Jan', 'Feb',
+                              'Mar', 'Apr', 'May', 'Jun', 'Jul',
+                              'Aug', 'Sep'))
