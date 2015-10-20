@@ -98,8 +98,9 @@ snotel.wyr <- filter(snotel.wyr, SITE_NAME != "QUARTZ MOUNTAIN")
 snotel.wyr <- filter(snotel.wyr, WYEAR >= 2002)
 
 
-
-pdf(file.path('pdf', 'precip_wyear.pdf'), width=11, height=8.5)
+filename <- file.path('pdf', 'climate.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
 
 # prism
 p1 <- filter(prcp_wyr, WYEAR>=2002, SEASON!="Annual") %>%
@@ -216,10 +217,10 @@ grid.arrange(grobs=list(p1, p2), nrow=2,
 
 
 # snotel
-p <- ggplot(snotel.wyr, aes(factor(WYEAR), SWE_MAX)) +
+p <- ggplot(snotel.wyr, aes(factor(WYEAR), SWE_MAX_cm)) +
   geom_bar(stat="identity", fill="grey50") +
   facet_wrap(~SITE_NAME) +
-  labs(x="Water Year", y="SWE Max (in)", title="SNOTEL: Max Snowpack by Water Year") +
+  labs(x="Water Year", y="SWE Max (cm)", title="SNOTEL: Max Snowpack by Water Year") +
   theme(axis.text.x=element_text(angle=90, hjust=0, vjust=0.5),
         strip.background=element_blank(),
         strip.text=element_text(face="bold"))
@@ -228,9 +229,9 @@ print(p)
 p <- filter(snotel, WYEAR >= 2002) %>%
   mutate(WYEAR=factor(WYEAR)) %>%
   filter(WDAY<=280) %>%
-  ggplot(aes(WDAY_LABEL, SWE_in, color=WYEAR)) +
+  ggplot(aes(WDAY_LABEL, SWE_cm, color=WYEAR)) +
   geom_line() +
-  labs(x="Water Year Date", y="SWE (in)", title="SNOTEL: Daily Snowpack") +
+  labs(x="Water Year Date", y="SWE (cm)", title="SNOTEL: Daily Snowpack") +
   scale_x_date(breaks=scales::date_breaks("1 month"),
                labels=scales::date_format("%b %d")) +
   facet_wrap(~SITE_NAME) +
@@ -243,9 +244,9 @@ p <- filter(snotel, WYEAR >= 2002) %>%
   mutate(WDAY=water_day(DATE),
          WYEAR=factor(WYEAR)) %>%
   filter(WDAY >= 180, WDAY <= 250) %>%
-  ggplot(aes(WDAY_LABEL, SWE_in, color=WYEAR)) +
+  ggplot(aes(WDAY_LABEL, SWE_cm, color=WYEAR)) +
   geom_line() +
-  labs(x="Water Year Date", y="SWE (in)", title="SNOTEL: Daily Snowpack (Spring Season)") +
+  labs(x="Water Year Date", y="SWE (cm)", title="SNOTEL: Daily Snowpack (Spring Season)") +
   scale_x_date(breaks=scales::date_breaks("1 month"),
                labels=scales::date_format("%b %d")) +
   facet_wrap(~SITE_NAME) +
@@ -257,12 +258,12 @@ print(p)
 p <- filter(snotel, WYEAR >= 2002) %>%
   mutate(WYEAR=factor(WYEAR)) %>%
   filter(WDAY<=280) %>%
-  ggplot(aes(WDAY_LABEL, SWE_in, color=WYEAR)) +
+  ggplot(aes(WDAY_LABEL, SWE_cm, color=WYEAR)) +
   geom_line() +
   scale_x_date(breaks=scales::date_breaks("2 month"),
                labels=scales::date_format("%b %d")) +
   facet_grid(SITE_NAME~WYEAR, scales='free_y') +
-  labs(x="Water Year Date", y="SWE (in)", title="SNOTEL: Daily Snowpack by Water Year") +
+  labs(x="Water Year Date", y="SWE (cm)", title="SNOTEL: Daily Snowpack by Water Year") +
   theme(axis.text.x=element_text(angle=90, hjust=0, vjust=0.5, size=8),
         strip.background=element_blank(),
         strip.text=element_text(face="bold"))

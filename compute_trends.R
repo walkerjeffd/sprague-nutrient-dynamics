@@ -32,8 +32,6 @@ df_wyr <- loads_df[['wyr']] %>%
          SITE_NAME %in% as.character(stn.kt_sprague$SITE_NAME),
          !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
   select(-DATASET) %>%
-  # compute daily mean
-  mutate(VALUE=ifelse(TERM %in% c('Q', 'L'), VALUE/N_DAY, VALUE)) %>%
   spread(TERM, VALUE) %>%
   droplevels
 
@@ -50,8 +48,7 @@ df_mon <- loads_df[['mon']] %>%
          SITE_NAME %in% as.character(stn.kt_sprague$SITE_NAME),
          !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
   select(-DATASET) %>%
-  mutate(N_DAY=days_in_month(MONTHYEAR),
-         VALUE=ifelse(TERM %in% c('Q', 'L'), VALUE/N_DAY, VALUE)) %>%
+  mutate(N_DAY=days_in_month(MONTHYEAR)) %>%
   spread(TERM, VALUE) %>%
   rename(DATE=MONTHYEAR) %>%
   droplevels

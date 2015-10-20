@@ -30,7 +30,7 @@ source('compute_loads.R')
 source('plot_dataset_outliers.R')
 source('plot_dataset_splots.R')
 source('plot_dataset_timeseries.R')
-# source('plot_synoptic.R')
+source('plot_synoptic.R')
 source('plot_maps.R')
 
 # source('plot_flow_ciy_method.R')
@@ -39,6 +39,7 @@ source('plot_maps.R')
 source('plot_nlcd.R')
 source('plot_prism.R')
 source('plot_snotel.R')
+source('plot_climate.R')
 
 # plot loads
 source('plot_loads_summary.R')

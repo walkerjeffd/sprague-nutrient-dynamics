@@ -168,11 +168,11 @@ p <- mutate(df.wyr, GROUP=ifelse(WYEAR <= 2012, '2001-2012',
   labs(x='Annual Precip (cm/yr)', y='Annual Flow per Area (cm/yr)')
 print(p)
 
-p.max <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_MAX), by='WYEAR') %>%
+p.max <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_MAX_cm), by='WYEAR') %>%
   filter(!is.na(SITE_NAME)) %>%
   mutate(GROUP=ifelse(WYEAR <= 2012, '2001-2012',
                       ifelse(WYEAR==2013, '2013', '2014'))) %>%
-  ggplot(aes(SWE_MAX, Q_cm_yr, color=GROUP)) +
+  ggplot(aes(SWE_MAX_cm, Q_cm_yr, color=GROUP)) +
   geom_point(size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +
   facet_grid(SITE_NAME~SNOTEL_NAME, scales='free') +
@@ -180,11 +180,11 @@ p.max <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_
   theme(legend.position='top') +
   labs(x='Max Snow Water Equiv (cm)', y='Flow per Area (cm/yr)')
 
-p.apr <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_APR), by='WYEAR') %>%
+p.apr <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_APR_cm), by='WYEAR') %>%
   filter(!is.na(SITE_NAME)) %>%
   mutate(GROUP=ifelse(WYEAR <= 2012, '2001-2012',
                       ifelse(WYEAR==2013, '2013', '2014'))) %>%
-  ggplot(aes(SWE_APR, Q_cm_yr, color=GROUP)) +
+  ggplot(aes(SWE_APR_cm, Q_cm_yr, color=GROUP)) +
   geom_point(size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +
   facet_grid(SITE_NAME~SNOTEL_NAME, scales='free') +

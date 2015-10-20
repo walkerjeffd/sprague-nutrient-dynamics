@@ -32,8 +32,6 @@ subbasin_area <- select(subbasin_area, SITE_NAME, AREA_KM2) %>%
 df_site <- loads_df[['site']] %>%
   filter(DATASET=="POR",
          SITE_NAME %in% subbasin_area$SITE_NAME) %>%
-  # convert load/flow to daily
-  mutate(VALUE=ifelse(TERM != 'C', VALUE*N_YEAR/N_DAY, VALUE)) %>%
   select(-DATASET, -START_DATE, -END_DATE, -N_DAY, -N_YEAR) %>%
   droplevels() %>%
   mutate(PERIOD=plyr::revalue(PERIOD, c("2002-2014"="P2002",
@@ -45,9 +43,7 @@ df_site <- loads_df[['site']] %>%
 df_wyr <- loads_df[['wyr']] %>%
   filter(DATASET=="POR",
          SITE_NAME %in% subbasin_area$SITE_NAME) %>%
-  # convert load/flow to daily
-  mutate(VALUE=ifelse(TERM != 'C', VALUE/N_DAY, VALUE),
-         PERIOD=ifelse(WYEAR<2010, "P2002", "P2010")) %>%
+  mutate(PERIOD=ifelse(WYEAR<2010, "P2002", "P2010")) %>%
   filter(!(SITE_NAME=="SF+NF" & WYEAR >= 2010)) %>%
   select(-DATASET, -DATE, -N_DAY) %>%
   droplevels()

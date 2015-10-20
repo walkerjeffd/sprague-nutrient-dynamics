@@ -73,7 +73,7 @@ for (dataset in c('POR')) {
     ggplot(aes(factor(WYEAR), VALUE)) +
     geom_bar(stat='identity', fill=term_colors['Q'], width=0.8) +
     scale_y_continuous(labels=scales::comma) +
-    labs(x='Water Year', y='Flow (hm3/yr)',
+    labs(x='Water Year', y='Flow (hm3/d)',
          title=paste0('Annual Flow by Site  |  Dataset: ', dataset)) +
     facet_grid(.~SITE_NAME, scales='free_y') +
     theme_bw() +

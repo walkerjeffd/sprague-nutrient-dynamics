@@ -18,12 +18,12 @@ water_day <- function(x) {
          lubridate::yday(x)+(365-274))
 }
 # water_day(seq.Date(from=as.Date("2000-01-01"), to=as.Date("2000-01-05"), by="day"))
-# 
+#
 # water_day(c(as.Date("2000-10-01"), as.Date("2001-10-01")))
 # water_day(c(as.Date("2000-12-31"), as.Date("2001-12-31"), as.Date("2002-12-31")))
 # water_day(c(as.Date("2000-01-01"), as.Date("2001-01-01"), as.Date("2002-01-01")))
 # water_day(c(as.Date("2000-09-30"), as.Date("2001-09-30"), as.Date("2002-09-30")))
-# 
+#
 # plot(water_day(seq(as.Date("2000-10-01"), as.Date("2001-10-01"), by='day')))
 
 
@@ -59,4 +59,8 @@ get_units <- function(variable, ppm=TRUE) {
     units <- '?'
   }
   units
+}
+
+hm3d_cfs <- function(x) {
+  return(x / (24 * 3600/(3.28^3)/1e+06))
 }

@@ -21,19 +21,16 @@ load('kt_sprague.Rdata')
 load('loads.Rdata')
 load('gis.Rdata')
 
-df_wyr <- loads_df$wyr
+df_wyr <- loads_df$wyr %>%
+  mutate(VALUE=ifelse(TERM %in% c('Q', 'Q_AREA', 'L', 'L_AREA'),
+                      VALUE*365.25, VALUE))
 df_site <- loads_df$site %>%
   mutate(PERIOD=plyr::revalue(PERIOD, c('2011-2014'='P2010',
                                         '2010-2014'='P2010',
-                                        '2002-2014'='P2002')))
+                                        '2002-2014'='P2002'))) %>%
+  mutate(VALUE=ifelse(TERM %in% c('Q', 'Q_AREA', 'L', 'L_AREA'),
+                      VALUE*365.25, VALUE))
 
-# stn <- select(stn.kt_sprague, SITE, SITE_NAME, LAT, LON) %>%
-#   arrange(SITE) %>%
-#   #   rbind(data.frame(SITE='WR1000', SITE_NAME='Sprague_Kirchers', LAT=42.567806, LON=-121.864472), .) %>%
-#   mutate(SITE=ordered(SITE, levels=SITE),
-#          SITE_NAME=ordered(SITE_NAME, levels=SITE_NAME))
-# stn <- left_join(stn, select(subbasin_area, SITE, AREA_KM2), by='SITE')
-# stn <- subbasin_area
 stn <- left_join(subbasin_area, select(stn.kt_sprague, SITE_NAME, LAT, LON), by="SITE_NAME")
 
 dataset_levels <- "POR"
@@ -62,7 +59,7 @@ scale_fill_term <- list(Q=scale_fill_gradientn('Flow\n(hm3/yr)', colours=RColorB
                         C=scale_fill_gradientn('FWM Conc\n(ppb)', colours=RColorBrewer::brewer.pal(n=6, name="YlOrRd"), limits=c(0,NA)))
 
 scale_fill_term_inc <- list(
-  Q=scale_fill_gradient2('Net Flow (cm/yr)',
+  Q=scale_fill_gradient2('Net Flow (hm3/yr)',
                          high="#08519C", mid='white', low='black',
                          space='Lab'),
   L=scale_fill_gradient2('Net Load\n(kg/yr)',
@@ -139,8 +136,8 @@ tile_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
     ggtitle(title)
   p
 }
-tile_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
-tile_subbasin(dataset='POR', period='P2010', season='Summer (Jul-Sep)', variable='TP', term='C')
+# tile_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
+# tile_subbasin(dataset='POR', period='P2010', season='Summer (Jul-Sep)', variable='TP', term='C')
 
 dash_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
   p.map <- map_subbasin(dataset=dataset, period=period, season=season, variable=variable, term=term, title=title)
@@ -313,11 +310,6 @@ for (period in c('P2002', 'P2010')) {
   cat(period, '\n')
   cat('.. SUBBASINS', '\n')
   variables <- setdiff(filter(df_site, PERIOD==period)$VAR %>% as.character %>% unique, 'FLOW')
-  if (variable == 'TSS') {
-    period_label <- 'WY2011-2014'
-  } else {
-    period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
-  }
 
   for (variable in variables) {
     if (variable == 'TSS') {

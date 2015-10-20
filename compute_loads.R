@@ -248,8 +248,8 @@ df_mon <- df_day %>%
   group_by(DATASET, VAR, SITE_NAME, MONTHYEAR, MONTH, WYEAR) %>%
   summarise(START_DATE=min(DATE),
             END_DATE=max(DATE),
-            Q=sum(Q),
-            L=sum(L),
+            Q=mean(Q),
+            L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup %>%
   mutate(FREQ="MON") %>%
@@ -274,8 +274,8 @@ df_wyr <- left_join(df_seasons, df_day, by="MONTH") %>%
   summarise(N_DAY=n(),
             START_DATE=min(DATE),
             END_DATE=max(DATE),
-            Q=sum(Q),
-            L=sum(L),
+            Q=mean(Q),
+            L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup %>%
   mutate(FREQ="WYR") %>%
@@ -290,8 +290,8 @@ df_site_tss <- filter(df_wyr, VAR=="TSS") %>%
             START_DATE=min(DATE),
             END_DATE=max(DATE),
             DATE=min(DATE),
-            Q=sum(Q)/N_YEAR,
-            L=sum(L)/N_YEAR,
+            Q=mean(Q),
+            L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
 
@@ -304,8 +304,8 @@ df_site_por_2002 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
             START_DATE=min(DATE),
             END_DATE=max(DATE),
             DATE=min(DATE),
-            Q=sum(Q)/N_YEAR,
-            L=sum(L)/N_YEAR,
+            Q=mean(Q),
+            L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
 stopifnot(all(df_site_por_2002$PERIOD == '2002-2014'))
@@ -319,8 +319,8 @@ df_site_por_2010 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
             START_DATE=min(DATE),
             END_DATE=max(DATE),
             DATE=min(DATE),
-            Q=sum(Q)/N_YEAR,
-            L=sum(L)/N_YEAR,
+            Q=mean(Q),
+            L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
 stopifnot(all(df_site_por_2010$PERIOD == '2010-2014'))
@@ -333,8 +333,8 @@ df_site_recent <- filter(df_wyr, DATASET=="RECENT", VAR!="TSS") %>%
             START_DATE=min(DATE),
             END_DATE=max(DATE),
             DATE=min(DATE),
-            Q=sum(Q)/N_YEAR,
-            L=sum(L)/N_YEAR,
+            Q=mean(Q),
+            L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
 stopifnot(all(df_site_recent$PERIOD == '2010-2014'))
@@ -374,8 +374,8 @@ df_all <- df_all %>%
 df_all <- left_join(df_all,
                     mutate(areas, SITE_NAME=as.character(SITE_NAME)),
                     by="SITE_NAME") %>%
-  mutate(L_AREA=L/AREA_KM2,                 # kg/km2/time
-         Q_AREA=Q/AREA_KM2*100) %>%         # cm/time
+  mutate(L_AREA=L/AREA_KM2,                 # kg/km2/day
+         Q_AREA=Q/AREA_KM2*100) %>%         # cm/day
   gather(TERM, VALUE, Q, L, C, L_AREA, Q_AREA) %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME),
                            levels=c("Power",
