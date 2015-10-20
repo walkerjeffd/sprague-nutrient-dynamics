@@ -1,3 +1,4 @@
+library(fluxr)
 library(dplyr)
 library(tidyr)
 library(lubridate)
@@ -141,9 +142,9 @@ p2 <- filter(q.owrd, SITE_NAME %in% c("Godowa", "Lone_Pine")) %>%
 grid.arrange(grobs=list(p1, p2), nrow=2)
 
 
-sites <- c("NF", "NF_Ivory")
+sites <- c("Lone_Pine", "Power")
 p1 <- filter(loads_df[['day']], SITE_NAME %in% sites, TERM=="Q", DATASET=="POR") %>%
-  filter(WYEAR >= 2010,
+  filter(WYEAR >= 2005,
          MONTH %in% 7:9) %>%
   mutate(VALUE=hm3d_cfs(VALUE)) %>%
   ggplot(aes(DATE, VALUE, color=SITE_NAME)) +
@@ -159,7 +160,7 @@ p1 <- filter(loads_df[['day']], SITE_NAME %in% sites, TERM=="Q", DATASET=="POR")
   ggtitle('study')
 p2 <- filter(q.owrd, SITE_NAME %in% sites) %>%
   mutate(WYEAR=wyear(DATE)) %>%
-  filter(wyear(DATE) >= 2010,
+  filter(wyear(DATE) >= 2005,
          month(DATE) %in% 7:9) %>%
   ggplot(aes(DATE, FLOW, color=SITE_NAME)) +
   geom_line() +
@@ -167,3 +168,27 @@ p2 <- filter(q.owrd, SITE_NAME %in% sites) %>%
   ggtitle('owrd')
 grid.arrange(grobs=list(p1, p2), nrow=2)
 
+
+
+filter(loads_df[['day']], SITE_NAME %in% c("Lone_Pine", "Power"),
+       TERM=="Q", DATASET=="POR") %>%
+  filter(WYEAR >= 2005,
+         MONTH %in% 7:9) %>%
+  mutate(VALUE=hm3d_cfs(VALUE)) %>%
+  select(DATE, WYEAR, SITE_NAME, FLOW=VALUE) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(DIFF=Power-Lone_Pine) %>%
+  ggplot(aes(DATE, DIFF)) +
+  geom_line() +
+  facet_wrap(~WYEAR, scales='free_x')
+
+filter(loads_df[['day']], SITE_NAME %in% c("Lone_Pine", "Power"),
+       TERM=="Q", DATASET=="POR") %>%
+  filter(MONTH %in% 7:9) %>%
+  mutate(VALUE=hm3d_cfs(VALUE)) %>%
+  select(DATE, WYEAR, SITE_NAME, FLOW=VALUE) %>%
+  spread(SITE_NAME, FLOW) %>%
+  mutate(DIFF=Power-Lone_Pine) %>%
+  group_by(WYEAR) %>%
+  summarise(DIFF=mean(DIFF)) %>%
+  mutate(DIFF_WYR=mean(DIFF))
