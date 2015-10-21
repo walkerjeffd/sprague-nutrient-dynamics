@@ -42,9 +42,9 @@ study_site <- filter(loads_df[['site']],
   select(SOURCE, SITE_NAME, FLOW_cfs)
 
 
-as.data.frame(flow)
 
 flow <- rbind(gannett, study_wyr, study_site)
+as.data.frame(flow)
 
 flow$SITE_NAME=ordered(flow$SITE_NAME, levels=levels(loads_df[['site']]$SITE_NAME))
 

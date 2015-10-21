@@ -12,6 +12,7 @@ rm(list=ls())
 load('kt_sprague.Rdata')
 load('loads.Rdata')
 load('gis.Rdata')
+source('functions.R')
 
 dataset_levels <- names(loads)
 site_name_levels <- levels(stn.kt_sprague$SITE_NAME)
@@ -436,5 +437,120 @@ p <- ggplot(loads_wyr_por, aes(factor(WYEAR), C)) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+print(p)
+dev.off()
+
+
+flows_day <- filter(loads_df[['day']],
+                    DATASET=="POR",
+                    TERM %in% c("Q", "Q_AREA")) %>%
+  droplevels %>%
+  spread(TERM, VALUE) %>%
+  mutate(Q=hm3d_cfs(Q))
+
+flows_site <- filter(loads_df[['site']],
+                    DATASET=="POR",
+                    PERIOD=="2010-2014",
+                    TERM %in% c("Q", "Q_AREA")) %>%
+  droplevels %>%
+  spread(TERM, VALUE) %>%
+  mutate(Q=hm3d_cfs(Q))
+
+filename <- 'report/flows-seasonal.png'
+cat('Saving report figure:', filename, '\n')
+png(filename, width=10, height=4, res=200, units='in')
+p <- flows_site %>%
+  filter(SITE_NAME %in% c("Power", "Lone_Pine", "Godowa", "Sycan", "NF_Ivory", "NF", "SF", "SF_Ivory",
+                          "SF_Ivory+NF_Ivory", "Godowa+Sycan")) %>%
+  ggplot(aes(SITE_NAME, Q)) +
+  geom_bar(stat='identity', fill='grey50') +
+  facet_wrap(~SEASON, nrow=1) +
+  labs(x="", y="Mean Flow (cfs)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+dev.off()
+
+filename <- 'report/flows-net.png'
+cat('Saving report figure:', filename, '\n')
+png(filename, width=10, height=4, res=200, units='in')
+p <- flows_site %>%
+  filter(SITE_NAME %in% c("Power-Lone_Pine", "Lone_Pine-Godowa-Sycan", "Sycan", "Godowa-SF_Ivory-NF_Ivory",
+                          "SF_Ivory-SF", "NF_Ivory-NF", "SF", "NF")) %>%
+  mutate(DIR=Q>0,
+         DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
+  ggplot(aes(SITE_NAME, Q, fill=DIR)) +
+  geom_bar(stat='identity') +
+  geom_hline(yint=0, fill='grey20') +
+  scale_fill_manual('',
+                    values=c('TRUE'='steelblue', 'FALSE'='orangered'),
+                    labels=c('TRUE'='Increase', 'FALSE'='Decrease')) +
+  facet_wrap(~SEASON, nrow=1) +
+  labs(x="", y="Net Flow (cfs)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+dev.off()
+
+log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
+                       labels=log_labels(c(1, 5), 10^seq(-3, 3)))
+log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
+                       labels=log_labels(c(1, 5), 10^seq(-3, 3)))
+
+load('owrd.Rdata')
+load('usgs.Rdata')
+
+q.usgs <- filter(q.usgs, SITE_NAME=="Power")
+q.owrd <- filter(q.owrd, SITE_NAME=="Lone_Pine")
+q.obs <- rbind(select(q.usgs, -FLAG), q.owrd)
+
+filename <- 'report/flows-power-lonepine-scatter.png'
+cat('Saving report figure:', filename, '\n')
+png(filename, width=10, height=4, res=200, units='in')
+
+p1 <- select(flows_day, DATE, SITE_NAME, Q) %>%
+  spread(SITE_NAME, Q) %>%
+  ggplot(aes(Lone_Pine, Power)) +
+  geom_point(size=1, alpha=0.5) +
+  geom_abline(linetype='dashed', color='red') +
+  log_x +
+  log_y +
+  theme(aspect.ratio=1) +
+  labs(x="Flow @ Lone_Pine (cfs)", y="Flow @ Power (cfs)",
+       title="(a) Interpolated Daily Flows at WQ Stations")
+p2 <- select(q.obs, SITE_NAME, DATE, FLOW) %>%
+  spread(SITE_NAME, FLOW) %>%
+  filter(!is.na(Lone_Pine)) %>%
+  ggplot(aes(Lone_Pine, Power)) +
+  geom_point(size=1, alpha=0.5) +
+  geom_abline(linetype='dashed', color='red') +
+  log_x +
+  log_y +
+  theme(aspect.ratio=1) +
+  labs(x="Flow @ OWRD:11500500 (Lone_Pine) (cfs)",
+       y="Flow @ USGS:11501000 (Power) (cfs)",
+       title="(b) Observed at USGS/OWRD Stations")
+
+grid.arrange(grobs=list(p1, p2),
+             nrow=1)
+dev.off()
+
+
+filename <- 'report/flows-power-lonepine-ts.png'
+cat('Saving report figure:', filename, '\n')
+png(filename, width=8, height=4, res=200, units='in')
+p <- select(flows_day, WYEAR, DATE, SITE_NAME, Q) %>%
+  filter(SITE_NAME %in% c("Power", "Lone_Pine"),
+         WYEAR >= 2010) %>%
+  ggplot(aes(DATE, Q, color=SITE_NAME)) +
+  geom_line() +
+  labs(x="Date", y="Flow (cfs)") +
+  scale_color_manual('', values=c('Power'='steelblue', 'Lone_Pine'='orangered')) +
+  scale_x_datetime(breaks=scales::date_breaks("6 months"),
+                   labels=scales::date_format("%b %Y")) +
+  log_y +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 print(p)
 dev.off()

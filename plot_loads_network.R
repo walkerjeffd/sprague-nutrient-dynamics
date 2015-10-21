@@ -1,6 +1,7 @@
 library(dplyr)
 library(tidyr)
 library(lubridate)
+library(stringr)
 library(fluxr)
 library(ggplot2)
 theme_set(theme_bw())
