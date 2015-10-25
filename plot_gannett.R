@@ -43,19 +43,35 @@ study_site <- filter(loads_df[['site']],
 
 
 
-flow <- rbind(gannett, study_wyr, study_site)
+flow <- rbind(gannett, study_wyr, study_site) %>%
+  filter(SITE_NAME %in% gannett$SITE_NAME) %>%
+  mutate(SITE_NAME=plyr::revalue(SITE_NAME, incbasin_names),
+         SITE_NAME=ordered(SITE_NAME, levels=unname(incbasin_names)))
 as.data.frame(flow)
 
-flow$SITE_NAME=ordered(flow$SITE_NAME, levels=levels(loads_df[['site']]$SITE_NAME))
+# flow$SITE_NAME=ordered(flow$SITE_NAME, levels=levels(loads_df[['site']]$SITE_NAME))
+
+spread(flow, SOURCE, FLOW_cfs)
 
 spread(flow, SOURCE, FLOW_cfs) %>%
-  filter(SITE_NAME %in% gannett$SITE_NAME)
+  write.csv(file=file.path('csv', 'gannett_compare.csv'), row.names=FALSE)
 
-filter(flow, SOURCE %in% c("Gannett", "2010-2014")) %>%
-  filter(SITE_NAME %in% gannett$SITE_NAME) %>%
+filename <- 'report/gannet.png'
+cat('Saving report figure to:', filename, '\n')
+png(filename, width=8, height=6, res=200, units='in')
+p <- filter(flow, SOURCE %in% c("Gannett", "2010-2014")) %>%
+  mutate(SOURCE=ifelse(SOURCE=="Gannett", "Gannett et al (2007)", paste0("This Study (WY", SOURCE, ")"))) %>%
   ggplot(aes(SITE_NAME, FLOW_cfs, fill=SOURCE)) +
   geom_bar(stat='identity', position='dodge') +
+  geom_hline(yint=0, color='grey20') +
+  scale_y_continuous(breaks=seq(-20, 100, by=10)) +
+  labs(x="", y="Flow (cfs)") +
+  scale_fill_manual("", values=c("Gannett et al (2007)"="grey50",
+                                 "This Study (WY2010-2014)"="deepskyblue")) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+print(p)
+dev.off()
+
 
 flow %>%
   filter(SITE_NAME %in% gannett$SITE_NAME) %>%
@@ -192,3 +208,41 @@ filter(loads_df[['day']], SITE_NAME %in% c("Lone_Pine", "Power"),
   group_by(WYEAR) %>%
   summarise(DIFF=mean(DIFF)) %>%
   mutate(DIFF_WYR=mean(DIFF))
+
+
+
+
+filter(loads_df[['day']],
+       DATASET=="POR",
+       VAR %in% c("FLOW", "TP"),
+       TERM %in% c("Q", "L", "C")) %>%
+  mutate(SITE_NAME = ordered(SITE_NAME, levels=names(loads[['POR']][['TP']]))) %>%
+  ggplot(aes(DATE, log10(VALUE))) +
+  geom_line() +
+  facet_grid(TERM~SITE_NAME, scales='free_y')
+
+filename <- 'report/loads-mon-tp.png'
+cat('Saving report figure to:', filename, '\n')
+png(filename, width=10, height=6, res=200, units='in')
+p <- filter(loads_df[['mon']],
+       DATASET=="POR",
+       VAR %in% c("FLOW", "TP"),
+       TERM %in% c("Q", "L", "C"),
+       SITE_NAME %in% names(loads[['POR']][['TP']])) %>%
+  mutate(SITE_NAME = ordered(SITE_NAME, levels=names(loads[['POR']][['TP']])),
+         SITE_GRP = SITE_NAME %in% unique(SITE_NAME)[seq(1, length(unique(SITE_NAME)), 2)],
+         VALUE = ifelse(TERM=="Q", hm3d_cfs(VALUE), VALUE),
+         TERM = plyr::revalue(TERM, c(Q="Flow", L="TP Load", C="TP Conc"))) %>%
+  ggplot(aes(MONTHYEAR, VALUE, color=SITE_NAME, linetype=SITE_GRP)) +
+  geom_line() +
+  labs(x="Date", y=paste(c("TP Conc (ppb)", "TP Load (kg/d)", "Flow (cfs)"),
+                         collapse=paste(rep(" ", 20), collapse=""))) +
+  scale_linetype_manual('', values=c(1, 6)) +
+  scale_y_continuous(labels=scales::comma) +
+  facet_grid(TERM~., scales='free_y') +
+  guides(linetype="none",
+         color=guide_legend('', override.aes = list(linetype=rep(c(5, 1), 4)))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_blank())
+print(p)
+dev.off()

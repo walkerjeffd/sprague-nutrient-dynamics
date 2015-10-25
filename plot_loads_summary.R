@@ -448,6 +448,14 @@ flows_day <- filter(loads_df[['day']],
   spread(TERM, VALUE) %>%
   mutate(Q=hm3d_cfs(Q))
 
+flows_mon <- filter(loads_df[['mon']],
+                    DATASET=="POR",
+                    TERM %in% c("Q", "Q_AREA")) %>%
+  droplevels %>%
+  spread(TERM, VALUE) %>%
+  mutate(Q=hm3d_cfs(Q))
+
+
 flows_site <- filter(loads_df[['site']],
                     DATASET=="POR",
                     PERIOD=="2010-2014",
@@ -455,6 +463,7 @@ flows_site <- filter(loads_df[['site']],
   droplevels %>%
   spread(TERM, VALUE) %>%
   mutate(Q=hm3d_cfs(Q))
+
 
 filename <- 'report/flows-seasonal.png'
 cat('Saving report figure:', filename, '\n')
@@ -478,7 +487,8 @@ png(filename, width=10, height=4, res=200, units='in')
 p <- flows_site %>%
   filter(SITE_NAME %in% c("Power-Lone_Pine", "Lone_Pine-Godowa-Sycan", "Sycan", "Godowa-SF_Ivory-NF_Ivory",
                           "SF_Ivory-SF", "NF_Ivory-NF", "SF", "NF")) %>%
-  mutate(DIR=Q>0,
+  mutate(SITE_NAME=plyr::revalue(SITE_NAME, incbasin_names),
+         DIR=Q>0,
          DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
   ggplot(aes(SITE_NAME, Q, fill=DIR)) +
   geom_bar(stat='identity') +
@@ -537,6 +547,41 @@ grid.arrange(grobs=list(p1, p2),
              nrow=1)
 dev.off()
 
+
+filename <- 'report/flows-power-lonepine-scatter-mon.png'
+cat('Saving report figure:', filename, '\n')
+png(filename, width=10, height=4, res=200, units='in')
+
+p1 <- select(flows_mon, MONTHYEAR, SITE_NAME, Q) %>%
+  spread(SITE_NAME, Q) %>%
+  ggplot(aes(Lone_Pine, Power)) +
+  geom_point(size=1.5) +
+  geom_abline(linetype='dashed', color='red') +
+  log_x +
+  log_y +
+  theme(aspect.ratio=1) +
+  labs(x="Flow @ Lone_Pine (cfs)", y="Flow @ Power (cfs)",
+       title="(a) Interpolated Flows at WQ Stations")
+p2 <- select(q.obs, SITE_NAME, DATE, FLOW) %>%
+  mutate(DATE=floor_date(DATE, unit="month")) %>%
+  group_by(SITE_NAME, DATE) %>%
+  summarise(FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  ungroup %>%
+  spread(SITE_NAME, FLOW) %>%
+  filter(!is.na(Lone_Pine)) %>%
+  ggplot(aes(Lone_Pine, Power)) +
+  geom_point(size=1.5) +
+  geom_abline(linetype='dashed', color='red') +
+  log_x +
+  log_y +
+  theme(aspect.ratio=1) +
+  labs(x="Flow @ OWRD:11500500 (Lone_Pine) (cfs)",
+       y="Flow @ USGS:11501000 (Power) (cfs)",
+       title="(b) Observed at USGS/OWRD Stations")
+
+grid.arrange(grobs=list(p1, p2),
+             nrow=1)
+dev.off()
 
 filename <- 'report/flows-power-lonepine-ts.png'
 cat('Saving report figure:', filename, '\n')

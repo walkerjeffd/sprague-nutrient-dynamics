@@ -64,3 +64,13 @@ get_units <- function(variable, ppm=TRUE) {
 hm3d_cfs <- function(x) {
   return(x / (24 * 3600/(3.28^3)/1e+06))
 }
+
+incbasin_names <- c("Power-Lone_Pine"="Lower Sprague",
+                    "Lone_Pine-Godowa-Sycan"="Middle Sprague",
+                    "Godowa-SF_Ivory-NF_Ivory"="Upper Sprague",
+                    "Godowa-SF-NF"="Upper Sprague + Lower SF/NF",
+                    "Sycan"="Sycan",
+                    "SF_Ivory-SF"="Lower SF",
+                    "SF"="Upper SF",
+                    "NF_Ivory-NF"="Lower NF",
+                    "NF"="Upper NF")
