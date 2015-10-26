@@ -230,7 +230,7 @@ p <- filter(loads_df[['mon']],
        TERM %in% c("Q", "L", "C"),
        SITE_NAME %in% names(loads[['POR']][['TP']])) %>%
   mutate(SITE_NAME = ordered(SITE_NAME, levels=names(loads[['POR']][['TP']])),
-         SITE_GRP = SITE_NAME %in% unique(SITE_NAME)[seq(1, length(unique(SITE_NAME)), 2)],
+         SITE_GRP = SITE_NAME %in% c('Power', 'Godowa', 'SF_Ivory', 'NF_Ivory'),
          VALUE = ifelse(TERM=="Q", hm3d_cfs(VALUE), VALUE),
          TERM = plyr::revalue(TERM, c(Q="Flow", L="TP Load", C="TP Conc"))) %>%
   ggplot(aes(MONTHYEAR, VALUE, color=SITE_NAME, linetype=SITE_GRP)) +
