@@ -108,13 +108,24 @@ spread(df, TERM, VALUE) %>%
   labs(y="Fraction TP Load", x="",
        title="Fraction TP Load by Source")
 
-
 spread(df, TERM, VALUE) %>%
   filter(VAR %in% c("GW", "RO")) %>%
   arrange(SITE_NAME, VAR) %>%
   mutate(L=ifelse(Q<0, 0, Q)) %>%
   ggplot(aes(SITE_NAME, Q, fill=VAR)) +
   geom_bar(stat='identity', position='stack') +
+  scale_fill_manual('', labels=c(RO="Runoff",
+                                 GW="Groundwater"),
+                    values=c(RO="olivedrab3",
+                             GW="steelblue")) +
+  labs(y="Flow (hm3/yr)", x="",
+       title="Flow by Source")
+
+spread(df, TERM, VALUE) %>%
+  filter(VAR %in% c("GW", "RO")) %>%
+  arrange(SITE_NAME, VAR) %>%
+  ggplot(aes(SITE_NAME, C, fill=VAR)) +
+  geom_bar(stat='identity', position='dodge') +
   scale_fill_manual('', labels=c(RO="Runoff",
                                  GW="Groundwater"),
                     values=c(RO="olivedrab3",
