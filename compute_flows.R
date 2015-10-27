@@ -702,15 +702,13 @@ p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
 print(p)
 dev.off()
 
-
-filename <- file.path('report', 'flow-validation-timeseries.png')
+filename <- file.path('pdf', 'flow-validation.pdf')
 cat('Printing:', filename, '\n')
-png(filename, width=10, height=6, res=200, units='in')
+pdf(filename, width=11, height=8.5)
 
 p <- q.valid %>%
   ggplot(aes(DATE, VALUE, color=TERM)) +
   geom_line(aes(color="OWRD Station", y=VALID_Q), size=0.3) +
-  # geom_line(aes(color="WQ Station", y=Q), size=0.3) +
   geom_point(aes(color="WQ Station", y=Q), size=1) +
   log_y +
   labs(x="Date", y="Flow (cfs)") +
@@ -722,34 +720,6 @@ p <- q.valid %>%
         strip.text=element_text(face='bold', size=12),
         panel.grid.minor.y=element_blank())
 print(p)
-
-dev.off()
-
-
-filename <- file.path('report', 'flow-validation-timeseries-mon.png')
-cat('Printing:', filename, '\n')
-png(filename, width=10, height=6, res=200, units='in')
-
-p <- q.valid.mon %>%
-  ggplot(aes(DATE, VALUE, color=TERM)) +
-  geom_line(aes(color="OWRD Station", y=VALID_Q)) +
-  geom_point(aes(color="WQ Station", y=Q), size=1.5) +
-  log_y +
-  labs(x="Date", y="Flow (cfs)") +
-  scale_color_manual('', values=c('OWRD Station'='grey50', 'WQ Station'='orangered')) +
-  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
-  guides(colour=guide_legend(override.aes = list(linetype=c("blank", "solid"),
-                                                 shape=c(16, NA)))) +
-  theme(strip.background=element_blank(),
-        strip.text=element_text(face='bold', size=12),
-        panel.grid.minor.y=element_blank())
-print(p)
-
-dev.off()
-
-filename <- file.path('report', 'flow-validation-scatter.png')
-cat('Printing:', filename, '\n')
-png(filename, width=10, height=8, res=200, units='in')
 
 p <- q.valid %>%
   ggplot(aes(VALID_Q, Q)) +
@@ -767,11 +737,20 @@ p <- q.valid %>%
         panel.grid.minor=element_blank())
 print(p)
 
-dev.off()
-
-filename <- file.path('report', 'flow-validation-scatter-mon.png')
-cat('Printing:', filename, '\n')
-png(filename, width=10, height=8, res=200, units='in')
+p <- q.valid.mon %>%
+  ggplot(aes(DATE, VALUE, color=TERM)) +
+  geom_line(aes(color="OWRD Station", y=VALID_Q)) +
+  geom_point(aes(color="WQ Station", y=Q), size=1.5) +
+  log_y +
+  labs(x="Date", y="Flow (cfs)") +
+  scale_color_manual('', values=c('OWRD Station'='grey50', 'WQ Station'='orangered')) +
+  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
+  guides(colour=guide_legend(override.aes = list(linetype=c("blank", "solid"),
+                                                 shape=c(16, NA)))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12),
+        panel.grid.minor.y=element_blank())
+print(p)
 
 p <- q.valid.mon %>%
   ggplot(aes(VALID_Q, Q)) +
