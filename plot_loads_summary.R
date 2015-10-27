@@ -380,10 +380,10 @@ loads_wyr_por_tp <- lapply(names(loads[['POR']][['TP']]), function (site_name) {
   mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels)) %>%
   droplevels %>%
   select(SITE_NAME, AREA_KM2, WYEAR, Q_mean=Q, L_mean=L, C_mean=C, L_se, C_se) %>%
-  mutate(Q_mean=Q_mean/AREA_KM2*100, # m/yr -> cm/yr
-         L_mean=L_mean/AREA_KM2,
-         L_se=L_se/AREA_KM2) %>%
-  gather(TERM_STAT, VALUE, Q_mean:C_se) %>%
+  mutate(QAREA_mean=Q_mean/AREA_KM2*100, # m/yr -> cm/yr
+         LAREA_mean=L_mean/AREA_KM2,
+         LAREA_se=L_se/AREA_KM2) %>%
+  gather(TERM_STAT, VALUE, Q_mean:LAREA_se) %>%
   separate(TERM_STAT, c('TERM', 'STAT')) %>%
   spread(STAT, VALUE)
 
@@ -402,18 +402,20 @@ loads_wyr_por <- lapply(names(loads[['POR']]), function (variable) {
 
 filename <- 'report/results-load-annual-tp.png'
 cat('Saving report figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units='in')
+png(filename, width=10, height=8, res=200, units='in')
 p <- ggplot(loads_wyr_por_tp, aes(factor(WYEAR), mean, fill=TERM)) +
   geom_bar(stat='identity') +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=0.2) +
-  scale_fill_manual('', values=c(C='orangered', L='olivedrab3', Q='steelblue')) +
+  scale_fill_manual('', values=c(C='orangered', LAREA='olivedrab3', L='olivedrab3', QAREA='steelblue', Q='steelblue')) +
   facet_grid(TERM~SITE_NAME, scales='free_y') +
   scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014)) +
   guides(fill='none') +
   labs(x='Water Year',
-       y=paste(c('Flow per Area (cm/yr)',
-                 'TP Load per Area (kg/km2/yr)',
-                 'FWM TP Conc (ppb)'),
+       y=paste(c('    Runoff (cm/yr)   ',
+                 '    Flow (hm3/yr)    ',
+                 'TP Export (kg/km2/yr)',
+                 '  TP Load (kg/yr)    ',
+                 '  FWM TP Conc (ppb)  '),
                collapse='     ')) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         axis.title.y=element_text(size=10),
