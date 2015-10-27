@@ -141,3 +141,54 @@ grid.arrange(grobs=list(p.tile, arrangeGrob(p.mon, p.wyr, ncol=2)),
              nrow=2)
 
 dev.off()
+
+
+
+filename <- file.path('pdf', 'prism-data.pdf')
+cat('Printing:', filename, '\n')
+pdf(filename, width=11, height=8.5)
+
+p <- prism_subbasin %>%
+  filter(WYEAR %in% seq(2002, 2014)) %>%
+  ggplot(aes(MONTHYEAR, PRCP/10)) +
+  geom_line() +
+  facet_wrap(~SITE_NAME, nrow=4) +
+  labs(x='Month/Year', y='Monthly Precip (cm/mon)') +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+
+p <- prism_subbasin %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(PRCP=sum(PRCP),
+            N=n()) %>%
+  ungroup %>%
+  filter(WYEAR %in% seq(2002, 2014)) %>%
+  ggplot(aes(factor(WYEAR), PRCP/10)) +
+  geom_bar(stat='identity', fill='grey50') +
+  facet_wrap(~SITE_NAME, nrow=4) +
+  labs(x='Water Year', y='Annual Precip (cm/yr)') +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+
+dev.off()
+
+
+filename <- file.path('report', 'prism-subbasin.png')
+cat('Printing:', filename, '\n')
+png(filename, width=8, height=5, res=200, units="in")
+
+p <- prism_subbasin %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  summarise(PRCP=sum(PRCP),
+            N=n()) %>%
+  ungroup %>%
+  filter(WYEAR %in% seq(2002, 2014)) %>%
+  ggplot(aes(SITE_NAME, PRCP/10)) +
+  geom_boxplot(fill='grey80') +
+  scale_y_continuous(breaks=seq(30, 110, 10)) +
+  labs(x='Station', y='Annual Precip (cm/yr)')
+print(p)
+
+dev.off()
