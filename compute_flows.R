@@ -177,11 +177,40 @@ q.valid <- filter(q.owrd, SITE_NAME %in% c('SF', 'NF', 'Godowa', 'Lone_Pine')) %
   rename(VALID_Q=FLOW) %>%
   mutate(SITE=paste0('OWRD:', SITE)) %>%
   select(-SOURCE)
-q.valid <- left_join(q.valid, select(q, SITE_NAME, DATE, Q=FLOW),
+q.valid <- left_join(q.valid, select(q.out, SITE_NAME, DATE, Q),
                      by=c('SITE_NAME', 'DATE')) %>%
   filter(!is.na(Q)) %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=c('Lone_Pine', 'Godowa', 'SF', 'NF'))) %>%
   arrange(SITE_NAME, DATE)
+q.valid.mon <- q.valid %>%
+  mutate(DATE=floor_date(DATE, unit = "month")) %>%
+  group_by(SITE_NAME, SITE, DATE) %>%
+  summarise(VALID_Q=mean(VALID_Q, na.rm=TRUE),
+            Q=mean(Q, na.rm=TRUE)) %>%
+  ungroup
+
+q.valid.rmse <- group_by(q.valid, SITE_NAME, SITE) %>%
+  summarise(START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            N=n(),
+            X=min(VALID_Q),
+            Y=max(Q),
+            R2=cor(Q, VALID_Q, use="complete.obs")^2,
+            RMSE=sqrt(sum((VALID_Q-Q)^2)/N),
+            VALID_Q=mean(VALID_Q),
+            Q=mean(Q),
+            REL_RMSE=RMSE/Q)
+q.valid.mon.rmse <- group_by(q.valid.mon, SITE_NAME, SITE) %>%
+  summarise(START_DATE=min(DATE),
+            END_DATE=max(DATE),
+            N=n(),
+            X=min(VALID_Q),
+            Y=max(Q),
+            R2=cor(Q, VALID_Q, use="complete.obs")^2,
+            RMSE=sqrt(sum((VALID_Q-Q)^2)/N),
+            VALID_Q=mean(VALID_Q),
+            Q=mean(Q),
+            REL_RMSE=RMSE/Q)
 
 # explore ----
 
@@ -673,56 +702,95 @@ p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
 print(p)
 dev.off()
 
-#
-# filename <- file.path('report', 'flow-validation-timeseries.png')
-# cat('Printing:', filename, '\n')
-# png(filename, width=10, height=6, res=200, units='in')
-#
-# p <- q.valid %>%
-#   ggplot(aes(DATE, VALUE, color=TERM)) +
-#   geom_line(aes(color="Validation", y=VALID_Q), alpha=0.7, size=0.5) +
-#   geom_point(aes(color="Biweekly", y=Q), size=1.5) +
-#   log_y +
-#   labs(x="Date", y="Flow (cfs)") +
-#   scale_color_manual('', values=c('Validation'='grey50', 'Biweekly'='orangered')) +
-#   facet_wrap(~SITE_NAME+SITE, scales='free_y') +
-#   guides(colour=guide_legend(override.aes = list(linetype=c("blank", "solid"),
-#                                                  shape=c(16, NA)))) +
-#   theme(strip.background=element_blank(),
-#         strip.text=element_text(face='bold', size=12),
-#         panel.grid.minor.y=element_blank())
-# print(p)
-#
-# dev.off()
-#
-# filename <- file.path('report', 'flow-validation-scatter.png')
-# cat('Printing:', filename, '\n')
-# png(filename, width=10, height=8, res=200, units='in')
-#
-# p <- q.valid %>%
-#   ggplot(aes(VALID_Q, Q)) +
-#   geom_point(size=1, alpha=0.7) +
-#   geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
-#   log_x +
-#   log_y +
-#   scale_color_manual('', values='red') +
-#   labs(x="Validation Flow @ OWRD Station (cfs)", y="Biweekly Flow @ WQ Station (cfs)") +
-#   facet_wrap(~SITE_NAME+SITE, scales='free') +
-#   theme(strip.background=element_blank(),
-#         strip.text=element_text(face='bold', size=12),
-#         panel.grid.minor=element_blank())
-# print(p)
-#
-# dev.off()
-#
-# q.valid.rmse <- group_by(q.valid, SITE_NAME, SITE) %>%
-#   summarise(START_DATE=min(DATE),
-#             END_DATE=max(DATE),
-#             N=n(),
-#             RMSE=sqrt(sum((VALID_Q-Q)^2)/N),
-#             VALID_Q=mean(VALID_Q),
-#             Q=mean(Q),
-#             REL_RMSE=RMSE/Q)
+
+filename <- file.path('report', 'flow-validation-timeseries.png')
+cat('Printing:', filename, '\n')
+png(filename, width=10, height=6, res=200, units='in')
+
+p <- q.valid %>%
+  ggplot(aes(DATE, VALUE, color=TERM)) +
+  geom_line(aes(color="OWRD Station", y=VALID_Q), size=0.3) +
+  # geom_line(aes(color="WQ Station", y=Q), size=0.3) +
+  geom_point(aes(color="WQ Station", y=Q), size=1) +
+  log_y +
+  labs(x="Date", y="Flow (cfs)") +
+  scale_color_manual('', values=c('OWRD Station'='grey50', 'WQ Station'='orangered')) +
+  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
+  guides(colour=guide_legend(override.aes = list(linetype=c("solid", "blank"),
+                                                 shape=c(NA, 16)))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12),
+        panel.grid.minor.y=element_blank())
+print(p)
+
+dev.off()
+
+
+filename <- file.path('report', 'flow-validation-timeseries-mon.png')
+cat('Printing:', filename, '\n')
+png(filename, width=10, height=6, res=200, units='in')
+
+p <- q.valid.mon %>%
+  ggplot(aes(DATE, VALUE, color=TERM)) +
+  geom_line(aes(color="OWRD Station", y=VALID_Q)) +
+  geom_point(aes(color="WQ Station", y=Q), size=1.5) +
+  log_y +
+  labs(x="Date", y="Flow (cfs)") +
+  scale_color_manual('', values=c('OWRD Station'='grey50', 'WQ Station'='orangered')) +
+  facet_wrap(~SITE_NAME+SITE, scales='free_y') +
+  guides(colour=guide_legend(override.aes = list(linetype=c("blank", "solid"),
+                                                 shape=c(16, NA)))) +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12),
+        panel.grid.minor.y=element_blank())
+print(p)
+
+dev.off()
+
+filename <- file.path('report', 'flow-validation-scatter.png')
+cat('Printing:', filename, '\n')
+png(filename, width=10, height=8, res=200, units='in')
+
+p <- q.valid %>%
+  ggplot(aes(VALID_Q, Q)) +
+  geom_point(size=1, alpha=0.7) +
+  geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
+  geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.rmse, R2=paste0("R2 = ", scales::percent(R2))),
+            hjust=0, vjust=1) +
+  log_x +
+  log_y +
+  scale_color_manual('', values='red') +
+  labs(x="Daily Flow @ OWRD Station (cfs)", y="Daily Flow @ WQ Station (cfs)") +
+  facet_wrap(~SITE_NAME+SITE, scales='free') +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12),
+        panel.grid.minor=element_blank())
+print(p)
+
+dev.off()
+
+filename <- file.path('report', 'flow-validation-scatter-mon.png')
+cat('Printing:', filename, '\n')
+png(filename, width=10, height=8, res=200, units='in')
+
+p <- q.valid.mon %>%
+  ggplot(aes(VALID_Q, Q)) +
+  geom_point() +
+  geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
+  geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.mon.rmse, R2=paste0("R2 = ", scales::percent(R2))),
+            hjust=0, vjust=1) +
+  log_x +
+  log_y +
+  scale_color_manual('', values='red') +
+  labs(x="Monthly Flow @ OWRD Station (cfs)", y="Monthly Flow @ WQ Station (cfs)") +
+  facet_wrap(~SITE_NAME+SITE, scales='free') +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12),
+        panel.grid.minor=element_blank())
+print(p)
+
+dev.off()
+
 
 # save ----
 cat('Saving flows to flows.Rdata...\n')
