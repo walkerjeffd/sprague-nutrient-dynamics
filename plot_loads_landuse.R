@@ -305,6 +305,23 @@ for (period in c('P2002', 'P2010')) {
 }
 
 # report ----
+
+df_pou_rho <- df_site_area %>%
+  filter(PERIOD=="P2010",
+         TERM=="C",
+         EXTENT=='valley',
+         LANDUSE=="POU",
+         SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan',
+                          'SF_Ivory', 'SF', 'NF_Ivory', 'NF')) %>%
+  group_by(VAR) %>%
+  mutate(MAX_VALUE=max(VALUE)) %>%
+  group_by(VAR, SEASON, MAX_VALUE) %>%
+  do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
+  mutate(rho=ct$estimate,
+         p=ct$p.value) %>%
+  select(-ct) %>%
+  mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
+
 filename <- 'report/results-load-pou-WY2010-2014-valley.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=8, height=8, res=200, units='in')
@@ -312,12 +329,16 @@ p <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
             EXTENT=='valley', LANDUSE=="POU",
             SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan',
                              'SF_Ivory', 'SF', 'NF_Ivory', 'NF')) %>%
+  left_join(df_pou_rho) %>%
   ggplot(aes(AREA_FRAC, VALUE)) +
   geom_point(aes(color=SITE_NAME), size=2) +
-  geom_smooth(method='lm', se=FALSE, color='grey50', alpha=0.5) +
+  geom_smooth(aes(linetype=LABEL), method='lm',
+              color='grey50', se=FALSE, alpha=0.5) +
   facet_grid(VAR ~ SEASON, scales="free_y") +
   scale_x_continuous(labels=scales::percent) +
-  scale_color_discrete('') +
+  scale_color_discrete('Station') +
+  scale_linetype_manual('Significance',
+                        values=c('solid', 'dotted')) +
   labs(x="Percent Cumulative Lower Valley Area (%)",
        y="Concentration (ppb)") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
@@ -384,6 +405,24 @@ dev.off()
 # dev.off()
 
 # nlcd
+
+df_nlcd_rho <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
+                      EXTENT=="basin", !(LANDUSE %in% c("POU", "Total")),
+                      SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan',
+                                       'SF_Ivory', 'SF', 'NF_Ivory', 'NF'),
+                      SEASON=="Annual") %>%
+  filter(SITE_NAME %in% stn_subbasin[["P2010"]]) %>%
+  filter(TOTAL_AREA_KM2>0) %>%
+  mutate(AREA_FRAC=AREA_KM2/TOTAL_AREA_KM2) %>%
+  group_by(VAR) %>%
+  mutate(MAX_VALUE=max(VALUE)) %>%
+  group_by(LANDUSE, VAR, SEASON, MAX_VALUE) %>%
+  do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
+  mutate(rho=ct$estimate,
+         p=ct$p.value) %>%
+  select(-ct) %>%
+  mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
+
 filename <- 'report/results-load-nlcd-WY2010-2014-basin.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=11, height=8, res=200, units='in')
@@ -394,11 +433,16 @@ p <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
             SEASON=="Annual") %>%
   filter(SITE_NAME %in% stn_subbasin[["P2010"]]) %>%
   filter(TOTAL_AREA_KM2>0) %>%
+  mutate(AREA_FRAC=AREA_KM2/TOTAL_AREA_KM2) %>%
+  left_join(df_nlcd_rho) %>%
   ggplot() +
-  geom_smooth(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE), method='lm', se=FALSE, color='grey50', alpha=0.5) +
-  geom_point(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE, color=SITE_NAME), size=2) +
+  geom_smooth(aes(AREA_FRAC, VALUE, linetype=LABEL), method='lm',
+              color='grey50', se=FALSE, alpha=0.5) +
+  geom_point(aes(AREA_FRAC, VALUE, color=SITE_NAME), size=2) +
   facet_grid(VAR~LANDUSE, scales='free') +
-  scale_color_discrete('') +
+  scale_color_discrete('Station') +
+  scale_linetype_manual('Significance',
+                        values=c('solid', 'dotted')) +
   scale_x_continuous(labels=scales::percent) +
   scale_y_continuous(labels=scales::comma) +
   labs(x='Percent Cumulative Subbasin Area (%)', y='Concentration (ppb)') +
