@@ -99,13 +99,6 @@ Version: 0.8
 Hash: aac00bd789bac10970b50e3b7e0cab04
 Requires: stringr
 
-Package: fluxr
-Source: source
-Version: 0.1.3
-Hash: de4288a4a24334ce7dc861c6da707d0b
-Requires: broom, dplyr, lubridate, zoo
-SourcePath: ~/Projects/R-Packages/fluxr
-
 Package: foreign
 Source: CRAN
 Version: 0.8-66
