@@ -49,6 +49,10 @@ source('plot_loads_tiles.R')
 source('plot_loads_network.R')
 source('plot_loads_landuse.R')
 
+source('plot_nutrient_dynamics.R')
+source('plot_gannett.R')
+source('plot_anthro.R')
+
 # source('plot_loads_data.R')
 # source('plot_loads_residuals.R')
 # source('plot_loads_problems.R')
