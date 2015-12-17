@@ -10,9 +10,12 @@ library(gridExtra)
 rm(list=ls())
 
 # load data ----
+source('functions.R')
+
 load('kt_sprague.Rdata')
 load('loads.Rdata')
 load('gis.Rdata')
+
 network <- readRDS('network.Rdata')
 
 units <- c(Q='hm3/d', L='kg/d', C='ppb')
@@ -100,9 +103,10 @@ for (season in unique(as.character(df_wyr$SEASON))) {
       geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
                    data=filter(df_segments_wyr, TERM==term, SEASON==season),
                    alpha=0.5) +
-      geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
+      geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
+                 size=3) +
       facet_grid(VAR~WYEAR, scales='free_y') +
-      scale_color_discrete('') +
+      scale_color_manual('Station', values=color_site) +
       scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
       scale_x_continuous(label=scales::comma) +
       scale_y_continuous(label=scales::comma) +
@@ -135,9 +139,10 @@ for (period in c("P2002", "P2010")) {
       geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
                    data=filter(df_segments, PERIOD==period, TERM==term),
                    alpha=0.5) +
-      geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
+      geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
+                 size=3) +
       facet_grid(VAR~SEASON, scales='free_y') +
-      scale_color_discrete('') +
+      scale_color_manual('Station', values=color_site) +
       scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
       scale_x_continuous(label=scales::comma) +
       scale_y_continuous(label=scales::comma) +
@@ -156,28 +161,43 @@ for (period in c("P2002", "P2010")) {
 }
 
 # report ----
-filename <- 'report/results-load-network-tp-WY2010-2014.png'
+df_site_tp_tn <- filter(df_site, PERIOD=='P2010', VAR %in% c('TP', 'TN', 'FLOW'),
+                        TERM %in% c('C', 'L', 'Q'),
+                        SITE_NAME != 'SF+NF') %>%
+  unite(VAR_TERM, VAR, TERM) %>%
+  filter(!(VAR_TERM %in% c('TN_Q'))) %>%
+  mutate(VAR_TERM=ordered(VAR_TERM, levels=c('FLOW_Q', 'TP_L', 'TP_C', 'TN_L', 'TN_C')))
+
+df_segments_tp_tn <- filter(df_segments, PERIOD=='P2010', VAR %in% c('TP', 'TN', 'FLOW'),
+                            TERM %in% c('C', 'L', 'Q')) %>%
+  unite(VAR_TERM, VAR, TERM) %>%
+  filter(!(VAR_TERM %in% c('TN_Q'))) %>%
+  mutate(VAR_TERM=ordered(VAR_TERM, levels=c('FLOW_Q', 'TP_L', 'TP_C', 'TN_L', 'TN_C')))
+
+filename <- 'report/results-load-network-tp-tn-WY2010-2014.png'
 cat('Saving report figure to:', filename, '\n')
-png(filename, width=10, height=5, res=200, units='in')
-p <- filter(df_site, PERIOD=='P2010', VAR %in% c('TP', 'FLOW'),
-            TERM %in% c('C', 'L', 'Q'),
-            SITE_NAME != 'SF+NF') %>%
+png(filename, width=10, height=8, res=200, units='in')
+p <- df_site_tp_tn %>%
   ggplot() +
   geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
   geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO,
                    y=VALUE.FROM, yend=VALUE.TO,
                    size=MAINSTEM),
-               data=filter(df_segments, PERIOD=='P2010', VAR %in% c('TP', 'FLOW'),
-                           TERM %in% c('C', 'L', 'Q')),
+               data=df_segments_tp_tn,
                alpha=0.5) +
-  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
-  facet_grid(TERM~SEASON, scales='free_y') +
-  scale_color_discrete('') +
+  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
+             size=3) +
+  facet_grid(VAR_TERM~SEASON, scales='free_y') +
+  scale_color_manual('Station', values=color_site) +
   scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
   scale_x_continuous(labels=scales::comma) +
   labs(x='Cumulative Drainage Area (km2)',
-       y=paste(c('TP Conc (ppb)', 'TP Load (kg/d)', 'Flow (hm3/d)'),
-               collapse='     ')) +
+       y=paste(c('TN Conc (ppb)',
+                 'TN Load (kg/d)',
+                 'TP Conc (ppb)',
+                 'TP Load (kg/d)',
+                 'Flow (hm3/d)'),
+               collapse='      ')) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         aspect.ratio=1,
         strip.background=element_blank(),
@@ -196,9 +216,10 @@ p <- filter(df_site, PERIOD=='P2010', TERM=='C',
   geom_segment(aes(x=AREA_KM2.FROM, xend=AREA_KM2.TO, y=VALUE.FROM, yend=VALUE.TO, size=MAINSTEM),
                data=filter(df_segments, PERIOD=='P2010', TERM=='C'),
                alpha=0.5) +
-  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME), size=3) +
+  geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
+             size=3) +
   facet_grid(VAR~SEASON, scales='free_y') +
-  scale_color_discrete('') +
+  scale_color_manual('Station', values=color_site) +
   scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
   scale_x_continuous(labels=scales::comma) +
   scale_y_continuous(labels=scales::comma) +

@@ -239,7 +239,7 @@ bar_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
     ggplot(aes(x=SITE_NAME, y=VALUE, fill=VALUE)) +
     geom_bar(stat='identity', color='grey50') +
     geom_hline(yint=0, color='grey50') +
-    labs(x='', y=scale_fill_term[[term]]$name) +
+    labs(x='', y=scale_fill_term_inc[[term]]$name) +
     scale_fill_term_inc[[term]] +
     coord_flip() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +

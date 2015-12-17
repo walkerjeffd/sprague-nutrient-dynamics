@@ -370,22 +370,32 @@ for (dataset in c('POR')) {
 # dev.off()
 
 # report ----
-loads_wyr_por_tp <- lapply(names(loads[['POR']][['TP']]), function (site_name) {
-  x <- loads[['POR']][['TP']][[site_name]][['out']][['wyr']]
-  x$SITE_NAME <- site_name
-  x
+loads_wyr_por_tp <- lapply(c('TP', 'TN'), function (variable) {
+  lapply(names(loads[['POR']][[variable]]), function (site_name) {
+    x <- loads[['POR']][[variable]][[site_name]][['out']][['wyr']]
+    x$SITE_NAME <- site_name
+    x$VAR <- variable
+    x
+  }) %>%
+    rbind_all
 }) %>%
   rbind_all %>%
   left_join(select(subbasin_area, SITE_NAME, AREA_KM2)) %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels)) %>%
   droplevels %>%
-  select(SITE_NAME, AREA_KM2, WYEAR, Q_mean=Q, L_mean=L, C_mean=C, L_se, C_se) %>%
+  select(SITE_NAME, AREA_KM2, WYEAR, VAR, Q_mean=Q, L_mean=L, C_mean=C, L_se, C_se) %>%
   mutate(QAREA_mean=Q_mean/AREA_KM2*100, # m/yr -> cm/yr
          LAREA_mean=L_mean/AREA_KM2,
          LAREA_se=L_se/AREA_KM2) %>%
   gather(TERM_STAT, VALUE, Q_mean:LAREA_se) %>%
   separate(TERM_STAT, c('TERM', 'STAT')) %>%
-  spread(STAT, VALUE)
+  spread(STAT, VALUE) %>%
+  unite(VAR_TERM, VAR, TERM, remove=FALSE) %>%
+  filter(!(VAR_TERM %in% c("TN_Q", "TN_QAREA"))) %>%
+  mutate(VAR_TERM=plyr::revalue(VAR_TERM, c(TP_Q="FLOW_Q", TP_QAREA="FLOW_QAREA")),
+         VAR_TERM=ordered(VAR_TERM, levels=c("FLOW_Q", "FLOW_QAREA",
+                                             "TP_L", "TP_LAREA", "TP_C",
+                                             "TN_L", "TN_LAREA", "TN_C")))
 
 loads_wyr_por <- lapply(names(loads[['POR']]), function (variable) {
     lapply(names(loads[['POR']][[variable]]), function (site_name) {
@@ -398,25 +408,29 @@ loads_wyr_por <- lapply(names(loads[['POR']]), function (variable) {
   }) %>%
   rbind_all %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels),
-         VAR=ordered(VAR, levels=names(loads[['POR']])))
+         VAR=ordered(VAR, levels=c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')))
 
-filename <- 'report/results-load-annual-tp.png'
+filename <- 'report/results-load-annual-tp-tn.png'
 cat('Saving report figure:', filename, '\n')
-png(filename, width=10, height=8, res=200, units='in')
+png(filename, width=10, height=12, res=200, units='in')
 p <- ggplot(loads_wyr_por_tp, aes(factor(WYEAR), mean, fill=TERM)) +
   geom_bar(stat='identity') +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=0.2) +
   scale_fill_manual('', values=c(C='orangered', LAREA='olivedrab3', L='olivedrab3', QAREA='steelblue', Q='steelblue')) +
-  facet_grid(TERM~SITE_NAME, scales='free_y') +
+  facet_grid(VAR_TERM~SITE_NAME, scales='free_y') +
   scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014)) +
+  scale_y_continuous(labels=scales::comma) +
   guides(fill='none') +
   labs(x='Water Year',
-       y=paste(c('    Runoff (cm/yr)   ',
-                 '    Flow (hm3/yr)    ',
-                 'TP Export (kg/km2/yr)',
-                 '  TP Load (kg/yr)    ',
-                 '  FWM TP Conc (ppb)  '),
-               collapse='     ')) +
+       y=paste(rev(c('pdf/_archive/20150510/Power vs Godowa+Sycan - Measured.pdfFlow (hm3/yr)         ',
+                     '    Runoff (cm/yr)        ',
+                     'TP Load (kg/yr)       ',
+                     'TP Export (kg/km2/yr) ',
+                     'FWM TP Conc (ppb) ',
+                     'TN Load (kg/yr)       ',
+                     'TN Export (kg/km2/yr) ',
+                     'FWM TN Conc (ppb) ')),
+               collapse=' ')) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         axis.title.y=element_text(size=10),
         strip.background=element_blank(),
@@ -601,3 +615,93 @@ p <- select(flows_day, WYEAR, DATE, SITE_NAME, Q) %>%
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 print(p)
 dev.off()
+
+
+p1 <- select(flows_mon, MONTHYEAR, WYEAR, MONTH, SITE_NAME, Q) %>%
+  filter(SITE_NAME %in% c("Power", "Godowa+Sycan"),
+         WYEAR >= 2010) %>%
+  ggplot(aes(MONTHYEAR, Q, color=SITE_NAME)) +
+  geom_line() +
+  labs(x="", y="Flow (cfs)") +
+  scale_color_manual('', values=c('Power'='steelblue', 'Godowa+Sycan'='orangered')) +
+  scale_x_datetime(breaks=scales::date_breaks("6 months"),
+                   labels=scales::date_format("%b %Y")) +
+  scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
+                labels=log_labels(c(1, 2, 5), 10^seq(-3, 3))) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
+        legend.position=c(1, 1.01),
+        legend.justification=c(1, 1),
+        legend.direction='horizontal')
+print(p1)
+p2 <- select(flows_mon, MONTHYEAR, WYEAR, MONTH, SITE_NAME, Q) %>%
+  filter(SITE_NAME %in% c("Power", "Godowa+Sycan"),
+         WYEAR >= 2010) %>%
+  spread(SITE_NAME, Q) %>%
+  mutate(DIFF=Power-`Godowa+Sycan`) %>%
+  ggplot(aes(MONTHYEAR, DIFF)) +
+  geom_line() +
+  geom_hline(yint=0) +
+  labs(x="", y="Flow Difference (cfs)\n[Power-(Godowa+Sycan)]") +
+  scale_x_datetime(breaks=scales::date_breaks("6 months"),
+                   labels=scales::date_format("%b %Y")) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+print(p2)
+p3 <- select(flows_mon, MONTHYEAR, WYEAR, MONTH, SITE_NAME, Q) %>%
+  filter(SITE_NAME %in% c("Power", "Godowa+Sycan"),
+         WYEAR >= 2010) %>%
+  spread(SITE_NAME, Q) %>%
+  mutate(DIFF=Power-`Godowa+Sycan`,
+         MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
+  ggplot(aes(MONTH, DIFF)) +
+  geom_boxplot() +
+  geom_hline(yint=0) +
+  labs(x="Month", y="Flow Difference (cfs)\n[Power-(Godowa+Sycan)]")
+print(p3)
+
+
+
+filename <- 'report/flows-power-godowa-sycan.png'
+cat('Saving report figure:', filename, '\n')
+png(filename, width=6, height=8, res=200, units='in')
+grid.arrange(grobs=list(p1, p2, p3), nrow=3)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+loads_df$site %>%
+  filter(VAR %in% c("FLOW", "TP"), DATASET=="POR", SEASON=="Annual",
+         SITE_NAME %in% c("Power", "Ivory_Pine", "Godowa", "Sycan", "NF", "SF")) %>%
+  ggplot(aes(SITE_NAME, VALUE, fill=PERIOD)) +
+  geom_bar(stat='identity', position='dodge') +
+  facet_wrap(~TERM, scales='free_y')
+
+
+loads_df$wyr %>%
+  filter(VAR %in% c("FLOW", "TP"), DATASET=="POR", SEASON=="Annual",
+         SITE_NAME %in% c("Power", "Lone_Pine", "Godowa", "Sycan", "NF", "SF")) %>%
+  mutate(WYR_GRP=ifelse(WYEAR %in% 2002:2009, "WY2002-2009", "WY2010-2014")) %>%
+  select(-VAR) %>%
+  spread(TERM, VALUE) %>%
+  group_by(SITE_NAME, WYR_GRP) %>%
+  summarise(Q=mean(Q),
+            Q_AREA=mean(Q_AREA),
+            L=mean(L),
+            L_AREA=mean(L_AREA),
+            C=L/Q*1000) %>%
+  gather(TERM, VALUE, Q:C) %>%
+  ggplot(aes(SITE_NAME, VALUE, fill=WYR_GRP)) +
+  geom_bar(stat='identity', position='dodge') +
+  facet_wrap(~TERM, scales='free_y')

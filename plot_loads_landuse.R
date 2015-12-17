@@ -16,6 +16,8 @@ load('gis.Rdata')
 load('geomorph.Rdata')
 load('pou.Rdata')
 
+source('functions.R')
+
 units <- c(Q='hm3/d', L='kg/d', C='ppb')
 term_labels <- c(Q='Flow (hm3/d)', L='Load (kg/d)', C='Conc (ppb)')
 period_labels <- c(P2010='WY2010-2014',
@@ -131,7 +133,7 @@ for (period in c("P2002", "P2010")) {
       geom_point(size=2) +
       facet_grid(VAR ~ SEASON, scales="free_y") +
       scale_x_continuous(labels=scales::percent) +
-      scale_color_discrete('') +
+      scale_color_manual('Station', values=color_site) +
       labs(x="Cumulative Fraction POU Irrigation Area (%)",
            y="Concentration (ppb)",
            title=paste0("FWM Concentrations vs. Cumulative Fraction POU Irrigation Area\n",
@@ -149,7 +151,7 @@ for (period in c("P2002", "P2010")) {
       ggplot(aes(AREA_KM2, VALUE, color=SITE_NAME)) +
       geom_point(size=2) +
       facet_grid(VAR ~ SEASON, scales="free_y") +
-      scale_color_discrete('') +
+      scale_color_manual('Station', values=color_site) +
       labs(x="Cumulative POU Irrigation Area (km2)",
            y="Concentration (ppb)",
            title=paste0("FWM Concentrations vs. Cumulative POU Irrigation Area\n",
@@ -167,7 +169,7 @@ for (period in c("P2002", "P2010")) {
       ggplot(aes(TOTAL_AREA_KM2, VALUE, color=SITE_NAME)) +
       geom_point(size=2) +
       facet_grid(VAR ~ SEASON, scales="free_y") +
-      scale_color_discrete('') +
+      scale_color_manual('Station', values=color_site) +
       labs(x="Total Cumulative Drainage Area (km2)",
            y="Concentration (ppb)",
            title=paste0("FWM Concentrations vs. Total Cumulative Area\n",
@@ -261,7 +263,7 @@ for (period in c('P2002', 'P2010')) {
       geom_smooth(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE), method='lm', se=FALSE, color='grey50') +
       geom_point(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE, color=SITE_NAME), size=2) +
       facet_grid(VAR~LANDUSE, scales='free') +
-      scale_color_discrete('') +
+      scale_color_manual('Station', values=color_site) +
       scale_x_continuous(labels=scales::percent) +
       labs(x='Fraction Cumulative Land Use Area (%)', y=paste0(term_labels[[term]]),
            title=paste0('Annual FWM Concentration vs Fraction Cumulative Land Use Area\n',
@@ -285,7 +287,7 @@ for (period in c('P2002', 'P2010')) {
         geom_smooth(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE), method='lm', se=FALSE, color='grey50') +
         geom_point(aes(AREA_KM2/TOTAL_AREA_KM2, VALUE, color=SITE_NAME), size=2) +
         facet_grid(SEASON~LANDUSE, scales='free') +
-        scale_color_discrete('') +
+        scale_color_manual('Station', values=color_site) +
         scale_x_continuous(labels=scales::percent) +
         labs(x='Fraction Cumulative Area per Land Use (%)', y=paste0(variable, " ", term_labels[[term]]),
              title=paste0('Seasonal FWM Concentration vs Fraction Cumulative Land Use Area\n',
@@ -331,15 +333,16 @@ p <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
                              'SF_Ivory', 'SF', 'NF_Ivory', 'NF')) %>%
   left_join(df_pou_rho) %>%
   ggplot(aes(AREA_FRAC, VALUE)) +
-  geom_point(aes(color=SITE_NAME), size=2) +
+  geom_point(aes(color=SITE_NAME), size=2.5) +
   geom_smooth(aes(linetype=LABEL), method='lm',
               color='grey50', se=FALSE, alpha=0.5) +
   facet_grid(VAR ~ SEASON, scales="free_y") +
   scale_x_continuous(labels=scales::percent) +
-  scale_color_discrete('Station') +
+  scale_y_continuous(labels=scales::comma) +
+  scale_color_manual('Station', values=color_site) +
   scale_linetype_manual('Significance',
                         values=c('solid', 'dotted')) +
-  labs(x="Percent Cumulative Lower Valley Area (%)",
+  labs(x="Percent Cumulative Lower Valley Area as POU (%)",
        y="Concentration (ppb)") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         strip.text.x=element_text(size=8, face='bold'),
@@ -436,11 +439,12 @@ p <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
   mutate(AREA_FRAC=AREA_KM2/TOTAL_AREA_KM2) %>%
   left_join(df_nlcd_rho) %>%
   ggplot() +
+  geom_point(aes(AREA_FRAC, VALUE, color=SITE_NAME),
+             size=2.5) +
   geom_smooth(aes(AREA_FRAC, VALUE, linetype=LABEL), method='lm',
               color='grey50', se=FALSE, alpha=0.5) +
-  geom_point(aes(AREA_FRAC, VALUE, color=SITE_NAME), size=2) +
   facet_grid(VAR~LANDUSE, scales='free') +
-  scale_color_discrete('Station') +
+  scale_color_manual('Station', values=color_site) +
   scale_linetype_manual('Significance',
                         values=c('solid', 'dotted')) +
   scale_x_continuous(labels=scales::percent) +

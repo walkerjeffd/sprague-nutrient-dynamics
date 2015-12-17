@@ -221,27 +221,37 @@ filter(loads_df[['day']],
   geom_line() +
   facet_grid(TERM~SITE_NAME, scales='free_y')
 
-filename <- 'report/loads-mon-tp.png'
+filename <- 'report/loads-mon-tp-tn.png'
 cat('Saving report figure to:', filename, '\n')
-png(filename, width=10, height=6, res=200, units='in')
+png(filename, width=10, height=10, res=200, units='in')
 p <- filter(loads_df[['mon']],
        DATASET=="POR",
-       VAR %in% c("FLOW", "TP"),
+       VAR %in% c("FLOW", "TP", "TN"),
        TERM %in% c("Q", "L", "C"),
        SITE_NAME %in% names(loads[['POR']][['TP']])) %>%
   mutate(SITE_NAME = ordered(SITE_NAME, levels=names(loads[['POR']][['TP']])),
          SITE_GRP = SITE_NAME %in% c('Power', 'Godowa', 'SF_Ivory', 'NF_Ivory'),
-         VALUE = ifelse(TERM=="Q", hm3d_cfs(VALUE), VALUE),
-         TERM = plyr::revalue(TERM, c(Q="Flow", L="TP Load", C="TP Conc"))) %>%
-  ggplot(aes(MONTHYEAR, VALUE, color=SITE_NAME, linetype=SITE_GRP)) +
+         VALUE = ifelse(TERM=="Q", hm3d_cfs(VALUE), VALUE)) %>%
+  unite(VAR_TERM, VAR, TERM) %>%
+  mutate(VAR_TERM = plyr::revalue(VAR_TERM, c(FLOW_Q="Flow",
+                                              TP_L="TP Load",
+                                              TP_C="TP Conc",
+                                              TN_L="TN Load",
+                                              TN_C="TN Conc")),
+         VAR_TERM = ordered(VAR_TERM, levels=c("Flow", "TP Load", "TP Conc",
+                                               "TN Load", "TN Conc"))) %>%
+  ggplot(aes(MONTHYEAR, VALUE, color=SITE_NAME)) +
   geom_line() +
-  labs(x="Date", y=paste(c("TP Conc (ppb)", "TP Load (kg/d)", "Flow (cfs)"),
-                         collapse=paste(rep(" ", 20), collapse=""))) +
-  scale_linetype_manual('', values=c(1, 6)) +
+  labs(x="Date", y=paste(c("TN Conc (ppb)  ", "TN Load (kg/d) ",
+                           "TP Conc (ppb)", "TP Load (kg/d) ",
+                           "  Flow (cfs)"),
+                         collapse=paste(rep(" ", 15), collapse=""))) +
+  scale_color_manual('', values=color_site) +
+  # scale_linetype_manual('', values=c(1, 6)) +
   scale_y_continuous(labels=scales::comma) +
-  facet_grid(TERM~., scales='free_y') +
-  guides(linetype="none",
-         color=guide_legend('', override.aes = list(linetype=rep(c(5, 1), 4)))) +
+  facet_grid(VAR_TERM~., scales='free_y') +
+#   guides(linetype="none",
+#          color=guide_legend('', override.aes = list(linetype=rep(c(5, 1), 4)))) +
   theme(strip.background=element_blank(),
         strip.text=element_blank())
 print(p)

@@ -23,6 +23,7 @@ load('prism.Rdata')
 source('functions.R')
 
 # load data ----
+year_range <- 2002:2014
 
 df_wyr <- loads_df[['wyr']] %>%
   filter(DATASET=="POR",
@@ -313,7 +314,7 @@ cat('Computing trend analysis...\n\n')
 trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
   cat('..', variable, '\n')
   lapply(as.character(levels(df_mon$SITE_NAME)), function(site) {
-    year_range <- 2002:2014
+    # year_range <- 2002:2012
     x <- trend.batch(x_mon=filter(df_mon, SITE_NAME==site, VAR==variable),
                      x_wyr=filter(df_wyr, SITE_NAME==site, VAR==variable),
                      years=year_range,
@@ -330,6 +331,22 @@ trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
          VAR=ordered(VAR, levels=levels(df_mon$VAR)),
          SIGNIF=ordered(as.character(SIGNIF), levels=c("p<0.05","0.05<p<0.10","p>0.10"))) %>%
   droplevels
+
+trends <- trends %>%
+  mutate(LABEL=ifelse(SIGNIF=="p>0.10", "Not Significant",
+                      ifelse(SIGNIF=="p<0.05",
+                             ifelse(DIRECTION=="Increasing",
+                                    "Increasing (p<0.05)",
+                                    "Decreasing (p<0.05)"),
+                             ifelse(DIRECTION=="Increasing",
+                                    "Increasing (0.05<p<0.1)",
+                                    "Decreasing (0.05<p<0.1)"))),
+         LABEL=ordered(LABEL, levels=c("Increasing (p<0.05)",
+                                       "Increasing (0.05<p<0.1)",
+                                       "Not Significant",
+                                       "Decreasing (0.05<p<0.1)",
+                                       "Decreasing (p<0.05)")))
+
 
 # precip trends ----
 trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRUE) {
@@ -393,7 +410,7 @@ prism.mon <- mutate(prism_subbasin,
                     VAR='PRCP',
                     N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
                     PRCP=PRCP/N.DAY) %>% # mean mm/day
-  filter(WYEAR>=2002, WYEAR<=2014,
+  filter(WYEAR>=min(year_range), WYEAR<=max(year_range),
          SITE_NAME %in% levels(df_mon$SITE_NAME)) %>%
   droplevels
 prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR) %>%
@@ -403,7 +420,7 @@ cat('Computing precip trends...\n')
 trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
   df <- trend.batch.prcp(filter(prism.mon, SITE_NAME==site),
                          filter(prism.wyr, SITE_NAME==site),
-                         years=2002:2014,
+                         years=year_range,
                          log_trans=FALSE,
                          water_year=TRUE)
   df$SITE_NAME <- site
@@ -414,6 +431,21 @@ trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
          TERM="P",
          VAR="PRECIP") %>%
   droplevels()
+
+trend.prcp <- trend.prcp %>%
+  mutate(LABEL=ifelse(SIGNIF=="p>0.10", "Not Significant",
+                      ifelse(SIGNIF=="p<0.05",
+                             ifelse(DIRECTION=="Increasing",
+                                    "Increasing (p<0.05)",
+                                    "Decreasing (p<0.05)"),
+                             ifelse(DIRECTION=="Increasing",
+                                    "Increasing (0.05<p<0.1)",
+                                    "Decreasing (0.05<p<0.1)"))),
+         LABEL=ordered(LABEL, levels=c("Increasing (p<0.05)",
+                                       "Increasing (0.05<p<0.1)",
+                                       "Not Significant",
+                                       "Decreasing (0.05<p<0.1)",
+                                       "Decreasing (p<0.05)")))
 
 # save trends ----
 cat('Saving trend results to trends.Rdata...\n')
@@ -430,17 +462,21 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
            MONTH_LABEL=ordered(as.character(MONTH_LABEL), levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Mar', 'Apr-Sep')),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes and Significance\nPeriod: WY2002-2014 | Term: Flow')
+  title <- paste0('Seasonal Kendall Trend Slopes and Significance\n',
+                  'Period: WY', min(year_range), '-', max(year_range), ' | Term: Flow')
 
   p.4 <- filter(x.trend, MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')) %>%
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-    geom_point(mapping=aes(), shape=16, size=4, color='white') +
-    geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
-    geom_point(mapping=aes(), shape=1, size=4) +
+    geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
     geom_vline(xint=0) +
-    scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
     facet_grid(VAR~MONTH_LABEL) +
@@ -448,12 +484,15 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
   p.2 <- filter(x.trend, MONTH_LABEL %in% c('All Months', 'Oct-Mar', 'Apr-Sep')) %>%
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-    geom_point(mapping=aes(), shape=16, size=4, color='white') +
-    geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
-    geom_point(mapping=aes(), shape=1, size=4) +
+    geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
     geom_vline(xint=0) +
-    scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
     facet_grid(VAR~MONTH_LABEL) +
@@ -479,16 +518,21 @@ plot_dot_season <- function(variable, seasons=c('All Months', 'Oct-Mar', 'Apr-Se
            TERM_LABEL=ordered(TERM_LABEL, levels=unname(term_labs)),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Variable: ', variable)
+  title <- paste0('Seasonal Kendall Trend Slopes\n',
+                  'Period: WY', min(year_range), '-', max(year_range),
+                  ' | Variable: ', variable)
 
   ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-    geom_point(mapping=aes(), shape=16, size=4, color='white') +
-    geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
-    geom_point(mapping=aes(), shape=1, size=4) +
+    geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
     geom_vline(xint=0) +
-    scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='', title=title) +
     facet_grid(MONTH_LABEL~TERM_LABEL) +
@@ -505,16 +549,21 @@ plot_dot_term <- function(term, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), v
            VAR=ordered(VAR, levels=variables),
            SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
-  title <- paste0('Seasonal Kendall Trend Slopes\nPeriod: WY2002-2014 | Term: ', term_labs[[term]])
+  title <- paste0('Seasonal Kendall Trend Slopes\n',
+                  'Period: WY', min(year_range), '-', max(year_range),
+                  ' | Term: ', term_labs[[term]])
 
   p <- ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-    geom_point(mapping=aes(), shape=16, size=4, color='white') +
-    geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
-    geom_point(mapping=aes(), shape=1, size=4) +
+    geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
     geom_vline(xint=0) +
-    scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='', title=title) +
     facet_grid(VAR~MONTH_LABEL) +
@@ -555,12 +604,12 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
   ylabel <- paste0(term_labs[[term]], ' [', units, ']')
 
   if (term=='Q') {
-    title <- paste(paste0('Period: ', 'WY2002-2014'),
+    title <- paste(paste0('Period: ', 'WY', min(year_range), '-', max(year_range)),
                    paste0('Site: ', site_name),
                    paste0('Variable: ', term_labs[[term]]),
                    sep='  |  ')
   } else {
-    title <- paste(paste0('Period: ', 'WY2002-2014'),
+    title <- paste(paste0('Period: ', 'WY', min(year_range), '-', max(year_range)),
                    paste0('Site: ', site_name),
                    paste0('Variable: ', variable),
                    paste0('Term: ', term_labs[[term]]),
@@ -575,7 +624,8 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
                 data=filter(x.mon.trends, SEASON=='All Months'), show_guide=TRUE) +
     scale_color_manual('Season', values=c('Apr-Sep'='olivedrab3', 'Oct-Mar'='orange', 'All Months'='black')) +
-    scale_x_continuous(breaks=seq(2002, 2014, by=ifelse(n_year >= 10, 2, 1))) +
+    scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                  by=ifelse(n_year >= 10, 2, 1))) +
     labs(x='', y=paste0('Monthly ', ylabel)) +
     theme(legend.position='top')
 
@@ -589,7 +639,8 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, linetype=METHOD),
                 data=x.wyr.trends, show_guide=TRUE) +
     scale_linetype_manual('Method', values=c('MannKendall'=1, 'LinearRegression'=2)) +
-    scale_x_continuous(breaks=seq(2002, 2014, by=ifelse(n_year >= 10, 2, 1))) +
+    scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                  by=ifelse(n_year >= 10, 2, 1))) +
     labs(x='', y=paste0('Annual ', ylabel)) +
     theme(legend.position='top')
 
@@ -606,22 +657,29 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
                 data=filter(x.mon.trends, SEASON %in% seq(1, 12)) %>%
                   rename(MONTH=SEASON)) +
     facet_wrap(~MONTH, nrow=1) +
-    scale_x_continuous(breaks=seq(2002, 2014, by=ifelse(n_year >= 10, 4, 2))) +
+    scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                  by=ifelse(n_year >= 10, 4, 2))) +
     labs(x='', y=ylabel) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
   p.bar <- x.trend %>%
     mutate(MONTH_LABEL=plyr::revalue(MONTH_LABEL, c('All Months'='Annual-SK'))) %>%
-    ggplot(aes(MONTH_LABEL, SLOPE.PCT, fill=DIRECTION, alpha=SIGNIF)) +
-    geom_bar(stat='identity', fill='white', alpha=1) +
-    geom_bar(stat='identity', color='grey30', alpha=0) +
+    ggplot(aes(MONTH_LABEL, SLOPE.PCT, fill=LABEL)) +
     geom_bar(stat='identity') +
+    geom_bar(stat='identity', color='grey30', alpha=0) +
+    geom_vline(xint=0) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     geom_vline(xint=c(12.5, 16.5, 18.5), color='grey70') +
     geom_hline(yint=0, color='grey50') +
-    scale_fill_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_y_continuous(labels=percent) +
     labs(x='', y='Trend Slope (%/yr)') +
+    guides(fill=guide_legend(override.aes = list(colour=NA))) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
   if (x.trends.all$PVAL < 1e-4) {
@@ -633,7 +691,7 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
   tbl <- c('Site: '         = site_name,
            'Variable: '     = variable,
            'Term: '         = term_labs[[term]],
-           'Water Years: '  = 'WY2002-2014',
+           'Water Years: '  = paste0('WY', min(year_range), '-', max(year_range)),
            # 'Transform: '    = if (log_trans) 'Log10' else 'None',
            ' '              = ' ',
            'Trend Results: ' = 'All Months (Seasonal Kendall)',
@@ -694,7 +752,8 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
 
   ylabel <- paste0('Precip', ' [', units, ']')
 
-  title <- paste0('Period: WY2002-2014  |  Site: ', site_name,
+  title <- paste0('Period: WY', min(year_range), '-', max(year_range),
+                  '  |  Site: ', site_name,
                   '  |  Variable: Precipitation')
 
   p.mon.ts <- x.mon %>%
@@ -705,7 +764,8 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
                 data=filter(x.mon.trends, SEASON %in% c('All Months')), show_guide=TRUE) +
     scale_color_manual('Season', values=c('Apr-Sep'='olivedrab3', 'Oct-Mar'='orange', 'All Months'='black')) +
-    scale_x_continuous(breaks=seq(2002, 2014, by=ifelse(n_year >= 10, 2, 1))) +
+    scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                  by=ifelse(n_year >= 10, 2, 1))) +
     labs(x='', y=paste0('Monthly ', ylabel)) +
     theme(legend.position='top')
 
@@ -719,7 +779,8 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, linetype=METHOD),
                 data=x.wyr.trends, show_guide=TRUE) +
     scale_linetype_manual('Method', values=c('MannKendall'=1, 'LinearRegression'=2)) +
-    scale_x_continuous(breaks=seq(2002, 2014, by=ifelse(n_year >= 10, 2, 1))) +
+    scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                  by=ifelse(n_year >= 10, 2, 1))) +
     labs(x='', y=paste0('Annual ', ylabel)) +
     theme(legend.position='top')
 
@@ -734,23 +795,31 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE),
                 data=filter(x.mon.trends, SEASON %in% seq(1, 12)) %>% rename(MONTH=SEASON) %>% droplevels) +
     facet_wrap(~MONTH, nrow=1) +
-    scale_x_continuous(breaks=seq(2002, 2014, by=ifelse(n_year >= 10, 4, 2))) +
+    scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                  by=ifelse(n_year >= 10, 4, 2))) +
     labs(x='', y=ylabel) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
   p.bar <- x.trend %>%
     mutate(MONTH_LABEL=plyr::revalue(MONTH_LABEL, c('All Months'='Annual-SK'))) %>%
-    ggplot(aes(MONTH_LABEL, SLOPE.PCT, fill=DIRECTION, alpha=SIGNIF)) +
-    geom_bar(stat='identity', fill='white', alpha=1) +
-    geom_bar(stat='identity', color='grey30', alpha=0) +
+    ggplot(aes(MONTH_LABEL, SLOPE.PCT, fill=LABEL)) +
     geom_bar(stat='identity') +
+    geom_bar(stat='identity', color='grey30', alpha=0) +
+    geom_vline(xint=0) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     geom_vline(xint=c(12.5, 16.5, 18.5), color='grey70') +
     geom_hline(yint=0, color='grey50') +
-    scale_fill_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
     scale_y_continuous(labels=percent) +
     labs(x='', y='Trend Slope (%/yr)') +
+    guides(fill=guide_legend(override.aes = list(colour=NA))) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+
 
   if (x.trends.all$PVAL < 1e-4) {
     pval <- '< 0.0001'
@@ -761,7 +830,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
   tbl <- c('Dataset: '      = 'PRISM',
            'Site: '         = site_name,
            'Variable: '     = 'Precip',
-           'Water Years: '  = 'WY2002-WY2014',
+           'Water Years: '  = paste0('WY', min(year_range), '-', max(year_range)),
            'Transform: '    = if (log_trans) 'Log10' else 'None',
            ' '              = ' ',
            'Trend Results: ' = 'All Months (Seasonal Kendall)',
@@ -796,12 +865,15 @@ plot_dot_precip <- function(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-J
 
   p <- ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-    geom_point(mapping=aes(), shape=16, size=4, color='white') +
-    geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=4) +
-    geom_point(mapping=aes(), shape=1, size=4) +
+    geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
     geom_vline(xint=0) +
-    scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue'), drop=FALSE) +
-    scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+    scale_fill_manual('',
+                      values=c("Increasing (p<0.05)"='orangered',
+                               "Increasing (0.05<p<0.1)"="#FFA895",
+                               "Not Significant"='white',
+                               "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                               "Decreasing (p<0.05)"="steelblue"),
+                      drop=FALSE) +
     scale_x_continuous(labels=percent) +
     labs(x='Trend Slope (%/yr)', y='') +
     facet_grid(.~MONTH_LABEL) +
@@ -870,7 +942,8 @@ p.2 <- plot_dot_precip(seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'))
 p.4 <- plot_dot_precip(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
 grid.arrange(grobs=list(p.2, p.4),
              nrow=2,
-             top=paste0('\nSeasonal Kendall Trend Slopes\nDataset: PRISM | Period: WY2002-WY2014, Variable: Precip'))
+             top=paste0('\nSeasonal Kendall Trend Slopes\nDataset: PRISM | ',
+                        'Period: WY', min(year_range), '-', max(year_range), ', Variable: Precip'))
 dev.off()
 
 filename <- file.path('pdf', 'por', 'trends', 'trends-precip.pdf')
@@ -913,11 +986,15 @@ trend_rep_c <- trend_rep_c %>%
 p <- ggplot(trend_rep_c, aes(SLOPE.PCT, SITE_NAME)) +
   geom_vline(xint=0) +
   geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-  geom_point(mapping=aes(), shape=16, size=3, color='white') +
-  geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=3) +
-  geom_point(mapping=aes(), shape=1, size=3) +
-  scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-  scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+  geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
+  geom_vline(xint=0) +
+  scale_fill_manual('',
+                    values=c("Increasing (p<0.05)"='orangered',
+                             "Increasing (0.05<p<0.1)"="#FFA895",
+                             "Not Significant"='white',
+                             "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                             "Decreasing (p<0.05)"="steelblue"),
+                    drop=FALSE) +
   scale_x_continuous(labels=scales::percent) +
   labs(x='Trend Slope (%/yr)', y='') +
   facet_grid(VAR~MONTH_LABEL) +
@@ -931,23 +1008,32 @@ print(p)
 dev.off()
 
 trend_rep_tp <- filter(trends,
-                       VAR=='TP',
+                       VAR %in% c('TP', 'TN'),
                        MONTH_LABEL %in% c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'),
                        LOG==TRUE) %>%
   rbind(trend_rep_p) %>%
-  mutate(TERM_LABEL=plyr::revalue(TERM, c("C"="TP Conc", "Q"="Flow", "L"="TP Load", "P"="Precip")),
-         TERM_LABEL=ordered(TERM_LABEL, levels=c("Precip", "Flow", "TP Load", "TP Conc")),
+  unite(VAR_TERM, VAR, TERM, remove=FALSE) %>%
+  filter(VAR_TERM != 'TN_Q') %>%
+  mutate(VAR_TERM = ordered(VAR_TERM, levels=c('PRECIP_P', 'TP_Q', 'TP_L', 'TP_C', 'TN_L', 'TN_C'))) %>%
+  mutate(TERM_LABEL=plyr::revalue(VAR_TERM, c("PRECIP_P"="Precip", "TP_Q"="Flow",
+                                              "TP_L"="TP Load", "TP_C"="TP Conc",
+                                              "TN_L"="TN Load", "TN_C"="TN Conc")),
+         # TERM_LABEL=ordered(TERM_LABEL, levels=c("Precip", "Flow", "TP Load", "TP Conc")),
          MONTH_LABEL=ordered(as.character(MONTH_LABEL),
                              levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')))
 
 p <- ggplot(trend_rep_tp, aes(SLOPE.PCT, SITE_NAME)) +
   geom_vline(xint=0) +
   geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
-  geom_point(mapping=aes(), shape=16, size=3, color='white') +
-  geom_point(mapping=aes(color=DIRECTION, alpha=SIGNIF), shape=16, size=3) +
-  geom_point(mapping=aes(), shape=1, size=3) +
-  scale_color_manual('Trend Direction', values=c('Increasing'='orangered', 'Decreasing'='steelblue')) +
-  scale_alpha_manual('Significance', values=c('p>0.10'=0.0, '0.05<p<0.10'=0.5, 'p<0.05'=1), drop=FALSE) +
+  geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
+  geom_vline(xint=0) +
+  scale_fill_manual('',
+                    values=c("Increasing (p<0.05)"='orangered',
+                             "Increasing (0.05<p<0.1)"="#FFA895",
+                             "Not Significant"='white',
+                             "Decreasing (0.05<p<0.1)"="#AAC4DB",
+                             "Decreasing (p<0.05)"="steelblue"),
+                    drop=FALSE) +
   scale_x_continuous(labels=scales::percent, breaks=seq(-0.06, 0.04, by=0.02)) +
   labs(x='Trend Slope (%/yr)', y='') +
   facet_grid(TERM_LABEL~MONTH_LABEL) +
@@ -955,8 +1041,8 @@ p <- ggplot(trend_rep_tp, aes(SLOPE.PCT, SITE_NAME)) +
         strip.text=element_text(face='bold'),
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8))
 
-filename <- 'report/results-trend-tp.png'
+filename <- 'report/results-trend-tp-tn.png'
 cat('Saving report figure to:', filename, '\n')
-png(filename, width=10, height=6, res=200, units='in')
+png(filename, width=10, height=8, res=200, units='in')
 print(p)
 dev.off()

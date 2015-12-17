@@ -6,14 +6,14 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading detection limits...\n\n")
 
-detection_limits <- list(UPPERDL=c('TP'=0.002,
-                                   'PO4'=0.001,
+detection_limits <- list(UPPERDL=c('TP'=0.018,
+                                   'PO4'=0.003,
                                    'TN'=0.1,
                                    'NH4'=0.01,
                                    'NO23'=0.01,
                                    'TSS'=1),
-                         LOWERDL=c('TP'=0.002,
-                                   'PO4'=0.001,
+                         LOWERDL=c('TP'=0.018,
+                                   'PO4'=0.003,
                                    'TN'=0.03,
                                    'NH4'=0.006,
                                    'NO23'=0.008,

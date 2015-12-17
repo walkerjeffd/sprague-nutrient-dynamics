@@ -745,8 +745,8 @@ p <- q.valid.mon %>%
   labs(x="Date", y="Flow (cfs)") +
   scale_color_manual('', values=c('OWRD Station'='grey50', 'WQ Station'='orangered')) +
   facet_wrap(~SITE_NAME+SITE, scales='free_y') +
-  guides(colour=guide_legend(override.aes = list(linetype=c("blank", "solid"),
-                                                 shape=c(16, NA)))) +
+  guides(colour=guide_legend(override.aes = list(linetype=c("solid", "blank"),
+                                                 shape=c(NA, 16)))) +
   theme(strip.background=element_blank(),
         strip.text=element_text(face='bold', size=12),
         panel.grid.minor.y=element_blank())

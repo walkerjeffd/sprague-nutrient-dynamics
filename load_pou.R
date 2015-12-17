@@ -97,6 +97,23 @@ gather(pou_subbasin, VAR, VALUE, AREA_KM2:AREA_FRAC) %>%
   facet_wrap(~VAR, scales='free_y') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
+# report figure ----
+filename <- "report/pou-subbasin-composition.png"
+cat('Saving subbasin composition to:', filename, '\n')
+png(filename, width=8, height=4, res=200, units="in")
+pou_subbasin %>%
+  filter(!(SITE_NAME %in% c('Godowa+Sycan', 'SF_Ivory+NF_Ivory', 'SF+NF'))) %>%
+  mutate(EXTENT=plyr::revalue(EXTENT, c("basin"="Total Basin", "valley"="Lower Valley"))) %>%
+  ggplot(aes(SITE_NAME, AREA_FRAC)) +
+  geom_bar(stat='identity', position='stack', fill='grey30') +
+  facet_wrap(~EXTENT, scales='free_y') +
+  labs(x='Station', y='Fraction of Drainage Area (%)') +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        strip.background=element_blank(),
+        strip.text=element_text(face="bold")) +
+  scale_y_continuous(labels=scales::percent)
+dev.off()
+
 # save ----
 filename <- "pou.Rdata"
 cat('\nSaving POU dataset to:', filename, '\n')
