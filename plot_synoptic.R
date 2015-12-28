@@ -124,6 +124,14 @@ filter(wq.kt_synoptic, VAR == "TP") %>%
   summarise(N=n())
 
 
+wq.kt_synoptic %>%
+  select(DATETIME, SITE, SITE_DESCRIPTION, VAR, VALUE) %>%
+  spread(VAR, VALUE) %>%
+  mutate(PO4_TP=PO4/TP) %>%
+  ggplot(aes(SITE_DESCRIPTION, PO4_TP)) +
+  geom_boxplot() +
+  coord_flip() +
+  ylim(0, 1)
 
 select(wq.kt_synoptic, DATE, DATETIME, SITE, SITE_DESCRIPTION, VAR, VALUE) %>%
   spread(VAR, VALUE) %>%
