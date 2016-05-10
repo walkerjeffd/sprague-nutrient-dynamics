@@ -1,7 +1,11 @@
 .Rproj.user
 .Rhistory
 .RData
+.Rapp.history
 packrat/lib*/
+*_cache/
+
+csv/sprague_loads_*.csv
 
 *.jpg
 *.png
