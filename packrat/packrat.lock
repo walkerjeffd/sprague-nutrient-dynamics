@@ -1,6 +1,6 @@
 PackratFormat: 1.4
 PackratVersion: 0.4.4
-RVersion: 3.2.2
+RVersion: 3.2.4
 Repos: CRAN=https://cran.rstudio.com/
 
 Package: BH
@@ -98,6 +98,13 @@ Source: CRAN
 Version: 0.8
 Hash: aac00bd789bac10970b50e3b7e0cab04
 Requires: stringr
+
+Package: fluxr
+Source: source
+Version: 0.1.4
+Hash: 1e2adacd04ccaba0f1fd4a71eb9985b9
+Requires: broom, dplyr, lubridate, zoo
+SourcePath: ~/Projects/rpackages/fluxr
 
 Package: foreign
 Source: CRAN
