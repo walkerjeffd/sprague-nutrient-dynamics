@@ -1,0 +1,70 @@
+---
+title: "Water Quality Model"
+author: "Jeffrey D Walker, PhD"
+date: "December 28, 2015"
+output: html_document
+---
+
+```{r}
+
+library(MASS)
+
+load('../loads.Rdata')
+
+dataset <- 'POR'
+variable <- 'TP'
+site <- 'NF'
+
+aic_values <- sapply(names(loads[[dataset]]), function (variable) {
+  cat(variable, '\n')
+  z <- sapply(names(loads[[dataset]][[variable]]), function (site) {
+    cat('..', site, '\n')
+    x_fit <- loads[[dataset]][[variable]][[site]]$fit
+    x_pred <- loads[[dataset]][[variable]][[site]]$predict
+    
+    lm_flux <- lm(LogCobs ~ Qderiv + Year + Year2 + Cos2t + Sin2t + Cost + Sint + LogQ3 + LogQ2 + LogQ,
+                  data=x_fit)
+    
+    sa_flux <- stepAIC(lm_flux, trace=5,
+                       direction="both",
+                       scope=list(lower=LogCobs ~ 1,
+                                  upper=LogCobs ~ Qderiv + Year + Year2 + Cos2t + Sin2t + Cost + Sint + LogQ3 + LogQ2 + LogQ))
+    aic <- sa_flux$anova$AIC
+    min(aic)
+  })
+})
+
+aic_df <- as.data.frame(aic_values)
+aic_df$site <- rownames(aic_df)
+aic_df$site <- ordered(aic_df$site, levels=site_levels)
+
+library(tidyr)
+aic_df <- gather(aic_df, variable, aic_min, -site)
+
+library(ggplot2)
+ggplot(aic_df, aes(site, -aic_min)) +
+  geom_bar(stat='identity', fill='deepskyblue') +
+  facet_wrap(~variable)
+ggplot(aic_df, aes(variable, -aic_min)) +
+  geom_bar(stat='identity', fill='deepskyblue') +
+  facet_wrap(~site)
+
+
+
+```
+
+
+Visual model components
+
+```{r}
+
+dataset <- 'POR'
+variable <- 'TP'
+site <- 'NF'
+x_fit <- loads[[dataset]][[variable]][[site]]$fit
+x_pred <- loads[[dataset]][[variable]][[site]]$predict
+
+lm_flux <- lm(LogCobs ~ Qderiv + Year + Year2 + Cos2t + Sin2t + Cost + Sint + LogQ3 + LogQ2 + LogQ,
+              data=x_fit)
+```
+
