@@ -2,7 +2,9 @@
 .Rhistory
 .RData
 .Rapp.history
-packrat/lib*/
+
+config.yml
+
 *_cache/
 
 csv/sprague_loads_*.csv

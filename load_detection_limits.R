@@ -1,5 +1,4 @@
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 
 rm(list=ls())
 
@@ -25,7 +24,7 @@ detection_limits <- lapply(names(detection_limits), function(limit_name) {
   x$LIMIT_NAME <- limit_name
   x
 }) %>%
-  rbind_all() %>%
+  bind_rows() %>%
   spread(LIMIT_NAME, LIMIT)
 
 cat("Saving detection_limits.Rdata as RDS\n")

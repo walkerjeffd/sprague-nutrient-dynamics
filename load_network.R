@@ -1,6 +1,4 @@
-library(dplyr)
-
-rm(list=ls())
+library(tidyverse)
 
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading Reach Network...\n\n")
@@ -19,7 +17,7 @@ network <- lapply(names(network), function(d) {
   x$DATASET <- d
   x
 }) %>%
-  rbind_all
+  bind_rows
 
 # save ----
 cat("Saving network.Rdata as RDS\n")

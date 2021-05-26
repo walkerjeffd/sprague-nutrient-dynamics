@@ -1,21 +1,18 @@
-library(dplyr)
+library(tidyverse)
 library(lubridate)
-library(tidyr)
-library(stringr)
 library(maptools)
+library(sf)
 library(ggplot2)
 theme_set(theme_bw())
-
-rm(list=ls())
 
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading KT WQ dataset...\n\n")
 
 source('functions.R')
 
-DATA_DIR <- getOption('UKL_DATA')
+# DATA_DIR <- config::get("data_dir")
 
-filename <- file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
+filename <- file.path('data', 'raw', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
 cat('Loading file:', filename, '\n')
 
 df <- read.csv(filename, stringsAsFactors=FALSE)
@@ -193,7 +190,7 @@ if (length(idx.nf_ivory) > 0) {
 # extract stations
 cat('Extracting station info\n')
 stn.raw <- select(df, SITE, SITE_DESCRIPTION, LAT, LON) %>%
-  mutate_each(funs(str_trim)) %>%
+  mutate(across(everything(), str_trim)) %>%
   unique %>%
   arrange(SITE)
 stn.raw <- mutate(stn.raw,
@@ -217,15 +214,17 @@ select(stn.raw, SITE, DESCRIPTION=SITE_DESCRIPTION, LAT=LAT_DD, LON=LON_DD) %>%
 
 # load manual stn list from csv
 cat("Loading site table from csv\n")
-stn <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'kt_sprague_stations.csv'), stringsAsFactors=FALSE)
+stn <- read.csv(file.path('data', 'raw', 'kt', 'kt_sprague_stations.csv'), stringsAsFactors=FALSE)
 
 # load shapefile with subbasin areas
 cat("Loading basins shapefile and adding drainage area to sites table\n")
-subbasins_shp <- readShapeSpatial(file.path(DATA_DIR, '../gis/sprague/r_wgs84/sprague_subbasins.shp'),
-                                  proj4string = CRS("+proj=longlat +datum=WGS84"))
-subbasins <- fortify(subbasins_shp, region="SITE")
 
-stn <- left_join(stn, subbasins_shp@data, by="SITE") %>%
+# subbasins_shp <- readShapeSpatial(file.path(DATA_DIR, '../gis/sprague/r_wgs84/sprague_subbasins.shp'),
+#                                   proj4string = CRS("+proj=longlat +datum=WGS84"))
+# subbasins <- fortify(subbasins_shp, region="SITE")
+subbasins_shp <- st_read(file.path('data/raw/gis/sprague_subbasins.shp'), crs = 4326)
+
+stn <- left_join(stn, select(as_tibble(subbasins_shp), SITE, AreaSqKM), by="SITE") %>%
   rename(DRAINAGE_AREA_SQKM=AreaSqKM)
 stopifnot(sum(is.na(stn$DRAINAGE_AREA_SQKM))==0)
 
@@ -310,14 +309,14 @@ filter(df.rpd, RPD_PASS==FALSE) %>%
 # histogram of RPD fails
 filter(df.rpd, !RPD_PASS) %>%
   mutate(RPD_TYPE=ordered(RPD_TYPE, levels=c('LOW', 'HIGH'))) %>%
-  ggplot(aes(RPD, fill=RPD_TYPE)) +
+  ggplot(aes(RPD, fill=as.character(RPD_TYPE))) +
   geom_histogram() +
   facet_grid(VAR~RPD_TYPE) +
   scale_x_continuous(labels=scales::percent)
 
 # pdf plots
 if (!file.exists(file.path('pdf', 'dataset'))) {
-  dir.create(file.path('pdf', 'dataset'))
+  dir.create(file.path('pdf', 'dataset'), recursive = TRUE)
 }
 
 filename <- file.path('pdf', 'dataset', 'dataset-rpd-test.pdf')
@@ -364,7 +363,7 @@ dev.off()
 
 # add rpd results
 cat('Add RPD results to main data frame\n')
-df <- left_join(df, select(df.rpd, SITE, DATE, VAR, RPD_PASS), by=c('SITE', 'DATE', 'VAR')) %>%
+df <- left_join(df, select(df.rpd, SITE, DATE, VAR, RPD_PASS) %>% mutate(SITE = as.character(SITE)), by=c('SITE', 'DATE', 'VAR')) %>%
   mutate(QAQC=ifelse(!is.na(RPD_PASS) & RPD_PASS==FALSE, 'RPD', QAQC))
 stopifnot(sum(!df$RPD_PASS, na.rm=TRUE)==sum(df$QAQC=='RPD'))
 
@@ -500,9 +499,14 @@ filename <- file.path('csv', 'stn_kt_sprague.csv')
 cat('Saving stations table to:', filename, '\n')
 write.csv(stn.kt_sprague, file=filename, row.names=FALSE)
 
+filename <- file.path('csv', 'wq_kt_sprague.csv')
+cat('Saving cleaned wq table to:', filename, '\n')
+write.csv(wq.kt_sprague$CLEAN, file=filename, row.names=FALSE)
+
 # save to rdata
 filename <- 'kt_sprague.Rdata'
 cat('Saving datasets to:', filename, '\n')
 save(wq.kt_sprague.orig, wq.kt_sprague, stn.kt_sprague, file=filename)
 
 cat('\n\n')
+

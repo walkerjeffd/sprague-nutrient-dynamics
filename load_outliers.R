@@ -1,7 +1,5 @@
-library(dplyr)
+library(tidyverse)
 library(lubridate)
-
-rm(list=ls())
 
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading Outliers...\n\n")
@@ -24,9 +22,9 @@ outliers <- lapply(names(outliers_list), function(variable) {
                SITE_NAME=site,
                stringsAsFactors=FALSE)
   }) %>%
-    rbind_all
+    bind_rows
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(FLAGGED=TRUE,
          DATE=ymd(DATE))
 
