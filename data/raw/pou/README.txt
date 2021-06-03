@@ -1,0 +1,1 @@
+pou_irrigation_basin.csv and pou_irrigation_valley.csv copied from ~/Dropbox/Work/klamath/gis/sprague/water-rights/
