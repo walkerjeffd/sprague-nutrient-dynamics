@@ -11,7 +11,8 @@ rm(list=ls())
 source('functions.R')
 load('loads.Rdata')
 
-DATA_DIR <- getOption('UKL_DATA')
+#DATA_DIR <- getOption('UKL_DATA')
+DATA_DIR <- getOption('./data')
 
 gannett <- read.csv(file=file.path(DATA_DIR, 'sprague', 'gannett', 'gannett.csv'),
                     stringsAsFactors=FALSE) %>%

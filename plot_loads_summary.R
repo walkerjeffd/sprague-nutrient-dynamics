@@ -23,8 +23,10 @@ term_colors <- c('L'='olivedrab3',
                  'Q_AREA'='steelblue')
 
 # pdf: summary ----
+
+
 for (dataset in c('POR')) {
-  cat('Printing:', file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), '\n')
+  cat('Printing:', file.path('data','pdf', tolower(dataset), 'loads-summary-wyr.pdf'), '\n')
   pdf(file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), width=11, height=8.5)
   p <- filter(loads_df[['wyr']], DATASET==dataset, TERM=='C',
               SITE_NAME %in% site_name_levels,
@@ -312,7 +314,7 @@ for (dataset in c('POR')) {
 #
 # p <- ggplot(fits, aes(SITE_NAME, lm.adj.r.squared, fill=DATASET)) +
 #   geom_bar(stat='identity', position='dodge') +
-#   geom_hline(yint=0, color='grey50') +
+#   geom_hline(yintercept=0, color='grey50') +
 #   scale_y_continuous(labels=scales::percent) +
 #   scale_fill_brewer(palette=6, type = 'qual', labels=c('RAW'='Raw', 'CLEAN'='Clean', 'POR'='POR', 'RECENT'='Recent')) +
 #   labs(x='', y='Adjusted R2') +
@@ -347,7 +349,7 @@ for (dataset in c('POR')) {
 #   p.mean <- filter(params, VAR==variable) %>%
 #     ggplot(aes(SITE_NAME, estimate, fill=DATASET)) +
 #     geom_bar(stat='identity', position='dodge') +
-#     geom_hline(yint=0, color='grey50') +
+#     geom_hline(yintercept=0, color='grey50') +
 #     scale_fill_brewer(palette=6, type = 'qual', labels=c('RAW'='Raw', 'CLEAN'='Clean', 'POR'='POR', 'RECENT'='Recent')) +
 #     labs(x='', y='Parameter Estimate') +
 #     facet_grid(term~., scales='free_y') +
@@ -377,9 +379,9 @@ loads_wyr_por_tp <- lapply(c('TP', 'TN'), function (variable) {
     x$VAR <- variable
     x
   }) %>%
-    rbind_all
+    bind_rows
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   left_join(select(subbasin_area, SITE_NAME, AREA_KM2)) %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels)) %>%
   droplevels %>%
@@ -392,7 +394,9 @@ loads_wyr_por_tp <- lapply(c('TP', 'TN'), function (variable) {
   spread(STAT, VALUE) %>%
   unite(VAR_TERM, VAR, TERM, remove=FALSE) %>%
   filter(!(VAR_TERM %in% c("TN_Q", "TN_QAREA"))) %>%
-  mutate(VAR_TERM=plyr::revalue(VAR_TERM, c(TP_Q="FLOW_Q", TP_QAREA="FLOW_QAREA")),
+  mutate(VAR_TERM=ifelse(VAR_TERM=="FLOW_Q","TP_Q",VAR_TERM),
+         VAR_TERM=ifelse(VAR_TERM=="FLOW_QAREA","TP_QAREA",VAR_TERM),
+      #VAR_TERM=plyr::revalue(VAR_TERM, c(TP_Q="FLOW_Q", TP_QAREA="FLOW_QAREA")),
          VAR_TERM=ordered(VAR_TERM, levels=c("FLOW_Q", "FLOW_QAREA",
                                              "TP_L", "TP_LAREA", "TP_C",
                                              "TN_L", "TN_LAREA", "TN_C")))
@@ -404,9 +408,9 @@ loads_wyr_por <- lapply(names(loads[['POR']]), function (variable) {
       x$VAR <- variable
       x
     }) %>%
-      rbind_all
+      bind_rows
   }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=site_name_levels),
          VAR=ordered(VAR, levels=c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')))
 
@@ -508,7 +512,7 @@ p <- flows_site %>%
          DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
   ggplot(aes(SITE_NAME, Q, fill=DIR)) +
   geom_bar(stat='identity') +
-  geom_hline(yint=0, fill='grey20') +
+  geom_hline(yintercept=0, fill='grey20') +
   scale_fill_manual('',
                     values=c('TRUE'='steelblue', 'FALSE'='orangered'),
                     labels=c('TRUE'='Increase', 'FALSE'='Decrease')) +
@@ -580,8 +584,8 @@ p1 <- select(flows_mon, MONTHYEAR, SITE_NAME, Q) %>%
        title="(a) Interpolated Flows at WQ Stations")
 p2 <- select(q.obs, SITE_NAME, DATE, FLOW) %>%
   mutate(DATE=floor_date(DATE, unit="month")) %>%
-  group_by(SITE_NAME, DATE) %>%
-  summarise(FLOW=mean(FLOW, na.rm=TRUE)) %>%
+  dplyr::group_by(SITE_NAME, DATE) %>%
+  dplyr::summarise(FLOW=mean(FLOW, na.rm=TRUE)) %>%
   ungroup %>%
   spread(SITE_NAME, FLOW) %>%
   filter(!is.na(Lone_Pine)) %>%
@@ -640,7 +644,7 @@ p2 <- select(flows_mon, MONTHYEAR, WYEAR, MONTH, SITE_NAME, Q) %>%
   mutate(DIFF=Power-`Godowa+Sycan`) %>%
   ggplot(aes(MONTHYEAR, DIFF)) +
   geom_line() +
-  geom_hline(yint=0) +
+  geom_hline(yintercept=0) +
   labs(x="", y="Flow Difference (cfs)\n[Power-(Godowa+Sycan)]") +
   scale_x_datetime(breaks=scales::date_breaks("6 months"),
                    labels=scales::date_format("%b %Y")) +
@@ -654,7 +658,7 @@ p3 <- select(flows_mon, MONTHYEAR, WYEAR, MONTH, SITE_NAME, Q) %>%
          MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
   ggplot(aes(MONTH, DIFF)) +
   geom_boxplot() +
-  geom_hline(yint=0) +
+  geom_hline(yintercept=0) +
   labs(x="Month", y="Flow Difference (cfs)\n[Power-(Godowa+Sycan)]")
 print(p3)
 
@@ -695,8 +699,8 @@ loads_df$wyr %>%
   mutate(WYR_GRP=ifelse(WYEAR %in% 2002:2009, "WY2002-2009", "WY2010-2014")) %>%
   select(-VAR) %>%
   spread(TERM, VALUE) %>%
-  group_by(SITE_NAME, WYR_GRP) %>%
-  summarise(Q=mean(Q),
+  dplyr::group_by(SITE_NAME, WYR_GRP) %>%
+  dplyr::summarise(Q=mean(Q),
             Q_AREA=mean(Q_AREA),
             L=mean(L),
             L_AREA=mean(L_AREA),

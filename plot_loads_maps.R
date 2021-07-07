@@ -159,7 +159,7 @@ dash_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
 map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
   if (term == 'C') {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-      geom_polygon(aes(x = long, y = lat, group = group),
+      geom_sf(aes(x = long, y = lat, group = group),
                    data = incbasin[[period]],
                    color = 'grey50', fill = NA, size = 0.2) +
       geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
@@ -176,8 +176,8 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
       geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
                 data=incbasin[[period]] %>%
                   mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
-                  group_by(INC_SITE_NAME) %>%
-                  summarise(long=mean(c(min(long), max(long))),
+                  dplyr::group_by(INC_SITE_NAME) %>%
+                  dplyr::summarise(long=mean(c(min(long), max(long))),
                             lat=mean(c(min(lat), max(lat)))),
                 fontface='bold', size=3) +
       scale_fill_term_inc[[term]] +
@@ -200,8 +200,8 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
       geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
                 data=incbasin[[period]] %>%
                   mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
-                  group_by(INC_SITE_NAME) %>%
-                  summarise(long=mean(c(min(long), max(long))),
+                  dplyr::group_by(INC_SITE_NAME) %>%
+                  dplyr::summarise(long=mean(c(min(long), max(long))),
                             lat=mean(c(min(lat), max(lat)))),
                 fontface='bold', size=3) +
       scale_fill_term_inc[[term]] +

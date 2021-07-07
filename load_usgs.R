@@ -9,7 +9,8 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading USGS dataset...\n\n")
 
-DATA_DIR <- getOption('UKL_DATA')
+#DATA_DIR <- getOption('UKL_DATA')
+DATA_DIR <- "./data"
 
 # load stn ----
 filename <- file.path(DATA_DIR, 'sprague', 'usgs', 'usgs_stations.rdb')
@@ -52,14 +53,14 @@ q.usgs <- mutate(q.usgs,
                  DATE=ymd(DATE),
                  STATION_ID=as.character(STATION_ID))
 
-q.usgs <- rename(q.usgs, SOURCE=AGENCY)
+q.usgs <- dplyr::rename(q.usgs, SOURCE=AGENCY)
 
 q.usgs <- left_join(q.usgs,
                     select(stn.usgs, STATION_ID, SITE_NAME),
                     by='STATION_ID')
 
-stn_period <- group_by(q.usgs, STATION_ID) %>%
-  summarise(START_DATE=min(DATE),
+stn_period <- dplyr::group_by(q.usgs, STATION_ID) %>%
+  dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE))
 
 stn.usgs <- filter(stn.usgs, STATION_ID %in% stn_period$STATION_ID) %>%

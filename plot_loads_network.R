@@ -66,7 +66,7 @@ df_segments <- left_join(network, mutate(df_site, SITE_NAME=as.character(SITE_NA
             by=c(TO='SITE_NAME', 'PERIOD', 'SEASON', 'VAR', 'TERM')) %>%
 #   mutate(TO=ordered(TO, levels=levels(df_site$SITE_NAME)),
 #          FROM=ordered(FROM, levels=levels(df_site$SITE_NAME))) %>%
-  rename(VALUE.FROM=VALUE.x,
+  dplyr::rename(VALUE.FROM=VALUE.x,
          AREA_KM2.FROM=AREA_KM2.x,
          VALUE.TO=VALUE.y,
          AREA_KM2.TO=AREA_KM2.y) %>%
@@ -74,7 +74,7 @@ df_segments <- left_join(network, mutate(df_site, SITE_NAME=as.character(SITE_NA
 
 df_segments_wyr <- left_join(network, df_wyr, by=c(FROM='SITE_NAME', PERIOD='PERIOD')) %>%
   left_join(df_wyr, by=c(TO='SITE_NAME', 'SEASON', 'VAR', 'TERM', 'WYEAR', 'PERIOD')) %>%
-  rename(VALUE.FROM=VALUE.x,
+  dplyr::rename(VALUE.FROM=VALUE.x,
          AREA_KM2.FROM=AREA_KM2.x,
          VALUE.TO=VALUE.y,
          AREA_KM2.TO=AREA_KM2.y) %>%

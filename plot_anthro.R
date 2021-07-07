@@ -44,7 +44,7 @@ df <- loads_df$site %>%
   spread(TERM, VALUE) %>%
   mutate(Q=Q*365.25,          # hm3/d -> hm3/yr
          L=L*365.25/1000) %>% # kg/d -> mt/yr
-  rename(Q_TOT=Q,
+  dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
   left_join(gannett, by="SITE_NAME")
@@ -192,13 +192,15 @@ dev.off()
 
 # compare pou to % total as anthro
 load('pou.Rdata')
-pou <- pou_subbasin %>%
+pou <- pou_subbasin %>% # WHY DOES POU HAVE SO FEW VALUES?
   filter(EXTENT=="valley") %>%
   select(SITE_NAME, POU=AREA_FRAC)
 spread(df, TERM, VALUE) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   filter(VAR %in% c("TOT", "GW", "BRO", "ANTH")) %>%
   arrange(SITE_NAME, desc(VAR)) %>%
-  left_join(pou, by='SITE_NAME') %>%
+  left_join(pou, by='SITE_NAME') %>% # (pou %>% mutate(as.character(SITE_NAME)))
+  #mutate(SITE_NAME=as.factor(SITE_NAME)) %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(pou$SITE_NAME))) %>%
   droplevels %>%
   select(SITE_NAME, VAR, L, POU) %>%
@@ -206,6 +208,7 @@ spread(df, TERM, VALUE) %>%
   ggplot(aes(POU, ANTH/TOT, color=SITE_NAME)) +
   geom_point()
 spread(df, TERM, VALUE) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   filter(VAR %in% c("ANTH")) %>%
   arrange(SITE_NAME, desc(VAR)) %>%
   left_join(pou, by='SITE_NAME') %>%
@@ -253,9 +256,10 @@ df.wyr <- loads_df$wyr %>%
   spread(TERM, VALUE) %>%
   mutate(Q=Q*365.25,          # hm3/d -> hm3/yr
          L=L*365.25/1000) %>% # kg/d -> mt/yr
-  rename(Q_TOT=Q,
+  dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   left_join(df_bg, by="SITE_NAME") %>%
   mutate(C_BACK=ifelse(C_BACK > C_TOT, C_TOT, C_BACK))
 
@@ -298,14 +302,14 @@ df.wyr <- loads_df$wyr %>%
   spread(TERM, VALUE) %>%
   mutate(Q=Q*365.25,          # hm3/d -> hm3/yr
          L=L*365.25/1000) %>% # kg/d -> mt/yr
-  rename(Q_TOT=Q,
+ dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
   left_join(gannett, by="SITE_NAME") %>%
   mutate(Q_GW = ifelse(Q_GW > Q_TOT, Q_TOT, Q_GW),
          C_GW=60,
          L_GW=Q_GW*C_GW/1000) %>%
-  left_join(rename(df_bg, C_RUN=C_BACK), by="SITE_NAME") %>%
+  left_join(dplyr::rename(df_bg, C_RUN=C_BACK), by="SITE_NAME") %>%
   mutate(Q_RUN=Q_TOT-Q_GW,
          L_RUN=Q_RUN*C_RUN/1000,
          L_BACK=L_RUN+L_GW,
@@ -375,7 +379,7 @@ df.2002 <- loads_df$site %>%
   spread(TERM, VALUE) %>%
   mutate(Q=Q*365.25,          # hm3/d -> hm3/yr
          L=L*365.25/1000) %>% # kg/d -> mt/yr
-  rename(Q_TOT=Q,
+  dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
   left_join(gannett, by="SITE_NAME")

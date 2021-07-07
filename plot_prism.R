@@ -36,8 +36,8 @@ p <- mutate(prism_subbasin, MONTH=ordered(month(MONTHYEAR), levels=c(10:12, 1:9)
 print(p)
 
 p <- mutate(prism_subbasin, MONTH=ordered(month(MONTHYEAR), levels=c(10:12, 1:9))) %>%
-  group_by(SITE_NAME, MONTH) %>%
-  summarise(PRCP=median(PRCP)/25.4) %>%
+  dplyr::group_by(SITE_NAME, MONTH) %>%
+  dplyr::summarise(PRCP=median(PRCP)/25.4) %>%
   ggplot(aes(MONTH, PRCP, color=SITE_NAME, group=SITE_NAME)) +
   stat_summary(fun.y=sum, geom="line") +
   scale_color_manual('Site', values = RColorBrewer::brewer.pal(n=8, name='Dark2')) +
@@ -45,8 +45,8 @@ p <- mutate(prism_subbasin, MONTH=ordered(month(MONTHYEAR), levels=c(10:12, 1:9)
   labs(x='Month', y='Monthly Precip (in/mon)')
 print(p)
 
-p <- group_by(prism_subbasin, SITE_NAME, WYEAR) %>%
-  summarise(N_MONTH=n(),
+p <- dplyr::group_by(prism_subbasin, SITE_NAME, WYEAR) %>%
+  dplyr::summarise(N_MONTH=n(),
             PRCP=sum(PRCP)/25.4) %>%
   filter(N_MONTH == 12) %>%
   ggplot(aes(factor(WYEAR), PRCP, fill=SITE_NAME)) +
@@ -58,8 +58,8 @@ p <- group_by(prism_subbasin, SITE_NAME, WYEAR) %>%
   ggtitle('Annual Precipitation by Drainage Subbasin')
 print(p)
 
-p <- group_by(prism_subbasin, SITE_NAME, WYEAR) %>%
-  summarise(N_MONTH=n(),
+p <- dplyr::group_by(prism_subbasin, SITE_NAME, WYEAR) %>%
+  dplyr::summarise(N_MONTH=n(),
             PRCP=sum(PRCP)/25.4) %>%
   filter(N_MONTH == 12) %>%
   ggplot(aes(WYEAR, PRCP, color=SITE_NAME)) +
@@ -78,8 +78,8 @@ dev.off()
 prcp <- filter(ghcnd, STATION=='GHCND:USW00094236') %>%
   select(DATE, PRCP) %>%
   mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
-  group_by(MONTHYEAR) %>%
-  summarise(PRCP=sum(PRCP, na.rm=TRUE)/25.4) %>%
+  dplyr::group_by(MONTHYEAR) %>%
+  dplyr::summarise(PRCP=sum(PRCP, na.rm=TRUE)/25.4) %>%
   mutate(SOURCE='GHCND') %>%
   rbind(filter(prism_subbasin, SITE_NAME=='Power') %>% select(MONTHYEAR, PRCP) %>% mutate(PRCP=PRCP/25.4, SOURCE='PRISM')) %>%
   mutate(WYEAR=fluxr::wyear(MONTHYEAR)) %>%
@@ -96,8 +96,8 @@ p.mon <- prcp %>%
   scale_fill_manual('', values=c('GHCND'='orangered', 'PRISM'='deepskyblue3')) +
   ggtitle('Monthly Precipitation Timeseries\nGHCND @ Klamath Falls vs. PRISM @ Sprague Basin')
 p.wyr <- prcp %>%
-  group_by(WYEAR, SOURCE) %>%
-  summarise(PRCP=sum(PRCP)) %>%
+  dplyr::group_by(WYEAR, SOURCE) %>%
+  dplyr::summarise(PRCP=sum(PRCP)) %>%
   ggplot(aes(factor(WYEAR), PRCP, fill=SOURCE)) +
   geom_bar(stat='identity', position='dodge') +
   scale_fill_manual('', values=c('GHCND'='orangered', 'PRISM'='deepskyblue3')) +
@@ -126,8 +126,8 @@ p.mon <- prcp %>%
   scale_color_discrete('Month') +
   ggtitle('Comparison of Monthly Precip')
 p.wyr <- prcp %>%
-  group_by(WYEAR, SOURCE) %>%
-  summarise(PRCP=sum(PRCP)) %>%
+  dplyr::group_by(WYEAR, SOURCE) %>%
+  dplyr::summarise(PRCP=sum(PRCP)) %>%
   spread(SOURCE, PRCP) %>%
   ggplot(aes(PRISM, GHCND)) +
   geom_point() +
@@ -159,8 +159,8 @@ p <- prism_subbasin %>%
 print(p)
 
 p <- prism_subbasin %>%
-  group_by(SITE_NAME, WYEAR) %>%
-  summarise(PRCP=sum(PRCP),
+  dplyr::group_by(SITE_NAME, WYEAR) %>%
+  dplyr::summarise(PRCP=sum(PRCP),
             N=n()) %>%
   ungroup %>%
   filter(WYEAR %in% seq(2002, 2014)) %>%
@@ -180,8 +180,8 @@ cat('Printing:', filename, '\n')
 png(filename, width=8, height=5, res=200, units="in")
 
 p <- prism_subbasin %>%
-  group_by(SITE_NAME, WYEAR) %>%
-  summarise(PRCP=sum(PRCP),
+  dplyr::group_by(SITE_NAME, WYEAR) %>%
+  dplyr::summarise(PRCP=sum(PRCP),
             N=n()) %>%
   ungroup %>%
   filter(WYEAR %in% seq(2002, 2014)) %>%

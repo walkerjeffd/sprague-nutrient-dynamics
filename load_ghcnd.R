@@ -8,7 +8,9 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading GHCND dataset...\n\n")
 
-DATA_DIR <- getOption('UKL_DATA')
+#DATA_DIR <- getOption('UKL_DATA')
+DATA_DIR <- './data'
+
 
 # load data ----
 filename <- file.path(DATA_DIR, 'sprague', 'ghcnd', 'ghcnd_sprague.csv')
@@ -32,8 +34,8 @@ ggplot(ghcnd, aes(DATE, PRCP)) +
   labs(x="Date", y="Precip (mm/day)",
        title="GHCND Daily Precipitation")
 
-group_by(ghcnd, STATION_NAME, WYEAR) %>%
-  summarise(N=sum(!is.na(PRCP)),
+dplyr::group_by(ghcnd, STATION_NAME, WYEAR) %>%
+  dplyr::summarise(N=sum(!is.na(PRCP)),
             N_NA=sum(is.na(PRCP)),
             PRCP=sum(PRCP, na.rm=TRUE)) %>%
   ggplot(aes(factor(WYEAR), N)) +

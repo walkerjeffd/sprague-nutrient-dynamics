@@ -10,8 +10,8 @@ rm(list=ls())
 load('prism.Rdata')
 
 prcp <- filter(prism_subbasin, SITE_NAME=="Power") %>%
-  group_by(WYEAR) %>%
-  mutate(N_MONTH=n()) %>%
+  dplyr::group_by(WYEAR) %>%
+  dplyr::mutate(N_MONTH=n()) %>%
   filter(N_MONTH==12)
 
 prcp <- mutate(prcp,
@@ -27,13 +27,14 @@ seasons <- list(Annual=1:12,
 df_seasons <- lapply(names(seasons), function(s) {
   data.frame(MONTH=seasons[[s]], SEASON=s, stringsAsFactors=FALSE)
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(SEASON=ordered(SEASON, levels=names(seasons)))
 
 prcp <- left_join(df_seasons, prcp, by="MONTH")
 
-prcp_wyr <- group_by(prcp, WYEAR, SEASON) %>%
-  summarise(N_DAY=n(),
+prcp_wyr <- prcp %>%
+dplyr::group_by( WYEAR, SEASON) %>%
+  dplyr::summarise(N_DAY=n(),
             PRCP=sum(PRCP)) %>%
   ungroup
 
@@ -50,15 +51,15 @@ stn.ghcnd <- select(ghcnd, STATION:LONGITUDE, SITE) %>% unique
 ghcnd <- select(ghcnd, SITE, DATE, WYEAR, PRCP) %>%
   mutate(MONTHYEAR=floor_date(DATE, unit="month"),
          MONTH=month(DATE)) %>%
-  group_by(SITE, MONTHYEAR, WYEAR, MONTH) %>%
-  summarise(N_DAY=sum(!is.na(PRCP)),
+  dplyr::group_by(SITE, MONTHYEAR, WYEAR, MONTH) %>%
+  dplyr::summarise(N_DAY=sum(!is.na(PRCP)),
             PRCP=sum(PRCP, na.rm=TRUE)) %>%
   mutate(N_MISS=days_in_month(MONTHYEAR)-N_DAY)
 
 ghcnd <- left_join(df_seasons, ghcnd, by="MONTH")
 
-ghcnd_wyr <- group_by(ghcnd, SITE, WYEAR, SEASON) %>%
-  summarise(PRCP=sum(PRCP),
+ghcnd_wyr <- dplyr::group_by(ghcnd, SITE, WYEAR, SEASON) %>%
+  dplyr::summarise(PRCP=sum(PRCP),
             N_MISS=sum(N_MISS),
             N_DAY=sum(N_DAY))
 
@@ -72,16 +73,16 @@ q <- filter(q.usgs, SITE_NAME=="Power") %>%
          MONTH=month(DATE),
          MONTHYEAR=floor_date(DATE, unit="month")) %>%
   filter(WYEAR >= 2002, WYEAR <= 2014) %>%
-  group_by(WYEAR, MONTH, MONTHYEAR) %>%
-  summarise(N_DAY=sum(!is.na(FLOW)),
+  dplyr::group_by(WYEAR, MONTH, MONTHYEAR) %>%
+  dplyr::summarise(N_DAY=sum(!is.na(FLOW)),
             FLOW=mean(FLOW)) %>%
   ungroup %>%
   mutate(N_MISS=days_in_month(MONTHYEAR)-N_DAY)
 
 q <- left_join(df_seasons, q, by=c("MONTH"))
 
-q_wyr <- group_by(q, WYEAR, SEASON) %>%
-  summarise(FLOW=sum(FLOW*N_DAY)/sum(N_DAY),
+q_wyr <- dplyr::group_by(q, WYEAR, SEASON) %>%
+  dplyr:: summarise(FLOW=sum(FLOW*N_DAY)/sum(N_DAY),
             N_DAY=sum(N_DAY)) %>%
   ungroup
 
@@ -125,7 +126,7 @@ p <- filter(prcp, SEASON=="Annual", WYEAR>=2002) %>%
   mutate(WDAY=water_day(MONTHYEAR),
          WDAY_LABEL=as.Date("2001-10-01")+days(WDAY)) %>%
   arrange(MONTHYEAR) %>%
-  group_by(WYEAR) %>%
+  dplyr::group_by(WYEAR) %>%
   mutate(CUMUL_PRCP=cumsum(PRCP)) %>%
   ggplot(aes(WDAY_LABEL, CUMUL_PRCP, group=WYEAR, color=factor(WYEAR))) +
   geom_line() +
@@ -328,7 +329,7 @@ mutate(q.usgs,
   facet_wrap(~WYEAR)
 
 # air temperature ----
-temp <- read.csv('~/Dropbox/Work/klamath/data/sprague/prism/prism_temp_beatty.csv', stringsAsFactors=FALSE)
+temp <- read.csv('./data/sprague/prism/prism_temp_beatty.csv', stringsAsFactors=FALSE)
 temp <- mutate(temp, MONTHYEAR=mdy(MONTHYEAR), WYEAR=fluxr::wyear(MONTHYEAR), MONTH=month(MONTHYEAR))
 
 temp %>%
@@ -346,3 +347,4 @@ temp %>%
                      labels=c('Oct', 'Nov', 'Dec', 'Jan', 'Feb',
                               'Mar', 'Apr', 'May', 'Jun', 'Jul',
                               'Aug', 'Sep'))
+

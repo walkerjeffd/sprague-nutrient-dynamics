@@ -3,6 +3,7 @@ library(tidyr)
 library(lubridate)
 library(fluxr)
 library(ggplot2)
+library(sf)
 theme_set(theme_bw())
 
 rm(list=ls())
@@ -10,7 +11,8 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading PRISM dataset...\n\n")
 
-DATA_DIR <- getOption('UKL_DATA')
+#DATA_DIR <- getOption('UKL_DATA')
+DATA_DIR <- './data'
 
 # load data ----
 load('gis.Rdata')
@@ -19,7 +21,7 @@ filename <- file.path(DATA_DIR, 'sprague', 'prism', 'ppt_basins.csv')
 cat("Loading PRISM dataset from:", filename, '\n')
 prism <- read.csv(filename, skip=1, stringsAsFactors=FALSE)
 names(prism) <- toupper(names(prism))
-prism <- rename(prism, PRCP=PPT) %>%
+prism <- dplyr::rename(prism, PRCP=PPT) %>%
   filter(SITE != 'WR1000') %>%
   mutate(MONTHYEAR=as.Date(paste(YEAR, MONTH, 1, sep='-')),
          WYEAR=wyear(MONTHYEAR)) %>%
@@ -27,7 +29,7 @@ prism <- rename(prism, PRCP=PPT) %>%
 
 # join incbasin
 prism <- left_join(prism,
-                   filter(incbasin_area, INC_SITE_NAME != "Godowa-SF-NF") %>%
+                   filter(incbasin_area, INC_SITE_NAME != "Godowa-SF-NF") %>% #
                      mutate(SITE=as.character(SITE),
                             INC_SITE_NAME=as.character(INC_SITE_NAME)),
                      by='SITE') %>%
@@ -46,7 +48,7 @@ prism <- mutate(prism, PRCP_AREA=PRCP*AREA_KM2) %>%
   gather(SITE_NAME, PRCP_AREA, -MONTHYEAR, -WYEAR) %>%
   mutate(SITE_NAME=as.character(SITE_NAME))
 
-prism_incbasin <- rename(prism, INC_SITE_NAME=SITE_NAME) %>%
+prism_incbasin <- dplyr::rename(prism, INC_SITE_NAME=SITE_NAME) %>%
   inner_join(select(incbasin_area, INC_SITE_NAME, AREA_KM2) %>%
                mutate(INC_SITE_NAME=as.character(INC_SITE_NAME)),
              by="INC_SITE_NAME") %>%
@@ -64,21 +66,21 @@ prism_subbasin <- prism %>%
 
 # mean annual precip
 prism_subbasin_wyr <- group_by(prism_subbasin, SITE_NAME, AREA_KM2, WYEAR) %>%
-  summarise(N_MONTH=n(),
+  dplyr::summarise(N_MONTH=n(),
             PRCP=sum(PRCP)/10) %>% # mm/yr -> cm/yr
   ungroup %>%
   filter(N_MONTH == 12)
 
 # overall mean annual precip (cm/yr) by subbasin
 prism_subbasin_site <- prism_subbasin_wyr %>%
-  group_by(SITE_NAME, AREA_KM2) %>%
-  summarise(PRCP=mean(PRCP))
+  dplyr::group_by(SITE_NAME, AREA_KM2) %>%
+  dplyr::summarise(PRCP=mean(PRCP))
 mean_annual_precip <- filter(prism_subbasin_site, SITE_NAME=="Power")$PRCP
 cat("\nMean annual precip at Power (cm/yr):", mean_annual_precip, '\n\n')
 
 # overall mean annual precip (cm/yr) by incbasin
 group_by(prism_incbasin, INC_SITE_NAME, AREA_KM2, WYEAR) %>%
-  summarise(N_MONTH=n(),
+  dplyr::summarise(N_MONTH=n(),
             PRCP=sum(PRCP)/10) %>% # mm/yr -> cm/yr
   filter(N_MONTH == 12) %>%
   summarise(PRCP=mean(PRCP))
@@ -95,7 +97,7 @@ p <- ggplot() +
   geom_bar(aes(WYEAR, PRCP), stat="identity",
            data=prism_subbasin_wyr %>%
              filter(SITE_NAME=="Power")) +
-  geom_hline(yint=mean_annual_precip, color='black', linetype=2) +
+  geom_hline(yintercept=mean_annual_precip, color='black', linetype=2) +
   geom_text(aes(x=2013, y=mean_annual_precip+2), label="Mean", hjust=0, vjust=0, size=4) +
   labs(x="Water Year", y="Annual Precipitation (cm/yr)") +
   scale_y_continuous(breaks=seq(0, 100, 10)) +
@@ -106,14 +108,16 @@ dev.off()
 filename <- "report/prism-monthly-precip.png"
 cat('Saving monthly precip boxplots to:', filename, '\n')
 png(filename, width=6, height=4, res=200, units="in")
-p <- filter(prism_subbasin, SITE_NAME=="Power") %>%
-  group_by(WYEAR) %>%
-  mutate(N=n()) %>%
+p <- prism_subbasin %>%
+  filter( SITE_NAME=="Power") %>%
+  dplyr::group_by(WYEAR) %>%
+  dplyr::mutate(N=n()) %>%
   filter(N==12) %>%
   mutate(MONTH=month(MONTHYEAR),
          MONTH=ordered(as.character(MONTH), levels=as.character(c(10:12, 1:9))),
          PRCP=PRCP/10) %>%
-  ggplot(aes(MONTH, PRCP)) +
+  ggplot(aes(MONTH, PRCP,group=MONTH)) +
+  scale_x_continuous(breaks=seq(1,12,1))+
   geom_boxplot(fill="grey80") +
   labs(x="Month", y="Monthly Precipitation (cm/mon)")
 print(p)
