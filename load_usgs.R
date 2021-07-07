@@ -13,7 +13,7 @@ cat("Loading USGS dataset...\n\n")
 DATA_DIR <- "./data"
 
 # load stn ----
-filename <- file.path(DATA_DIR, 'sprague', 'usgs', 'usgs_stations.rdb')
+filename <- file.path(DATA_DIR, 'raw', 'usgs', 'usgs_stations.rdb')
 cat("Loading stations from:", filename, "\n")
 stn.usgs <- read.table(filename,
                        sep='\t',
@@ -29,19 +29,19 @@ stn.usgs <- read.table(filename,
                                  '11501000'='Power')))
 
 # load data ----
-filename <- file.path(DATA_DIR, 'sprague', 'usgs',
+filename <- file.path(DATA_DIR, 'raw', 'usgs',
                       '11495800_sprague_nf_1993-05-01_2012-10-10.txt')
 cat("Loading flow data from:", filename, "\n")
 q.11495800 <- read.table(file=filename,
                          skip=27, col.names=c('AGENCY', 'STATION_ID', 'DATE', 'FLOW', 'FLAG'), stringsAsFactors=FALSE)
 
-# filename <- file.path(DATA_DIR, 'sprague', 'usgs',
+# filename <- file.path(DATA_DIR, 'raw', 'usgs',
 #                       '11497500_sprague_beatty_1953-10-01_1991-09-30.txt')
 # cat("Loading flow data from:", filename, "\n")
 # q.11497500 <- read.table(file=filename,
 #                          skip=27, col.names=c('AGENCY', 'STATION_ID', 'DATE', 'FLOW', 'FLAG'), stringsAsFactors=FALSE)
 
-filename <- file.path(DATA_DIR, 'sprague', 'usgs',
+filename <- file.path(DATA_DIR, 'raw', 'usgs',
                       '11501000_sprague_chiloquin_1921-03-01_2015-02-06.txt')
 cat("Loading flow data from:", filename, "\n")
 q.11501000 <- read.table(file=filename,

@@ -9,8 +9,6 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading POU dataset...\n\n")
 
-#DATA_DIR <- getOption('UKL_DATA')
-DATA_DIR <- './data'
 
 load('kt_sprague.Rdata')
 load('gis.Rdata')
@@ -18,7 +16,7 @@ load('geomorph.Rdata')
 
 # load ----
 #filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_basin.csv')
-filename <- file.path(DATA_DIR, 'sprague/pou/pou_irrigation_basin.csv')
+filename <- file.path('data', 'raw/pou/pou_irrigation_basin.csv')
 cat("Loading POU basin dataset from:", filename, "\n")
 pou.basin <- read.csv(filename,
                       stringsAsFactors=FALSE) %>%
@@ -27,7 +25,7 @@ pou.basin <- read.csv(filename,
   mutate(EXTENT="basin")
 
 #filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_valley.csv')
-filename <- file.path(DATA_DIR, 'sprague/pou/pou_irrigation_valley.csv')
+filename <- file.path('data', 'raw/pou/pou_irrigation_valley.csv')
 cat("Loading POU valley dataset from:", filename, "\n")
 pou.valley <- read.csv(filename,
                        stringsAsFactors=FALSE) %>%

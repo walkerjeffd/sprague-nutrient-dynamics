@@ -9,29 +9,24 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading NLCD dataset...\n\n")
 
-#DATA_DIR <- getOption('UKL_DATA')
-DATA_DIR <- './data'
 load('kt_sprague.Rdata')
 load('gis.Rdata')
 
 # load data ----
-#filename <- file.path(DATA_DIR, 'sprague', 'nlcd', 'metadata.csv')
-filename <- file.path(DATA_DIR, 'sprague','nlcd', 'metadata.csv')
+filename <- file.path('data', 'raw','nlcd', 'metadata.csv')
 cat("Loading metadata from:", filename, "\n")
 nlcd_codes <- read.csv(filename,
                        stringsAsFactors=FALSE) %>%
   dplyr::select(-LULC_DESCRIPTION)
 
-#filename <- file.path(DATA_DIR, 'sprague', 'nlcd', 'nlcd_basin.csv')
-filename <- file.path(DATA_DIR, 'sprague','nlcd', 'nlcd_basin.csv')
+filename <- file.path('data', 'raw','nlcd', 'nlcd_basin.csv')
 
 cat("Loading NLCD basin data from:", filename, "\n")
 nlcd_basin <- read.csv(filename,
                        stringsAsFactors=FALSE) %>%
   mutate(EXTENT='basin')
 
-#filename <- file.path(DATA_DIR, 'sprague', 'nlcd', 'nlcd_valley.csv')
-filename <- file.path(DATA_DIR, 'sprague','nlcd', 'nlcd_valley.csv')
+filename <- file.path('data', 'raw','nlcd', 'nlcd_valley.csv')
 cat("Loading NLCD valley data from:", filename, "\n")
 nlcd_valley <- read.csv(filename,
                         stringsAsFactors=FALSE) %>%

@@ -17,7 +17,7 @@ DATA_DIR <- './data'
 # load data ----
 load('gis.Rdata')
 
-filename <- file.path(DATA_DIR, 'sprague', 'prism', 'ppt_basins.csv')
+filename <- file.path(DATA_DIR, 'raw', 'prism', 'ppt_basins.csv')
 cat("Loading PRISM dataset from:", filename, '\n')
 prism <- read.csv(filename, skip=1, stringsAsFactors=FALSE)
 names(prism) <- toupper(names(prism))

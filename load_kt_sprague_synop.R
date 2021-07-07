@@ -12,15 +12,12 @@ cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading KT Synoptic dataset...\n\n")
 
 #DATA_DIR <- getOption('UKL_DATA')
-DATA_DIR <- './data' #i'm setting it to my local directory
+# DATA_DIR <- './data' #i'm setting it to my local directory
 
 # load data ----
 
-#df_synoptic <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset E2001_2013_imp_synoptic_20141008.csv'), stringsAsFactors=FALSE)
-#Edf_springs <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset #2001_2013_imp_springs_20141008.csv'), stringsAsFactors=FALSE)
-
-df_synoptic <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_synoptic_20141008.csv'), stringsAsFactors=FALSE)
-df_springs <- read.csv(file.path(DATA_DIR, 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_springs_20141008.csv'), stringsAsFactors=FALSE)
+df_synoptic <- read.csv(file.path('data', 'raw', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_synoptic_20141008.csv'), stringsAsFactors=FALSE)
+df_springs <- read.csv(file.path('data', 'raw', 'kt', 'Sprague River--Water Quality Dataset 2001_2013_imp_springs_20141008.csv'), stringsAsFactors=FALSE)
 
 df <- rbind(df_synoptic, df_springs)
 
