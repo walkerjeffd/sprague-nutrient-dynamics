@@ -9,14 +9,16 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading POU dataset...\n\n")
 
-DATA_DIR <- getOption('UKL_DATA')
+#DATA_DIR <- getOption('UKL_DATA')
+DATA_DIR <- './data'
 
 load('kt_sprague.Rdata')
 load('gis.Rdata')
 load('geomorph.Rdata')
 
 # load ----
-filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_basin.csv')
+#filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_basin.csv')
+filename <- file.path(DATA_DIR, 'sprague/pou/pou_irrigation_basin.csv')
 cat("Loading POU basin dataset from:", filename, "\n")
 pou.basin <- read.csv(filename,
                       stringsAsFactors=FALSE) %>%
@@ -24,7 +26,8 @@ pou.basin <- read.csv(filename,
   select(SITE, AREA_KM2=AreaSqKM) %>%
   mutate(EXTENT="basin")
 
-filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_valley.csv')
+#filename <- file.path(DATA_DIR, 'sprague/water_rights/pou_irrigation_valley.csv')
+filename <- file.path(DATA_DIR, 'sprague/pou/pou_irrigation_valley.csv')
 cat("Loading POU valley dataset from:", filename, "\n")
 pou.valley <- read.csv(filename,
                        stringsAsFactors=FALSE) %>%
@@ -34,7 +37,7 @@ pou.valley <- read.csv(filename,
 
 pou.basin <- full_join(pou.basin,
                        filter(incbasin_area, INC_SITE_NAME != "Godowa-SF-NF") %>%
-                         rename(TOTAL_AREA_KM2=AREA_KM2,
+                         dplyr::rename(TOTAL_AREA_KM2=AREA_KM2,
                                 SITE_NAME=INC_SITE_NAME),
                        by="SITE") %>%
   mutate(EXTENT="basin",
@@ -47,15 +50,15 @@ pou.valley <- full_join(pou.valley,
                           filter(INC_SITE_NAME != "Godowa-SF-NF") %>%
                           select(TOTAL_AREA_KM2=VALLEY_AREA_KM2,
                                  SITE_NAME=INC_SITE_NAME,
-                                 SITE),
+                                 SITE, geometry), #added geometry so pou.basin and pou.valley had same formats
                          by="SITE") %>%
   mutate(EXTENT="valley",
          AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2))
 
-pou <- rbind(pou.basin, pou.valley) %>%
+pou <- rbind.fill(pou.basin, pou.valley) %>%
   select(-SITE) %>%
-  gather(VAR, VALUE, AREA_KM2, TOTAL_AREA_KM2) %>%
-  spread(SITE_NAME, VALUE) %>%
+  pivot_longer(c(AREA_KM2, TOTAL_AREA_KM2),names_to="VAR",values_to="VALUE") %>%   #gather(VAR, VALUE, AREA_KM2, TOTAL_AREA_KM2) %>%
+  pivot_wider(names_from="SITE_NAME",values_from="VALUE") %>%   #spread(SITE_NAME, VALUE) %>%
   mutate(`Godowa-SF-NF`=`Godowa-SF_Ivory-NF_Ivory`+`SF_Ivory-SF`+`NF_Ivory-NF`,
          NF_Ivory=`NF_Ivory-NF`+NF,
          SF_Ivory=`SF_Ivory-SF`+SF,
@@ -65,13 +68,14 @@ pou <- rbind(pou.basin, pou.valley) %>%
          `Godowa+Sycan`=Godowa+Sycan,
          `SF+NF`=SF+NF,
          `SF_Ivory+NF_Ivory`=SF_Ivory+NF_Ivory) %>%
-  gather(SITE_NAME, VALUE, -EXTENT, -VAR) %>%
+  pivot_longer(c(SF:`SF_Ivory+NF_Ivory`),names_to="SITE_NAME",values_to="VALUE") %>%   #gather(SITE_NAME, VALUE, -EXTENT, -VAR) %>%
+  filter(!is.na(VALUE)) %>%
   mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   spread(VAR, VALUE) %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2))
 
 pou_incbasin <- filter(pou, SITE_NAME %in% incbasin_area$INC_SITE_NAME) %>%
-  rename(INC_SITE_NAME=SITE_NAME) %>%
+  dplyr::rename(INC_SITE_NAME=SITE_NAME) %>%
   mutate(INC_SITE_NAME=ordered(INC_SITE_NAME, levels=levels(incbasin_area$INC_SITE_NAME))) %>%
   arrange(INC_SITE_NAME)
 

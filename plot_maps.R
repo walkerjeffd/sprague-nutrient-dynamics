@@ -14,20 +14,20 @@ cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+  geom_sf(inherit.aes=FALSE, data = basin,
                color = 'orangered', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+  geom_sf(inherit.aes=FALSE, data = flowline,
             color='deepskyblue', size=0.2) +
   ggtitle('Flowline and Basin')
 print(p)
 makeFootnote()
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+  geom_sf(inherit.aes=FALSE, data = basin,
                color = 'black', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+  geom_sf(inherit.aes=FALSE, data = flowline,
             color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group),
+  geom_sf(inherit.aes=FALSE,
                data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
                color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
   geom_point(aes(x = LON, y = LAT), data = stn.kt_sprague,
@@ -45,11 +45,11 @@ print(p)
 makeFootnote()
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+  geom_sf(inherit.aes=FALSE, data = basin,
                color = 'black', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+  geom_sf(inherit.aes=FALSE, data = flowline,
             color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group),
+  geom_sf(inherit.aes=FALSE,
                data = filter(incbasin, !(INC_SITE_NAME %in% c("Godowa-SF_Ivory-NF_Ivory", "SF_Ivory-SF", "NF_Ivory-NF"))),
                color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
 #   geom_text(aes(x = long, y = lat, label = INC_SITE_ABBR),
@@ -70,11 +70,11 @@ print(p)
 makeFootnote()
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+  geom_sf(inherit.aes=FALSE, data = basin,
                color = 'black', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+  geom_sf(inherit.aes=FALSE, data = flowline,
             color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group),
+  geom_sf(inherit.aes=FALSE,
                data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
                color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
 #   geom_text(aes(x = long, y = lat, label = INC_SITE_ABBR),
@@ -96,11 +96,11 @@ print(p)
 makeFootnote()
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+  geom_sf(inherit.aes=FALSE, data = basin,
                color = 'black', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
+  geom_sf(inherit.aes=FALSE, data = flowline,
             color='deepskyblue', size = 0.2, alpha = 0.5) +
-  geom_polygon(aes(x = long, y = lat, group = group),
+  geom_sf(inherit.aes=FALSE,
                data = subbasin,
                color = 'orangered', fill = 'grey50', alpha = 0.1, size = 0.2) +
   geom_point(aes(x = LON, y = LAT), data = stn.kt_sprague,

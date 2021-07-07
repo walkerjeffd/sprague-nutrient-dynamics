@@ -12,11 +12,12 @@ makeFootnote <- function(footnoteText='Map tiles by Stamen Design, under CC BY 3
 }
 
 water_day <- function(x) {
-  # returns water day (1 = Oct 1)
+   #returns water day (1 = Oct 1)
   ifelse(lubridate::yday(x)-lubridate::leap_year(x)>=274,
-         lubridate::yday(x)-lubridate::leap_year(x)-274,
-         lubridate::yday(x)+(365-274))
+        lubridate::yday(x)-lubridate::leap_year(x)-274,
+       lubridate::yday(x)+(365-274))
 }
+
 # water_day(seq.Date(from=as.Date("2000-01-01"), to=as.Date("2000-01-05"), by="day"))
 #
 # water_day(c(as.Date("2000-10-01"), as.Date("2001-10-01")))
@@ -189,3 +190,4 @@ color_site <- c(
 # blue-dark    #1f78b4
 # red-light    #fb9a99
 # red-dark     #e31a1c
+

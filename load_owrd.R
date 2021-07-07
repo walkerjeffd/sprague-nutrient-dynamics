@@ -9,7 +9,8 @@ rm(list=ls())
 cat(paste0(rep('=', 80), collapse=''), '\n')
 cat("Loading OWRD dataset...\n\n")
 
-DATA_DIR <- getOption('UKL_DATA')
+#DATA_DIR <- getOption('UKL_DATA')
+DATA_DIR <- './data'
 
 # load stn ----
 filename <- file.path(DATA_DIR, 'sprague', 'owrd', 'owrd_stations.csv')
@@ -54,7 +55,7 @@ q.owrd <- mutate(q.owrd,
   left_join(select(stn.owrd, STATION_ID, SITE_NAME), by="STATION_ID")
 
 stn_period <- group_by(q.owrd, STATION_ID) %>%
-  summarise(START_DATE=min(DATE),
+  dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE))
 
 stn.owrd <- filter(stn.owrd, STATION_ID %in% stn_period$STATION_ID) %>%
@@ -79,3 +80,4 @@ cat('Saving OWRD flow dataset to:', filename, '\n')
 save(q.owrd, stn.owrd, file=filename)
 
 cat('\n\n')
+

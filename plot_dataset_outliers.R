@@ -82,21 +82,25 @@ merge_variables <- function(var1, var2, site) {
   left_join(x.var, x.var2, by='DATE')
 }
 
+
 plot_data <- function(variable, site, log.trans) {
   ylabel <- paste0(variable, ' @ ', site, ' (', get_units(variable), ')')
   p.time <- filter(wq, SITE_NAME==site, VAR==variable) %>%
+    mutate(FLAGGED=as.factor(FLAGGED)) %>%
     ggplot(aes(DATE, VALUE, color=FLAGGED, size=FLAGGED)) +
     geom_point() +
     scale_color_manual(values=c('FALSE'='grey50', 'TRUE'='red'), guide=FALSE) +
     scale_size_manual(values=c('FALSE'=1, 'TRUE'=3), guide=FALSE) +
     labs(y=ylabel, x='Date')
   p.jday <- filter(wq, SITE_NAME==site, VAR==variable) %>%
+    mutate(FLAGGED=as.factor(FLAGGED)) %>%
     ggplot(aes(WDAY, VALUE, color=FLAGGED, size=FLAGGED)) +
     geom_point() +
     scale_color_manual(values=c('FALSE'='grey50', 'TRUE'='red'), guide=FALSE) +
     scale_size_manual(values=c('FALSE'=1, 'TRUE'=3), guide=FALSE) +
     labs(y=ylabel, x='Water Year Day (0=Oct 1)')
   p.flow <- filter(wq, SITE_NAME==site, VAR==variable) %>%
+    mutate(FLAGGED=as.factor(FLAGGED)) %>%
     spread(VAR, VALUE) %>%
     left_join(filter(wq, SITE_NAME==site, VAR=="FLOW") %>%
                 select(DATE, FLOW=VALUE),
@@ -108,56 +112,60 @@ plot_data <- function(variable, site, log.trans) {
     labs(y=ylabel, x=paste0('Flow @ ', site, ' (cfs)'))
 
   p.var1 <- merge_variables(var1=variable, var2=var_ref[[variable]][1], site=site) %>%
-    mutate(FLAG=FLAGGED*2+FLAGGED2*1,
-           FLAG=factor(FLAG)) %>%
+    mutate(FLAG=FLAGGED*2+FLAGGED2*1, # how is FLAGGED being treated as numeric when it is a factor variable?
+           FLAG=as.factor(FLAG),
+           FLAGGED=as.factor(FLAGGED)) %>%
     ggplot(aes(VALUE2, VALUE, color=FLAG, size=FLAG)) +
     geom_point() +
-    scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
-    scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
+    #scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
+    #scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(var_ref[[variable]][1], ' @ ', site, ' (', get_units(var_ref[[variable]][1]), ')'), y=ylabel)
   p.var2 <- merge_variables(var1=variable, var2=var_ref[[variable]][2], site=site) %>%
     mutate(FLAG=FLAGGED*2+FLAGGED2*1,
-           FLAG=factor(FLAG)) %>%
+           FLAG=as.factor(FLAG),
+           FLAGGED=as.factor(FLAGGED)) %>%
     ggplot(aes(VALUE2, VALUE, color=FLAG, size=FLAG)) +
     geom_point() +
-    scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
-    scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
+    #scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
+    #scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(var_ref[[variable]][2], ' @ ', site, ' (', get_units(var_ref[[variable]][2]), ')'), y=ylabel)
   p.var3 <- merge_variables(var1=variable, var2=var_ref[[variable]][3], site=site) %>%
     mutate(FLAG=FLAGGED*2+FLAGGED2*1,
-           FLAG=factor(FLAG)) %>%
+           FLAG=as.factor(FLAG),
+           FLAGGED=as.factor(FLAGGED)) %>%
     ggplot(aes(VALUE2, VALUE, color=FLAG, size=FLAG)) +
     geom_point() +
-    scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
-    scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
+    #scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
+    #scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(var_ref[[variable]][3], ' @ ', site, ' (', get_units(var_ref[[variable]][3]), ')'), y=ylabel)
 
   p.site1 <- merge_sites(variable, site, site_ref[[site]][1],) %>%
     filter(!is.na(VALUE2)) %>%
     mutate(FLAG=FLAGGED*2+FLAGGED2*1,
-           FLAG=factor(FLAG)) %>%
+           FLAG=as.factor(FLAG),
+           FLAGGED=as.factor(FLAGGED)) %>%
     ggplot(aes(VALUE2, VALUE, color=FLAG, size=FLAG)) +
     geom_point() +
-    scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
-    scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
+    #scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
+    #scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(variable, ' @ ', site_ref[[site]][1], ' (', get_units(variable), ')'), y=ylabel)
   p.site2 <- merge_sites(variable, site, site_ref[[site]][2]) %>%
     filter(!is.na(VALUE2)) %>%
     mutate(FLAG=FLAGGED*2+FLAGGED2*1,
-           FLAG=factor(FLAG)) %>%
+           FLAG=as.factor(FLAG)) %>%
     ggplot(aes(VALUE2, VALUE, color=FLAG, size=FLAG)) +
     geom_point() +
-    scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
-    scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
+    #scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
+    #scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(variable, ' @ ', site_ref[[site]][2], ' (', get_units(variable), ')'), y=ylabel)
   p.site3 <- merge_sites(variable, site, site_ref[[site]][3]) %>%
     filter(!is.na(VALUE2)) %>%
     mutate(FLAG=FLAGGED*2+FLAGGED2*1,
-           FLAG=factor(FLAG)) %>%
+           FLAG=as.factor(FLAG)) %>%
     ggplot(aes(VALUE2, VALUE, color=FLAG, size=FLAG)) +
     geom_point() +
-    scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
-    scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
+    #scale_color_manual(values=c('0'='grey50', '1'='deepskyblue', '2'='red', '3'='red'), guide=FALSE) +
+    #scale_size_manual(values=c('0'=1, '1'=2, '2'=3, '3'=3), guide=FALSE) +
     labs(x=paste0(variable, ' @ ', site_ref[[site]][3], ' (', get_units(variable), ')'), y=ylabel)
 
   if (log.trans) {

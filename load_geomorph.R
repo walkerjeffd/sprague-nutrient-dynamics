@@ -12,34 +12,37 @@ load('gis.Rdata')
 
 
 # load ----
-DATA_DIR <- getOption('UKL_DATA')
-GIS_DIR <- file.path(DATA_DIR, '../gis/sprague/geomorph')
+#DATA_DIR <- getOption('UKL_DATA')
+#GIS_DIR <- file.path(DATA_DIR, '../gis/sprague/geomorph')
+DATA_DIR <- './data'
+GIS_DIR <- file.path(DATA_DIR, 'sprague', 'geomorphology')
 
 filename <- file.path(GIS_DIR, 'incremental_basins_geomorphology_clip.csv')
 cat("Loading geomorphology areas from:", filename, '\n')
 geomorph <- read.csv(filename, stringsAsFactors=FALSE) %>%
-  rename(AREA_KM2=AreaSqKM) %>%
+  dplyr::rename(AREA_KM2=AreaSqKM) %>%
   rbind(data.frame(SITE=c('SR0040'), AREA_KM2=0)) %>%
   filter(SITE != "WR1000") %>%
   left_join(filter(incbasin_area, INC_SITE_NAME != "Godowa-SF-NF") %>%
-              rename(BASIN_AREA_KM2=AREA_KM2), by="SITE") %>%
+              dplyr::rename(BASIN_AREA_KM2=AREA_KM2), by="SITE") %>%
   select(INC_SITE_NAME, VALLEY_AREA_KM2=AREA_KM2, BASIN_AREA_KM2)
 
-geomorph <- gather(geomorph, VAR, VALUE, -INC_SITE_NAME) %>%
-  spread(INC_SITE_NAME, VALUE) %>%
+geomorph <- geomorph %>%
+  pivot_longer(c(VALLEY_AREA_KM2,BASIN_AREA_KM2),names_to="VAR",values_to="VALUE") %>%  # gather(geomorph, VAR, VALUE, -INC_SITE_NAME) %>%
+  pivot_wider(names_from = INC_SITE_NAME, values_from = VALUE) %>%   #spread(INC_SITE_NAME, VALUE) %>%
   mutate(`Godowa-SF-NF`=`Godowa-SF_Ivory-NF_Ivory`+`SF_Ivory-SF`+`NF_Ivory-NF`,
          NF_Ivory=`NF_Ivory-NF`+NF,
          SF_Ivory=`SF_Ivory-SF`+SF,
          Godowa=`Godowa-SF-NF`+SF+NF,
          Lone_Pine=`Lone_Pine-Godowa-Sycan`+Godowa+Sycan,
          Power=`Power-Lone_Pine`+Lone_Pine) %>%
-  gather(SITE_NAME, VALUE, -VAR) %>%
+  pivot_longer(c(SF:Power),names_to="SITE_NAME",values_to="VALUE") %>% #gather(SITE_NAME, VALUE, -VAR) %>%
   mutate(SITE_NAME=as.character(SITE_NAME)) %>%
-  spread(VAR, VALUE) %>%
+  pivot_wider(names_from = VAR,values_from=VALUE) %>%  # spread(VAR, VALUE) %>%
   mutate(FRAC_AREA=VALLEY_AREA_KM2/BASIN_AREA_KM2)
 
 geomorph_incbasin <- filter(geomorph, SITE_NAME %in% incbasin_area$INC_SITE_NAME) %>%
-  rename(INC_SITE_NAME=SITE_NAME) %>%
+  dplyr::rename(INC_SITE_NAME=SITE_NAME) %>%
   mutate(INC_SITE_NAME=ordered(INC_SITE_NAME, levels=levels(incbasin_area$INC_SITE_NAME))) %>%
   arrange(INC_SITE_NAME)
 

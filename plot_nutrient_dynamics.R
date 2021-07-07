@@ -28,7 +28,7 @@ seasons <- list(Annual=1:12,
 df_seasons <- lapply(names(seasons), function(s) {
   data.frame(MONTH=seasons[[s]], SEASON=s, stringsAsFactors=FALSE)
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(SEASON=ordered(SEASON, levels=names(seasons)))
 
 # observed data ----

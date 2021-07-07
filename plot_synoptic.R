@@ -27,12 +27,18 @@ stn.kt_synoptic <- mutate(stn.kt_synoptic, SITE_LABEL=paste0(SITE_DESCRIPTION, "
 pdf(file.path("pdf", "synoptic-data.pdf"), width=11, height=8.5)
 
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-               color = 'black', alpha = 0, size = 0.5) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
-            color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = incbasin,
-               color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
+  geom_sf(inherit.aes=FALSE, data = basin,
+              color = 'black', alpha = 0, size = 0.5) +
+  geom_sf(inherit.aes=FALSE, data = flowline,
+           color='deepskyblue', size=0.2) +
+  geom_sf(inherit.aes=FALSE, data = incbasin,
+              color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
+  #geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+   #            color = 'black', alpha = 0, size = 0.5) +
+  #geom_path(aes(x = long, y = lat, group = group), data = flowline,
+   #         color='deepskyblue', size=0.2) +
+  #geom_polygon(aes(x = long, y = lat, group = group), data = incbasin,
+   #            color = 'orangered', fill = 'grey50', alpha = 0.2, size = 0.2) +
   geom_point(aes(x = LONGITUDE, y = LATITUDE), data = stn.kt_synoptic,
              shape=21, fill='deepskyblue', size=3) +
   geom_text(aes(x = LONGITUDE+0.02, y = LATITUDE, label = SITE_LABEL),
@@ -61,7 +67,7 @@ p <- wq.kt_synoptic %>%
   ggplot(aes(DATETIME, VALUE)) +
   geom_point() +
   facet_grid(VAR~SITE_DESCRIPTION, scales="free_y") +
-  scale_x_datetime(labels=scales::date_format("%m/%Y")) +
+  scale_x_datetime(date_labels="%m/%Y") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x="Date", y="Concentration (ppm)", title="Synoptic/Springs WQ Data")
 print(p)
@@ -86,8 +92,8 @@ p <- wq.kt_synoptic %>%
 print(p)
 
 p <- wq.kt_synoptic %>%
-  group_by(SITE, SITE_DESCRIPTION, VAR) %>%
-  summarise(VALUE=median(VALUE)) %>%
+  dplyr::group_by(SITE, SITE_DESCRIPTION, VAR) %>%
+  dplyr::summarise(VALUE=median(VALUE)) %>%
   ggplot(aes(SITE_DESCRIPTION, VALUE)) +
   geom_bar(stat='identity') +
   facet_grid(VAR~., scales='free_y') +
@@ -96,8 +102,8 @@ p <- wq.kt_synoptic %>%
 print(p)
 
 p <- wq.kt_synoptic %>%
-  group_by(SITE, SITE_DESCRIPTION, VAR) %>%
-  summarise(VALUE=median(VALUE)) %>%
+  dplyr::group_by(SITE, SITE_DESCRIPTION, VAR) %>%
+  dplyr::summarise(VALUE=median(VALUE)) %>%
   ggplot(aes(VAR, VALUE)) +
   geom_boxplot() +
   geom_point(color='orangered') +
@@ -120,8 +126,8 @@ dev.off()
 
 
 filter(wq.kt_synoptic, VAR == "TP") %>%
-  group_by(SITE, VAR) %>%
-  summarise(N=n())
+  dplyr::group_by(SITE, VAR) %>%
+  dplyr::summarise(N=n())
 
 
 wq.kt_synoptic %>%
@@ -144,8 +150,8 @@ load('kt_sprague.Rdata')
 
 tp_medians <- filter(wq.kt_synoptic,
                      VAR == "TP") %>%
-  group_by(SITE, SITE_DESCRIPTION) %>%
-  summarise(MEDIAN=median(VALUE*1000),
+  dplyr::group_by(SITE, SITE_DESCRIPTION) %>%
+  dplyr::summarise(MEDIAN=median(VALUE*1000),
             N=n())
 
 filename <- 'report/synoptic-tp.png'
@@ -157,10 +163,10 @@ p <- wq.kt_synoptic %>%
   ggplot(aes(DATETIME, VALUE*1000)) +
   geom_point() +
   geom_hline(aes(yintercept=MEDIAN, color="Median"), data=tp_medians, linetype=2,
-             show_guide=TRUE) +
+             show.legend=TRUE) +
   scale_color_manual('', values='red') +
   facet_wrap(~SITE_DESCRIPTION) +
-  scale_x_datetime(labels=scales::date_format("%m-%Y")) +
+  scale_x_datetime(date_labels="%m-%Y") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         strip.background=element_blank(),
         strip.text=element_text(face='bold')) +

@@ -51,7 +51,7 @@ stn.owrd <- mutate(stn.owrd,
                    SOURCE="OWRD",
                    SITE=STATION_ID) %>%
   select(SOURCE, SITE_NAME, SITE, DESCRIPTION, LAT, LON)
-q.owrd <- rename(q.owrd, SITE=STATION_ID) %>%
+q.owrd <- dplyr::rename(q.owrd, SITE=STATION_ID) %>%
   select(SOURCE, SITE_NAME, SITE, DATE, FLOW)
 
 # load kt ----
@@ -80,14 +80,14 @@ stn.kt_sprague <- stn.kt_sprague %>%
             by='SITE_NAME')
 
 # dataset por ----
-por.usgs <- group_by(q.usgs, SITE_NAME) %>%
-  summarise(START=min(DATE),
+por.usgs <- dplyr::group_by(q.usgs, SITE_NAME) %>%
+  dplyr::summarise(START=min(DATE),
             END=max(DATE))
-por.owrd <- group_by(q.owrd, SITE_NAME) %>%
-  summarise(START=min(DATE),
+por.owrd <- dplyr::group_by(q.owrd, SITE_NAME) %>%
+  dplyr::summarise(START=min(DATE),
             END=max(DATE))
-por.kt <- group_by(q.kt_sprague, SITE_NAME) %>%
-  summarise(START=min(DATE),
+por.kt <- dplyr::group_by(q.kt_sprague, SITE_NAME) %>%
+  dplyr::summarise(START=min(DATE),
             END=max(DATE))
 
 # power dataset ----
@@ -143,8 +143,8 @@ q <- rbind(q.power, q.sycan, q.beatty) %>%
 # compute ----
 ratios <- q %>%
   filter(!is.na(FLOW), !is.na(REF_FLOW)) %>%
-  group_by(SITE_NAME, REF_SOURCE, REF_SITE_NAME, MONTH=month(DATE)) %>%
-  summarise(N=n(),
+  dplyr::group_by(SITE_NAME, REF_SOURCE, REF_SITE_NAME, MONTH=month(DATE)) %>%
+  dplyr::summarise(N=n(),
             RATIO=mean(FLOW)/mean(REF_FLOW)) %>%
   ungroup
 
@@ -162,10 +162,10 @@ q.model <- mutate(q,
             PRED=REF_FLOW*RATIO_MONTH,
             LN_RESID=log(FLOW/PRED)) %>%
   arrange(SITE_NAME, DATE) %>%
-  group_by(SITE_NAME) %>%
+  dplyr::group_by(SITE_NAME) %>%
   mutate(CUMISNA=cumsum(!is.na(LN_RESID)),
          LN_RESID=ifelse(CUMISNA==0, 0, LN_RESID)) %>%
-  group_by(SITE_NAME) %>%
+  dplyr::group_by(SITE_NAME) %>%
   do(interpolate(.)) %>%
   mutate(PRED_RESID=PRED*exp(LN_RESID_INTERP)) %>%
   ungroup
@@ -174,7 +174,7 @@ q.out <- select(q.model, SITE_NAME, DATE, Q=PRED_RESID)
 
 # validation ----
 q.valid <- filter(q.owrd, SITE_NAME %in% c('SF', 'NF', 'Godowa', 'Lone_Pine')) %>%
-  rename(VALID_Q=FLOW) %>%
+  dplyr::rename(VALID_Q=FLOW) %>%
   mutate(SITE=paste0('OWRD:', SITE)) %>%
   select(-SOURCE)
 q.valid <- left_join(q.valid, select(q.out, SITE_NAME, DATE, Q),
@@ -184,13 +184,13 @@ q.valid <- left_join(q.valid, select(q.out, SITE_NAME, DATE, Q),
   arrange(SITE_NAME, DATE)
 q.valid.mon <- q.valid %>%
   mutate(DATE=floor_date(DATE, unit = "month")) %>%
-  group_by(SITE_NAME, SITE, DATE) %>%
-  summarise(VALID_Q=mean(VALID_Q, na.rm=TRUE),
+  dplyr::group_by(SITE_NAME, SITE, DATE) %>%
+  dplyr::summarise(VALID_Q=mean(VALID_Q, na.rm=TRUE),
             Q=mean(Q, na.rm=TRUE)) %>%
   ungroup
 
-q.valid.rmse <- group_by(q.valid, SITE_NAME, SITE) %>%
-  summarise(START_DATE=min(DATE),
+q.valid.rmse <- dplyr::group_by(q.valid, SITE_NAME, SITE) %>%
+  dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE),
             N=n(),
             X=min(VALID_Q),
@@ -200,8 +200,8 @@ q.valid.rmse <- group_by(q.valid, SITE_NAME, SITE) %>%
             VALID_Q=mean(VALID_Q),
             Q=mean(Q),
             REL_RMSE=RMSE/Q)
-q.valid.mon.rmse <- group_by(q.valid.mon, SITE_NAME, SITE) %>%
-  summarise(START_DATE=min(DATE),
+q.valid.mon.rmse <- dplyr::group_by(q.valid.mon, SITE_NAME, SITE) %>%
+  dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE),
             N=n(),
             X=min(VALID_Q),
@@ -213,6 +213,9 @@ q.valid.mon.rmse <- group_by(q.valid.mon, SITE_NAME, SITE) %>%
             REL_RMSE=RMSE/Q)
 
 # explore ----
+
+
+
 
 ratios %>%
   select(MONTH, SITE_NAME, RATIO) %>%
@@ -285,19 +288,39 @@ stn.map <- rbind(select(stn.kt_sprague, SITE_NAME, REF_LABEL, LAT, LON) %>% muta
   arrange(desc(GROUP))
 
 # flow data ----
+
+
+#map <- ggmap_bbox(map)
+
+#flowline <-   st_transform(flowline,crs=3857)
+#incbasin <-   st_transform(incbasin,crs=3857)
+#basin <-      st_transform(basin,crs=3857)
+#stn.ref_ <- st_as_sf(stn.ref, coords=c("LON","LAT"),crs=3857,agr="constant")
+#stn.ref <- st_transform(stn.ref,crs=3857)
+
+#map <- st_as_sf(map, crs=3857)
+
+#cast_all <- function(xg) {
+#  lapply(c("MULTIPOLYGON", "MULTILINESTRING", "MULTIPOINT", "POLYGON", "LINESTRING", "POINT"),
+#         function(x) st_cast(xg, x))
+#}
+
+#st_sfc(cast_all(incbasin))
+
+
 filename <- file.path('pdf', 'flow-data.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_polygon(aes(x = long, y = lat, group = group),
-               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
-               color = 'grey50', fill = NA, size = 0.2) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
-            color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-               color = 'black', fill = NA, size = 0.2) +
+  coord_sf(crs = st_crs(4326)) +
+  geom_sf(data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
+          color="black",inherit.aes = FALSE,fill=NA) +
+  geom_sf(data=flowline,
+          color="deepskyblue",inherit.aes = FALSE)+
+  geom_sf(data = basin,
+          color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
   geom_point(aes(x = LON, y = LAT),
-             data = stn.ref, shape = 17, size = 3, color='red') +
+             data = stn.ref, shape = 17, size = 3, color='red',inherit.aes=T) +
   geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
             data = mutate(stn.ref, REF_LABEL=paste0(REF_LABEL, "-", SITE_NAME)), fontface='bold', hjust=-0.1, size=4)
 print(p)
@@ -325,13 +348,13 @@ for (site in levels(q$SITE_NAME)) {
   cat('..', site, '\n')
   p.ts <- filter(q, SITE_NAME==site) %>%
     ggplot(aes(DATE, REF_FLOW)) +
-    geom_line(aes(color='Reference'), size=0.25, show_guide = TRUE) +
+    geom_line(aes(color='Reference'), size=0.25, show.legend = TRUE) +
     geom_line(aes(x=DATE, y=Q, color='Interpolated'),
               data=filter(q.out, SITE_NAME==site),
               size=0.1,
-              show_guide = TRUE) +
+              show.legend = TRUE) +
     geom_point(aes(y=FLOW, color='Biweekly'), size=1.5,
-               show_guide = TRUE) +
+               show.legend = TRUE) +
     log_y +
     scale_color_manual('',
                        values=c('Reference'='grey50',
@@ -347,7 +370,7 @@ for (site in levels(q$SITE_NAME)) {
     geom_point(size=1) +
     log_y +
     log_x +
-    geom_abline(aes(color="1:1 Line"), linetype=2, show_guide=TRUE) +
+    geom_abline(linetype=2,show.legend=T)+#aes(color="1:1 Line"), linetype=2, show.legend=TRUE) +
     scale_color_manual('', values=c('red')) +
     labs(x="Flow @ Reference Site (cfs)", y=paste0("Flow @ ", site, " (cfs)")) +
     theme(legend.position='bottom')
@@ -355,14 +378,14 @@ for (site in levels(q$SITE_NAME)) {
   p.resid <- filter(q.model, SITE_NAME==site) %>%
     filter(!is.na(FLOW)) %>%
     ggplot(aes(DATE, LN_RESID)) +
-    geom_hline(yint=0) +
+    geom_hline(yintercept=0) +
     geom_point(size=1) +
     labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]")
 
   p.resid.flow <- filter(q.model, SITE_NAME==site) %>%
     filter(!is.na(FLOW)) %>%
     ggplot(aes(FLOW, LN_RESID)) +
-    geom_hline(yint=0) +
+    geom_hline(yintercept=0) +
     geom_point(size=1) +
     labs(x="Measured Biweekly Flow (cfs)",
          y="Log Flow Residual\nln[Measured/Scaled Reference]") +
@@ -372,12 +395,12 @@ for (site in levels(q$SITE_NAME)) {
   p.ratio <- filter(q.model, !is.na(FLOW), SITE_NAME==site) %>%
     mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
     ggplot(aes(MONTH, RATIO)) +
-    geom_hline(yint=1, color='gray50') +
+    geom_hline(yintercept=1, color='gray50') +
     geom_boxplot(outlier.size=1.5) +
     geom_point(aes(MONTH, RATIO, color="Mean"),
                data=filter(ratios, SITE_NAME==site) %>%
                  mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))),
-               show_guide=TRUE) +
+               show.legend=TRUE) +
     scale_color_manual('', values='orangered') +
     labs(x="Month", y="Flow Ratio [Measured/Reference]") +
     theme(legend.position=c(0, 1),
@@ -639,13 +662,13 @@ filename <- 'report/map-flow-station.png'
 cat("\nSaving reference station map to:", filename, '\n')
 png(filename, width=8, height=5, res=200, units='in')
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  geom_path(aes(x = long, y = lat, group = group), data = flowline,
-            color='deepskyblue', size=0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group),
-               data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
-               color = 'grey50', fill = NA, size = 0.2) +
-  geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-               color = 'black', fill = NA, size = 0.2) +
+  coord_sf(crs = st_crs(4326)) +
+  geom_sf(data = flowline,
+           color='deepskyblue', size=0.2,inherit.aes=FALSE) +
+  geom_sf(data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
+             color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
+  geom_sf(data = basin,
+              color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
   geom_point(aes(x = LON, y = LAT, fill = REF_LABEL, shape = GROUP, size = GROUP),
              data = stn.map) +
   geom_text(aes(x = LON-ifelse(SITE!='11497500', 0, 0.02),
@@ -690,8 +713,8 @@ filename <- 'report/results-flow-annual-ts.png'
 cat("Saving annual flows to:", filename, '\n')
 png(filename, width=8, height=6, res=200, units='in')
 p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
-  group_by(SITE_NAME, WYEAR) %>%
-  summarise(N=n(),
+  dplyr::group_by(SITE_NAME, WYEAR) %>%
+  dplyr::summarise(N=n(),
             Q=mean(Q)) %>%
   ungroup %>%
   filter(N>=365) %>%
@@ -724,7 +747,7 @@ print(p)
 p <- q.valid %>%
   ggplot(aes(VALID_Q, Q)) +
   geom_point(size=1, alpha=0.7) +
-  geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
+  geom_abline(linetype=2, show.legend=TRUE) +#aes(color='1:1 Line'), ) +
   geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.rmse, R2=paste0("R2 = ", scales::percent(R2))),
             hjust=0, vjust=1) +
   log_x +
@@ -755,7 +778,7 @@ print(p)
 p <- q.valid.mon %>%
   ggplot(aes(VALID_Q, Q)) +
   geom_point() +
-  geom_abline(aes(color='1:1 Line'), linetype=2, show_guide=TRUE) +
+  geom_abline( linetype=2, show.legend=TRUE) + # aes(color='1:1 Line'),
   geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.mon.rmse, R2=paste0("R2 = ", scales::percent(R2))),
             hjust=0, vjust=1) +
   log_x +

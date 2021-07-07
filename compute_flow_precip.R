@@ -17,7 +17,7 @@ load('gis.Rdata')
 flows <- readRDS('flows.Rdata')
 
 q.day <- flows$df %>%
-  rename(Q_cfs=Q) %>%
+  dplyr::rename(Q_cfs=Q) %>%
   mutate(Q_cms=Q_cfs*0.0283168, # ft3/s -> m3/s
          DATE=as.Date(DATE),
          MONTH=month(DATE))
@@ -27,22 +27,22 @@ q.day[['WYEAR']] <- wyear(q.day[['DATE']])
 q.day <- left_join(q.day, subbasin_area, by='SITE_NAME') %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)),
          Q_mm_d=Q_cms*86400/(AREA_KM2*1e6)*1000) # mm/day
-q.mon <- group_by(q.day, SITE_NAME, WYEAR, MONTH) %>%
-  summarise(Q_mm_mon=sum(Q_mm_d)) %>% # mm/mon
+q.mon <- dplyr::group_by(q.day, SITE_NAME, WYEAR, MONTH) %>%
+  dplyr::summarise(Q_mm_mon=sum(Q_mm_d)) %>% # mm/mon
   ungroup
-q.wyr <- group_by(q.mon, SITE_NAME, WYEAR) %>%
-  summarise(Q_cm_yr=sum(Q_mm_mon)/10) %>% # cm/yr
+q.wyr <- dplyr::group_by(q.mon, SITE_NAME, WYEAR) %>%
+  dplyr::summarise(Q_cm_yr=sum(Q_mm_mon)/10) %>% # cm/yr
   ungroup
 
-q.wyr.site <- group_by(q.wyr, SITE_NAME) %>%
-  summarise(Q_cm_yr=mean(Q_cm_yr))
+q.wyr.site <- dplyr::group_by(q.wyr, SITE_NAME) %>%
+  dplyr::summarise(Q_cm_yr=mean(Q_cm_yr))
 
 load('prism.Rdata')
 prism.mon <- mutate(prism_subbasin, MONTH=month(MONTHYEAR)) %>%
   select(SITE_NAME, MONTHYEAR, WYEAR, MONTH, PRCP_mm_mon=PRCP)
 
-prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR) %>%
-  summarise(N=n(),
+prism.wyr <- dplyr::group_by(prism.mon, SITE_NAME, WYEAR) %>%
+  dplyr::summarise(N=n(),
             PRCP_cm_yr=sum(PRCP_mm_mon)/10) %>% # cm/yr
   select(-N)
 
@@ -64,8 +64,8 @@ df.beatty <- filter(q.owrd, STATION_ID=='11497500') %>%
   mutate(Q_cms=FLOW*0.0283168,
          Q_mm_d=Q_cms*86400/(1470.1266*1e6)*1000) %>%
   mutate(MONTHYEAR=as.Date(floor_date(DATE, 'month'))) %>%
-  group_by(MONTHYEAR) %>%
-  summarise(N=sum(!is.na(Q_mm_d)),
+  dplyr::group_by(MONTHYEAR) %>%
+  dplyr::summarise(N=sum(!is.na(Q_mm_d)),
             Q_mm_mon=sum(Q_mm_d, na.rm=TRUE)) %>%
   mutate(WYEAR=wyear(MONTHYEAR),
          MONTH=month(MONTHYEAR)) %>%
@@ -75,8 +75,8 @@ df.beatty <- filter(q.owrd, STATION_ID=='11497500') %>%
             by=c('MONTHYEAR')) %>%
   filter(WYEAR >= 1982)
 
-df.beatty.wyr <- group_by(df.beatty, WYEAR) %>%
-  summarise(N=sum(N),
+df.beatty.wyr <- dplyr::group_by(df.beatty, WYEAR) %>%
+  dplyr::summarise(N=sum(N),
             Q_cm_yr=sum(Q_mm_mon)/10,
             PRCP_cm_yr=sum(PRCP_mm_mon)/10)
 
@@ -87,8 +87,8 @@ df.beatty %>%
   facet_wrap(~MONTH)
 
 df.beatty %>%
-  group_by(WYEAR) %>%
-  summarise(Q_mm_yr=sum(Q_mm_mon),
+  dplyr::group_by(WYEAR) %>%
+  dplyr::summarise(Q_mm_yr=sum(Q_mm_mon),
             PRCP_mm_yr=sum(PRCP_mm_mon)) %>%
   ggplot(aes(PRCP_mm_yr, Q_mm_yr, color=WYEAR>=2013)) +
   geom_point()
@@ -100,8 +100,8 @@ df.power <- filter(q.usgs, SITE_NAME=='Power') %>%
   mutate(Q_cms=FLOW*0.0283168,
          Q_mm_d=Q_cms*86400/(1470.1266*1e6)*1000) %>%
   mutate(MONTHYEAR=as.Date(floor_date(DATE, 'month'))) %>%
-  group_by(MONTHYEAR) %>%
-  summarise(N=sum(!is.na(Q_mm_d)),
+  dplyr::group_by(MONTHYEAR) %>%
+  dplyr::summarise(N=sum(!is.na(Q_mm_d)),
             Q_mm_mon=sum(Q_mm_d, na.rm=TRUE)) %>%
   mutate(WYEAR=wyear(MONTHYEAR),
          MONTH=month(MONTHYEAR)) %>%
@@ -110,8 +110,8 @@ df.power <- filter(q.usgs, SITE_NAME=='Power') %>%
               select(MONTHYEAR, PRCP_mm_mon),
             by=c('MONTHYEAR')) %>%
   filter(WYEAR >= 1982)
-df.power.wyr <- group_by(df.power, WYEAR) %>%
-  summarise(N=sum(N),
+df.power.wyr <- dplyr::group_by(df.power, WYEAR) %>%
+  dplyr::summarise(N=sum(N),
             Q_cm_yr=sum(Q_mm_mon)/10,
             PRCP_cm_yr=sum(PRCP_mm_mon)/10)
 
@@ -231,3 +231,4 @@ dev.off()
 #   labs(x='Cumulative Annual Precip (cm/yr)', y='Cumulative Annual Flow (cm/yr)')
 
 cat('\n\n')
+

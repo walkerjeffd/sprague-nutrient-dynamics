@@ -17,7 +17,7 @@ nlcd.subbasin <- nlcd.subbasin.raw %>%
          'SF+NF'=SF+NF,
          'SF_Ivory+NF_Ivory'=SF_Ivory+NF_Ivory) %>%
   gather(SITE_NAME, AREA_KM2, -SOURCE, -EXTENT, -LANDUSE) %>%
-  group_by(EXTENT, SITE_NAME) %>%
+  dplyr::group_by(EXTENT, SITE_NAME) %>%
   mutate(TOTAL_AREA_KM2=sum(AREA_KM2)) %>%
   ungroup %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2)) %>%
@@ -28,8 +28,8 @@ nlcd.subbasin <- nlcd.subbasin.raw %>%
                                     'SF_Ivory', 'SF', 'NF_Ivory', 'NF')))
 stopifnot(all(table(nlcd.subbasin$EXTENT, nlcd.subbasin$SITE_NAME)==8))
 
-group_by(nlcd.subbasin, SOURCE, EXTENT, SITE_NAME) %>%
-  summarise(AREA_KM2=sum(AREA_KM2),
+dplyr::group_by(nlcd.subbasin, SOURCE, EXTENT, SITE_NAME) %>%
+  dplyr::summarise(AREA_KM2=sum(AREA_KM2),
             AREA_FRAC=sum(AREA_FRAC)) %>%
   as.data.frame
 
@@ -41,7 +41,7 @@ nlcd_segments_basin <- filter(network, DATASET=='RECENT') %>%
   left_join(filter(nlcd.subbasin, EXTENT=='basin') %>%
               select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
             by=c(TO='SITE_NAME', 'LANDUSE')) %>%
-  rename(AREA_KM2.FROM=AREA_KM2.x,
+  dplyr::rename(AREA_KM2.FROM=AREA_KM2.x,
          TOTAL_AREA_KM2.FROM=TOTAL_AREA_KM2.x,
          AREA_KM2.TO=AREA_KM2.y,
          TOTAL_AREA_KM2.TO=TOTAL_AREA_KM2.y) %>%
@@ -54,7 +54,7 @@ nlcd_segments_valley <- filter(network, DATASET=='RECENT') %>%
   left_join(filter(nlcd.subbasin, EXTENT=='valley') %>%
               select(SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
             by=c(TO='SITE_NAME', 'LANDUSE')) %>%
-  rename(AREA_KM2.FROM=AREA_KM2.x,
+  dplyr::rename(AREA_KM2.FROM=AREA_KM2.x,
          TOTAL_AREA_KM2.FROM=TOTAL_AREA_KM2.x,
          AREA_KM2.TO=AREA_KM2.y,
          TOTAL_AREA_KM2.TO=TOTAL_AREA_KM2.y) %>%
@@ -98,8 +98,8 @@ print(p)
 
 p <- nlcd.subbasin %>%
   filter(EXTENT=='basin', SITE_NAME %in% union(nlcd_segments_basin$TO, nlcd_segments_basin$FROM)) %>%
-  group_by(EXTENT, SITE_NAME, TOTAL_AREA_KM2, LANDUSE) %>%
-  summarise(AREA_KM2=sum(AREA_KM2)) %>%
+  dplyr::group_by(EXTENT, SITE_NAME, TOTAL_AREA_KM2, LANDUSE) %>%
+  dplyr::summarise(AREA_KM2=sum(AREA_KM2)) %>%
   ggplot(aes(TOTAL_AREA_KM2, AREA_KM2)) +
   geom_segment(aes(x=TOTAL_AREA_KM2.FROM, xend=TOTAL_AREA_KM2.TO, y=AREA_KM2.FROM, yend=AREA_KM2.TO, size=MAINSTEM),
                data=nlcd_segments_basin, alpha=0.5) +
@@ -113,8 +113,8 @@ print(p)
 
 p <- nlcd.subbasin %>%
   filter(EXTENT=='valley', SITE_NAME %in% union(nlcd_segments_valley$TO, nlcd_segments_valley$FROM)) %>%
-  group_by(EXTENT, SITE_NAME, TOTAL_AREA_KM2, LANDUSE) %>%
-  summarise(AREA_KM2=sum(AREA_KM2)) %>%
+  dplyr::group_by(EXTENT, SITE_NAME, TOTAL_AREA_KM2, LANDUSE) %>%
+  dplyr::summarise(AREA_KM2=sum(AREA_KM2)) %>%
   ggplot(aes(TOTAL_AREA_KM2, AREA_KM2)) +
   geom_segment(aes(x=TOTAL_AREA_KM2.FROM, xend=TOTAL_AREA_KM2.TO, y=AREA_KM2.FROM, yend=AREA_KM2.TO, size=MAINSTEM),
                data=nlcd_segments_valley, alpha=0.5) +

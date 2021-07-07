@@ -56,7 +56,7 @@ nlcd.subbasin <- spread(nlcd.subbasin, SITE_NAME, AREA_KM2) %>%
 nlcd.subbasin <- mutate(nlcd.subbasin, SITE_NAME=as.character(SITE_NAME)) %>%
   left_join(mutate(subbasin_area,
                    SITE_NAME=as.character(SITE_NAME)) %>%
-              rename(TOTAL_AREA_KM2=AREA_KM2),
+              dplyr::rename(TOTAL_AREA_KM2=AREA_KM2),
             by=c("EXTENT", "SITE_NAME")) %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2))
 
@@ -69,8 +69,8 @@ nlcd.subbasin <- mutate(nlcd.subbasin,
 
 # check that sum of fraction areas is one for each site/extent
 filter(nlcd.subbasin, LANDUSE %in% nlcd.categories) %>%
-  group_by(EXTENT, SITE_NAME) %>%
-  summarise(AREA_FRAC=sum(AREA_FRAC)) %>%
+  dplyr::group_by(EXTENT, SITE_NAME) %>%
+  dplyr::summarise(AREA_FRAC=sum(AREA_FRAC)) %>%
   filter(AREA_FRAC != 0) %>%
   (function(x) {
     stopifnot(all(abs(x$AREA_FRAC-1) < 0.01))
@@ -78,7 +78,7 @@ filter(nlcd.subbasin, LANDUSE %in% nlcd.categories) %>%
 
 # extract wq data ----
 df_mon <- loads_df[['mon']] %>%
-  rename(BASIN_AREA_KM2=AREA_KM2) %>%
+  dplyr::rename(BASIN_AREA_KM2=AREA_KM2) %>%
   filter(DATASET=="POR")
 
 df_wyr <- loads_df[['wyr']] %>%
@@ -86,18 +86,24 @@ df_wyr <- loads_df[['wyr']] %>%
 
 df_site <- loads_df[['site']] %>%
   filter(DATASET=="POR") %>%
-  mutate(PERIOD=plyr::revalue(PERIOD, c("2002-2014"="P2002",
-                                        "2010-2014"="P2010",
-                                        "2011-2014"="P2010")),
-         PERIOD=as.character(PERIOD))
+  #mutate(PERIOD=plyr::revalue(PERIOD, c("2002-2014"="P2002",
+   #                                     "2010-2014"="P2010",
+    #                                    "2011-2014"="P2010")),
+  mutate(PERIOD=ifelse(PERIOD=="2002-2014","P2002",
+                       ifelse(PERIOD=="2010-2014","P2010",
+                       ifelse(PERIOD=="2011-2014","P2010",PERIOD)))) %>%
+  mutate(PERIOD=as.character(PERIOD))
 
 # set up pou subbasin
-pou_subbasin <- mutate(pou_subbasin,
-                       LANDUSE="POU")
-# join nlcd and pou
-lu.subbasin <- rbind(nlcd.subbasin, pou_subbasin)
+pou_subbasin <- pou_subbasin %>%
+  mutate( LANDUSE="POU") %>%
+  select(EXTENT,LANDUSE,SITE_NAME,AREA_KM2,TOTAL_AREA_KM2,AREA_FRAC)
 
-df_wyr_area <- select(df_wyr, -AREA_KM2) %>%
+# join nlcd and pou
+lu.subbasin <- rbind(nlcd.subbasin, pou_subbasin) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME))
+
+df_wyr_area <- select(mutate(df_wyr,SITE_NAME=as.character(SITE_NAME)), -AREA_KM2) %>%
   filter(SITE_NAME %in% unique(lu.subbasin$SITE_NAME)) %>%
   left_join(lu.subbasin %>%
               select(EXTENT, SITE_NAME, LANDUSE, AREA_KM2, TOTAL_AREA_KM2),
@@ -315,13 +321,15 @@ df_pou_rho <- df_site_area %>%
          LANDUSE=="POU",
          SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan',
                           'SF_Ivory', 'SF', 'NF_Ivory', 'NF')) %>%
-  group_by(VAR) %>%
+  dplyr::group_by(VAR) %>%
   mutate(MAX_VALUE=max(VALUE)) %>%
-  group_by(VAR, SEASON, MAX_VALUE) %>%
-  do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
-  mutate(rho=ct$estimate,
-         p=ct$p.value) %>%
-  select(-ct) %>%
+  dplyr::group_by(VAR, SEASON, MAX_VALUE) %>%
+  dplyr::summarise(rho=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$estimate,
+                   p=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$p.value) %>%
+  #do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
+  #mutate(rho=ct$estimate,
+  #       p=ct$p.value) %>%
+  #select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
 
 filename <- 'report/results-load-pou-WY2010-2014-valley.png'
@@ -409,22 +417,28 @@ dev.off()
 
 # nlcd
 
-df_nlcd_rho <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
-                      EXTENT=="basin", !(LANDUSE %in% c("POU", "Total")),
-                      SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan',
-                                       'SF_Ivory', 'SF', 'NF_Ivory', 'NF'),
-                      SEASON=="Annual") %>%
+df_nlcd_rho <- df_site_area %>%
+  mutate(SITE_NAME=as.factor(SITE_NAME)) %>%
+  filter( PERIOD=="P2010", TERM=="C",
+          EXTENT=="basin", !(LANDUSE %in% c("POU", "Total")),
+          SITE_NAME %in% c('Power', 'Lone_Pine', 'Godowa', 'Sycan',
+                           'SF_Ivory', 'SF', 'NF_Ivory', 'NF'),
+          SEASON=="Annual") %>%
   filter(SITE_NAME %in% stn_subbasin[["P2010"]]) %>%
   filter(TOTAL_AREA_KM2>0) %>%
   mutate(AREA_FRAC=AREA_KM2/TOTAL_AREA_KM2) %>%
-  group_by(VAR) %>%
+  dplyr::group_by(VAR) %>%
   mutate(MAX_VALUE=max(VALUE)) %>%
-  group_by(LANDUSE, VAR, SEASON, MAX_VALUE) %>%
-  do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
-  mutate(rho=ct$estimate,
-         p=ct$p.value) %>%
-  select(-ct) %>%
+  dplyr::group_by(LANDUSE, VAR, SEASON, MAX_VALUE) %>%
+  dplyr::summarise(rho=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$estimate,
+                   p=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$p.value) %>%
+  #do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
+ # mutate(rho=ct$estimate,
+  #       p=ct$p.value) %>%
+ # select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
+
+
 
 filename <- 'report/results-load-nlcd-WY2010-2014-basin.png'
 cat('Saving report figure to:', filename, '\n')

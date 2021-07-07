@@ -44,8 +44,8 @@ ggplot(q, aes(DATE, Q)) +
 
 # plot annual flows
 mutate(q, WYEAR=wyear(DATE)) %>%
-  group_by(SITE_NAME, WYEAR) %>%
-  summarize(Q=mean(Q)) %>%
+  dplyr::group_by(SITE_NAME, WYEAR) %>%
+  dplyr::summarise(Q=mean(Q)) %>%
   ggplot(aes(factor(WYEAR), Q)) +
   geom_bar(stat='identity') +
   facet_wrap(~SITE_NAME) +
@@ -58,7 +58,7 @@ wq <- lapply(dataset_levels, function(dataset) {
   x$DATASET <- dataset
   x
 }) %>%
-  rbind_all(.)
+  bind_rows(.)
 wq <- select(wq, -DATETIME)
 wq.flow <- select(wq, DATASET, SITE, DATE, VAR, VALUE) %>%
   filter(VAR %in% c('FLOW')) %>%
@@ -77,7 +77,7 @@ wq <- wq %>%
   mutate(VALUE=ifelse(UNITS=="ppm", VALUE*1000, VALUE),
          UNITS=ifelse(UNITS=="ppm", "ppb", "ppm")) %>%
   select(-FLOW) %>%
-  rename(C=VALUE)
+  dplyr::rename(C=VALUE)
 stopifnot(all(wq$C > 0 | wq$DATASET=='RAW'))
 
 # plot wq data
@@ -109,7 +109,7 @@ q <- lapply(names(wq.kt_sprague), function(dataset) {
          DATASET=dataset) %>%
     filter(SITE_NAME %in% dataset_sites[[dataset]])
 }) %>%
-  rbind_all(.)
+  bind_rows(.)
 table(q$SITE_NAME, q$DATASET)
 
 wq <- select(wq, DATASET, SITE, SITE_NAME, DATE, VAR, Qs, C)
@@ -135,8 +135,8 @@ str(df)
 
 # years for predictions
 filter(df, SAMPLED) %>%
-  group_by(DATASET, SITE_NAME, VAR, WYEAR) %>%
-  summarise(N=n()) %>%
+  dplyr::group_by(DATASET, SITE_NAME, VAR, WYEAR) %>%
+  dplyr::summarise(N=n()) %>%
   filter(N>1) %>%
   ggplot() +
   geom_tile(aes(x=factor(WYEAR), SITE_NAME)) +
@@ -190,15 +190,18 @@ names(loads) <- dataset_levels
 
 areas <- rbind(select(subbasin_area, SITE_NAME, AREA_KM2),
                select(incbasin_area, SITE_NAME=INC_SITE_NAME, AREA_KM2)) %>%
+  as.data.frame() %>%
+  select(SITE_NAME, AREA_KM2) %>%
   unique %>%
+ # unique  %>% # i converted to a df and removed the spatial information to get the unique function working and reduce the dataset appropriately
   mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   arrange(SITE_NAME) %>%
   mutate(IDX=1) %>%
-  spread(SITE_NAME, AREA_KM2) %>%
+  pivot_wider(names_from=SITE_NAME,values_from=AREA_KM2) %>%  #spread(SITE_NAME, AREA_KM2) %>%
   mutate('Godowa+Sycan' = Godowa + Sycan,
          'SF+NF' = SF + NF,
          'SF_Ivory+NF_Ivory' = SF_Ivory + NF_Ivory) %>%
-  gather(SITE_NAME, AREA_KM2, -IDX) %>%
+  pivot_longer(c(Godowa:`SF_Ivory+NF_Ivory`),names_to="SITE_NAME",values_to="AREA_KM2") %>%  #gather(SITE_NAME, AREA_KM2, -IDX) %>%
   mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   select(-IDX)
 
@@ -212,11 +215,11 @@ df_day <- lapply(names(loads), function(dataset) {
       x$SITE_NAME <- site
       x
     }) %>%
-      rbind_all
+      bind_rows
   }) %>%
-    rbind_all
+    bind_rows
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(DATASET=ordered(DATASET, levels=dataset_levels),
          SITE_NAME=ordered(SITE_NAME, levels=site_name_levels),
          VAR=factor(VAR)) %>%
@@ -245,8 +248,8 @@ df_day <- rbind(df_day, df_day_p) %>%
 # compute month
 df_mon <- df_day %>%
   mutate(MONTHYEAR=floor_date(DATE, 'month')) %>%
-  group_by(DATASET, VAR, SITE_NAME, MONTHYEAR, MONTH, WYEAR) %>%
-  summarise(START_DATE=min(DATE),
+  dplyr::group_by(DATASET, VAR, SITE_NAME, MONTHYEAR, MONTH, WYEAR) %>%
+  dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE),
             Q=mean(Q),
             L=mean(L),
@@ -264,14 +267,14 @@ seasons <- list(Annual=1:12,
 df_seasons <- lapply(names(seasons), function(s) {
   data.frame(MONTH=seasons[[s]], SEASON=s, stringsAsFactors=FALSE)
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(SEASON=ordered(SEASON, levels=names(seasons)))
 
 df_wyr <- left_join(df_seasons, df_day, by="MONTH") %>%
   mutate(MONTH=10,
          WYEARDATE=ymd(paste(WYEAR-1, MONTH, 1, sep='-'))) %>%
-  group_by(DATASET, VAR, SITE_NAME, WYEARDATE, MONTH, WYEAR, SEASON) %>%
-  summarise(N_DAY=n(),
+  dplyr::group_by(DATASET, VAR, SITE_NAME, WYEARDATE, MONTH, WYEAR, SEASON) %>%
+  dplyr::summarise(N_DAY=n(),
             START_DATE=min(DATE),
             END_DATE=max(DATE),
             Q=mean(Q),
@@ -283,8 +286,8 @@ df_wyr <- left_join(df_seasons, df_day, by="MONTH") %>%
 
 # compute site
 df_site_tss <- filter(df_wyr, VAR=="TSS") %>%
-  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
-  summarise(N_YEAR=length(unique(WYEAR)),
+  dplyr::group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  dplyr::summarise(N_YEAR=length(unique(WYEAR)),
             N_DAY=sum(N_DAY),
             PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
             START_DATE=min(DATE),
@@ -297,8 +300,8 @@ df_site_tss <- filter(df_wyr, VAR=="TSS") %>%
 
 df_site_por_2002 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
                            !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
-  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
-  summarise(N_YEAR=length(unique(WYEAR)),
+  dplyr::group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  dplyr::summarise(N_YEAR=length(unique(WYEAR)),
             N_DAY=sum(N_DAY),
             PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
             START_DATE=min(DATE),
@@ -312,8 +315,8 @@ stopifnot(all(df_site_por_2002$PERIOD == '2002-2014'))
 
 df_site_por_2010 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
                            WYEAR >= 2010) %>%
-  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
-  summarise(N_YEAR=length(unique(WYEAR)),
+  dplyr::group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  dplyr::summarise(N_YEAR=length(unique(WYEAR)),
             N_DAY=sum(N_DAY),
             PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
             START_DATE=min(DATE),
@@ -326,8 +329,8 @@ df_site_por_2010 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
 stopifnot(all(df_site_por_2010$PERIOD == '2010-2014'))
 
 df_site_recent <- filter(df_wyr, DATASET=="RECENT", VAR!="TSS") %>%
-  group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
-  summarise(N_YEAR=length(unique(WYEAR)),
+  dplyr::group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
+  dplyr::summarise(N_YEAR=length(unique(WYEAR)),
             N_DAY=sum(N_DAY),
             PERIOD=paste0(min(WYEAR), '-', max(WYEAR)),
             START_DATE=min(DATE),
@@ -418,27 +421,27 @@ df_day <- filter(df_day, !(TERM %in% c('Q', 'Q_AREA'))) %>%
 
 df_mon <- filter(df_all, FREQ=="MON") %>%
   select(-FREQ, -PERIOD, -START_DATE, -END_DATE, -SEASON, -N_DAY, -N_YEAR) %>%
-  rename(MONTHYEAR=DATE)
+  dplyr::rename(MONTHYEAR=DATE)
 df_wyr <- filter(df_all, FREQ=="WYR") %>%
   select(-FREQ, -PERIOD, -START_DATE, -END_DATE, -MONTH, -N_YEAR)
 df_site <- filter(df_all, FREQ=="SITE") %>%
   select(-FREQ, -MONTH, -DATE, -WYEAR)
 
 # check df_day
-group_by(df_day, DATASET, VAR, TERM, SITE_NAME, DATE) %>%
-  summarise(N=n()) %>%
+dplyr::group_by(df_day, DATASET, VAR, TERM, SITE_NAME, DATE) %>%
+  dplyr::summarise(N=n()) %>%
   (function(x) { stopifnot(all(x$N==1)) })
 
-group_by(df_mon, DATASET, VAR, TERM, SITE_NAME, MONTHYEAR) %>%
-  summarise(N=n()) %>%
+dplyr::group_by(df_mon, DATASET, VAR, TERM, SITE_NAME, MONTHYEAR) %>%
+  dplyr::summarise(N=n()) %>%
   (function(x) { stopifnot(all(x$N==1)) })
 
-group_by(df_wyr, DATASET, VAR, TERM, SITE_NAME, WYEAR, SEASON) %>%
-  summarise(N=n()) %>%
+dplyr::group_by(df_wyr, DATASET, VAR, TERM, SITE_NAME, WYEAR, SEASON) %>%
+  dplyr::summarise(N=n()) %>%
   (function(x) { stopifnot(all(x$N==1)) })
 
-group_by(df_site, DATASET, VAR, TERM, SITE_NAME, PERIOD, SEASON) %>%
-  summarise(N=n()) %>%
+dplyr::group_by(df_site, DATASET, VAR, TERM, SITE_NAME, PERIOD, SEASON) %>%
+  dplyr::summarise(N=n()) %>%
   (function(x) { stopifnot(all(x$N==1)) })
 
 table(df_site$SEASON, df_site$PERIOD, df_site$DATASET)
