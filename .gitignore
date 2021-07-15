@@ -18,3 +18,5 @@ csv/wq_kt_sprague.csv
 *.pdf
 *.html
 *.zip
+
+data/raw/prism/rasters

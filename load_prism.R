@@ -34,8 +34,11 @@ incbasin_nad83 %>%
   geom_sf() +
   geom_sf_text(aes(label = SITE))
 
-# set download folder for prism (DO NOT TRACK, best to put it somewhere outside this repo)
-prism_set_dl_dir("~/data/prism")
+# set download folder for prism (note: this folder is not tracked in repo)
+if (!dir.exists("data/raw/prism/rasters")) {
+  dir.create("data/raw/prism/rasters", recursive = TRUE)
+}
+prism_set_dl_dir("data/raw/prism/rasters")
 
 # download prism rasters (monthly, 1981-2020)
 get_prism_monthlys(type = "ppt", year = 1981:2020, mon = 1:12, keepZip = FALSE)
