@@ -1,31 +1,89 @@
-library(dplyr)
-library(tidyr)
+library(tidyverse)
+library(janitor)
 library(lubridate)
-library(fluxr)
-library(ggplot2)
+library(prism)
 library(sf)
-theme_set(theme_bw())
+library(exactextractr)
+library(fluxr)
 
-rm(list=ls())
+# load: prism from 2015 ---------------------------------------------------
+# only used to validate new dataset fetched using {prism} package
 
-cat(paste0(rep('=', 80), collapse=''), '\n')
-cat("Loading PRISM dataset...\n\n")
-
-#DATA_DIR <- getOption('UKL_DATA')
-DATA_DIR <- './data'
-
-# load data ----
-load('gis.Rdata')
-
-filename <- file.path(DATA_DIR, 'raw', 'prism', 'ppt_basins.csv')
-cat("Loading PRISM dataset from:", filename, '\n')
-prism <- read.csv(filename, skip=1, stringsAsFactors=FALSE)
-names(prism) <- toupper(names(prism))
-prism <- dplyr::rename(prism, PRCP=PPT) %>%
+filename_2015 <- file.path("data", "raw", "prism", "ppt_basins.csv")
+prism_2015 <- read_csv(filename_2015, skip = 1)
+names(prism_2015) <- toupper(names(prism_2015))
+prism_2015 <- dplyr::rename(prism_2015, PRCP=PPT) %>%
   filter(SITE != 'WR1000') %>%
   mutate(MONTHYEAR=as.Date(paste(YEAR, MONTH, 1, sep='-')),
          WYEAR=wyear(MONTHYEAR)) %>%
   select(MONTHYEAR, WYEAR, SITE, PRCP)
+
+
+# load: prism (latest) ----------------------------------------------------
+# fetch using {prism} and compute zonal stats using {exactextractr}
+
+# load subbasins gis
+load("gis.Rdata")
+
+# re-project to NAD83 (same as prism rasters)
+incbasin_nad83 <- incbasin %>%
+  filter(INC_SITE_NAME != "Godowa-SF-NF") %>%
+  st_transform(crs = "EPSG:4269")
+incbasin_nad83 %>%
+  ggplot() +
+  geom_sf() +
+  geom_sf_text(aes(label = SITE))
+
+# set download folder for prism (DO NOT TRACK, best to put it somewhere outside this repo)
+prism_set_dl_dir("~/data/prism")
+
+# download prism rasters (monthly, 1981-2020)
+get_prism_monthlys(type = "ppt", year = 1981:2020, mon = 1:12, keepZip = FALSE)
+
+# load rasters as stack
+prism_files <- pd_to_file(prism_archive_subset("ppt", "monthly", years = 1981:2020, mon = 1:12))
+prism_stack <- raster::stack(prism_files)
+raster::crs(prism_stack) <- sp::CRS("+init=EPSG:4269")
+
+# compute zonal stats by basin
+prism_extract <- as_tibble(exact_extract(prism_stack, incbasin_nad83, "mean", append_cols = c("SITE")))
+
+# convert to long data frame
+prism <- prism_extract %>%
+  pivot_longer(-c(SITE), names_to = "NAME", values_to = "PRCP") %>%
+  mutate(
+    MONTHYEAR = ymd(str_c(str_sub(NAME, 29, 34), "01")),
+    WYEAR = wyear(MONTHYEAR)
+  ) %>%
+  dplyr::select(-NAME)
+
+prism %>%
+  ggplot(aes(MONTHYEAR, PRCP)) +
+  geom_line(aes(color = as.character(SITE)))
+
+# compare latest to 2015
+bind_rows(
+  prism_2015 %>%
+    mutate(dataset = "2015"),
+  prism %>%
+    mutate(dataset = "latest")
+) %>%
+  ggplot(aes(MONTHYEAR, PRCP)) +
+  geom_line(aes(color = dataset)) +
+  facet_wrap(vars(SITE))
+
+# scatterplot comparison
+bind_rows(
+  prism_2015 %>%
+    mutate(dataset = "2015"),
+  prism %>%
+    mutate(dataset = "latest")
+) %>%
+  pivot_wider(names_from = "dataset", values_from = "PRCP") %>%
+  ggplot(aes(`2015`, latest)) +
+  geom_abline() +
+  geom_point() +
+  facet_wrap(vars(SITE))
 
 # join incbasin
 prism <- left_join(prism,
