@@ -36,6 +36,8 @@ stn.owrd <- select(stn.owrd, STATION_ID, DESCRIPTION, LAT, LON, DRAINAGE_AREA_SQ
 q.owrd <- lapply(stn.owrd$STATION_ID, function(site) {
   filename <- file.path(DATA_DIR, 'sprague', 'owrd',
                         paste0('Station_', site, '_mean_daily_flow.txt'))
+
+
   cat("Loading flow data from:", filename, "\n")
 
   df <- read.table(filename,

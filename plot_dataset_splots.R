@@ -40,7 +40,9 @@ for (site in levels(wq$SITE_NAME)) {
   p <- wq %>%
     mutate(VALUE=log10(VALUE)) %>%
     select(-VAR_UNITS) %>%
-    spread(VAR, VALUE) %>%
+    group_by(DATE,VAR) %>%
+    mutate(row=row_number()) %>%
+    pivot_wider(names_from="VAR", values_from="VALUE") %>%
     filter(SITE_NAME==site) %>%
     select(-DATE, -SITE, -SITE_NAME) %>%
     ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
@@ -72,8 +74,8 @@ for (variable in levels(wq$VAR)) {
     select(-YEAR, -WEEK) %>%
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
 
-    ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
-            upper=list(continuous=wrap("smooth",method="lm")),
+    ggpairs(lower=list(continuous=wrap("smooth",method="lm"),size=0.5),
+            upper=list(continuous=wrap("smooth",method="lm"),size=0.5),
             title=paste0('Variable: ', variable))+
     #ggpairs(upper=list(continuous="points", params=c(size=1)),
      #       lower=list(continuous="points", params=c(size=1)),

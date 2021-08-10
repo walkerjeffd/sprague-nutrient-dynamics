@@ -9,6 +9,7 @@ library(fluxr)
 library(maptools)
 library(gpclib)
 library(sp)
+library(sf)
 gpclibPermit()
 theme_set(theme_bw())
 
@@ -42,6 +43,8 @@ incbasin_levels <- list(P2010=setdiff(levels(incbasin_area$INC_SITE_NAME), c("Go
 wyears_levels <- list(P2010=c(2010, 2014),
                       P2002=c(2002, 2014))
 
+
+
 # separate gis by dataset
 stn <- list(P2010=filter(stn, SITE_NAME %in% subbasin_levels[['P2010']]),
             P2002=filter(stn, SITE_NAME %in% subbasin_levels[['P2002']]))
@@ -51,6 +54,7 @@ incbasin <- list(P2010=filter(incbasin,
                               INC_SITE_NAME %in% incbasin_levels[['P2010']]),
                  P2002=filter(incbasin,
                               INC_SITE_NAME %in% incbasin_levels[['P2002']]))
+
 
 scale_fill_term <- list(Q=scale_fill_gradientn('Flow\n(hm3/yr)', colours=RColorBrewer::brewer.pal(n=6, name="Blues"), limits=c(0,NA)),
                         L=scale_fill_gradientn('Load\n(kg/yr)', colours=RColorBrewer::brewer.pal(n=6, name="Greens"), limits=c(0,NA)),
@@ -79,17 +83,18 @@ scale_fill_term_inc <- list(
 # subbasin functions ----
 map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
   ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-    geom_polygon(aes(x = long, y = lat, group = group),
+   # coord_sf(crs = st_crs(4326)) +
+    geom_sf(aes(x = long, y = lat, group = group),
                  data = incbasin[[period]],
-                 color = 'grey50', fill = NA, size = 0.2) +
-    geom_polygon(aes(x = long, y = lat, fill = VALUE),
+                 color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
+    geom_sf(aes(x = long, y = lat, fill = VALUE),inherit.aes=FALSE,
                  data = subbasin[[period]] %>%
                    left_join(filter(df_site, PERIOD==period, SEASON==season, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels[[period]]),
                              by='SITE_NAME') %>%
-                   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])),
+               mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])), # PRIOR WORK
                  colour = 'black', size = 0.2) +
-    geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-                 color = 'black', fill = NA, size = 0.2) +
+    geom_sf(aes(x = long, y = lat, group = group), data = basin,
+                 color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
     geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
     scale_fill_term[[term]] +
     facet_wrap(~SITE_NAME, nrow=2) +
@@ -159,19 +164,22 @@ dash_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
 map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
   if (term == 'C') {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
+     # coord_sf(crs = st_crs(4326)) +
       geom_sf(aes(x = long, y = lat, group = group),
-                   data = incbasin[[period]],
-                   color = 'grey50', fill = NA, size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
+                   data = incbasin[[period]] ,
+                   color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
+      geom_sf(aes(x = long, y = lat, fill = VALUE, group=id),inherit.aes=FALSE,
                    data = filter(incbasin[[period]], !(INC_SITE_NAME %in% c('Sycan', 'NF', 'SF'))) %>%
-                     left_join(filter(df_site, DATASET==dataset,
+               # mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])), # does this need to be added to address the difference in column type formats between the two dataframes?
+                     left_join(filter(df_site ,
+                                      DATASET==dataset,
                                       PERIOD==period, SEASON==season,
                                       VAR==variable, TERM==term,
                                       SITE_NAME %in% incbasin_levels[[period]]),
                                by=c('INC_SITE_NAME'='SITE_NAME')),
                    colour = 'black', size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-                   color = 'black', fill = NA, size = 0.2) +
+      geom_sf(aes(x = long, y = lat, group = group), data = basin,
+                   color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
       geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
                 data=incbasin[[period]] %>%
@@ -184,9 +192,10 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
       ggtitle(title)
   } else {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = incbasin[[period]],
-                   color = 'grey50', fill = NA, size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
+     # coord_sf(crs = st_crs(4326)) +
+      geom_sf(aes(x = long, y = lat, group = group), data = incbasin[[period]],
+                   color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
+      geom_sf(aes(x = long, y = lat, fill = VALUE, group=id),inherit.aes=FALSE,
                    data = incbasin[[period]] %>%
                      left_join(filter(df_site,
                                       DATASET==dataset, VAR==variable, TERM==term,
@@ -194,8 +203,8 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
                                       SITE_NAME %in% incbasin_levels[[period]]),
                                by=c('INC_SITE_NAME'='SITE_NAME')),
                    colour = 'black', size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = basin,
-                   color = 'black', fill = NA, size = 0.2) +
+      geom_sf(aes(x = long, y = lat, group = group), data = basin,
+                   color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
       geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
                 data=incbasin[[period]] %>%
@@ -238,7 +247,7 @@ bar_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
   p <- x %>%
     ggplot(aes(x=SITE_NAME, y=VALUE, fill=VALUE)) +
     geom_bar(stat='identity', color='grey50') +
-    geom_hline(yint=0, color='grey50') +
+    geom_hline(yintercept=0, color='grey50') +
     labs(x='', y=scale_fill_term_inc[[term]]$name) +
     scale_fill_term_inc[[term]] +
     coord_flip() +

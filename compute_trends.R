@@ -324,9 +324,9 @@ trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
     x$VAR <- variable
     x
   }) %>%
-    rbind_all
+    bind_rows
 }) %>%
-  rbind_all %>%
+  bind_rows %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME)),
          VAR=ordered(VAR, levels=levels(df_mon$VAR)),
          SIGNIF=ordered(as.character(SIGNIF), levels=c("p<0.05","0.05<p<0.10","p>0.10"))) %>%

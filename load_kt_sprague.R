@@ -15,8 +15,9 @@ source('functions.R')
 filename <- file.path('data', 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
 cat('Loading file:', filename, '\n')
 
-df <- read.csv(filename, stringsAsFactors=FALSE)
-df <- dplyr::rename(df,
+df_2001_2014 <- read.csv(filename, stringsAsFactors=FALSE)
+df_2001_2014 <- df_2001_2014 %>%
+  dplyr::rename(
              INDEX=INDEX,
              DATE=DATE,
              LAT=GPS_N,
@@ -121,13 +122,47 @@ df <- dplyr::rename(df,
              PHAE_RPD=PHAE_RPD,
              PHAE_PASS_FAIL=PHAE_PASS_FAIL,
              NOTES=Notes)
-df.orig <- df
 
-df <- select(df, DATE, TIME, LAT, LON, SITE_DESCRIPTION, SITE,
+
+
+df_2001_2014 <- dplyr::select(df_2001_2014, DATE, MONTH, DAY, YEAR, TIME, LAT, LON, SITE_DESCRIPTION, SITE,
              FLOW_cfs, STAGE_ft, TEMP_degC, COND_uScm, DO_ppm, PH_su, PSAT_pct,
-             TP_ppm, PO4_ppm, NH4_ppm, NO23_ppm, NO2_ppm, TN_ppm,
-             TSS_ppm, TURBIDITY_NTU, NOTES) %>%
-  mutate(STAGE_ft=as.double(STAGE_ft)) # 'n/a' converted to NA
+             TP_ppm, PO4_ppm, NH4_ppm, NO23_ppm, NO2_ppm, TN_ppm,TSS_ppm,
+             TP_DUP, PO4_DUP, NH4_DUP, NO23_DUP, NO2_DUP, TN_DUP,
+             SIO2_DUP, TSS_DUP, TURBIDITY_NTU, NOTES) %>%
+  mutate(STAGE_ft=as.double(STAGE_ft)) %>% # 'n/a' converted to NA
+  mutate(DATE=mdy(DATE))
+
+# updated data
+
+
+filename <- file.path('data', 'sprague', 'kt', 'SR_2014_2020.csv')
+cat('Loading file:', filename, '\n')
+
+df_2014_2020 <- read.csv(filename, stringsAsFactors=FALSE)
+df_2014_2020 <- df_2014_2020 %>%
+  dplyr::select( DATE, TIME, MONTH, DAY, YEAR, SITE_DESCRIPTION, SITE,
+         FLOW_cfs, STAGE_ft, TEMP_degC, COND_uScm, DO_ppm, PH_su, PSAT_pct,
+         TP_ppm, PO4_ppm, NH4_ppm, NO23_ppm, NO2_ppm, TN_ppm,TSS_ppm,
+         TP_DUP, PO4_DUP, NH4_DUP, NO23_DUP, NO2_DUP, TN_DUP,
+         SIO2_DUP, TSS_DUP, TURBIDITY_NTU, NOTES) %>%
+  mutate(STAGE_ft=as.double(STAGE_ft), # 'n/a' converted to NA
+         DATE=ymd(DATE))  %>%
+ # unique() %>% # i've tried unique, duplicated, and distinct and the duplicate rows of data are not coming out.
+  left_join(df_2001_2014 %>% select(SITE,LAT,LON) %>% unique) %>%
+   filter(!is.na(MONTH))
+#mutate(FLOW_cfs=as.numeric(FLOW_cfs)) %>%
+  # mutate(LAT=as.character(LAT)) %>%
+  #mutate(LON=as.character(LON))
+
+df <- bind_rows(df_2001_2014,df_2014_2020)
+
+df <- df %>%
+  distinct(SITE,DATE,TIME,FLOW_cfs,STAGE_ft,TEMP_degC,COND_uScm,DO_ppm,PH_su,PSAT_pct,
+           TP_ppm,NH4_ppm,PO4_ppm,NO23_ppm,NO2_ppm,.keep_all=TRUE) # remove duplicate rows
+
+
+df.orig <- df
 
 # remove rows without date
 idx.missing_date <- which(is.na(df$DATE))
@@ -160,16 +195,25 @@ if (length(which(df$TIME==15.06)) > 0) {
 
 # parse dates and times
 cat('Parsing dates and times\n')
-df <- mutate(df, DATE=mdy(DATE))
-df <- mutate(df, HOUR=floor(TIME/100),
-                 MINUTE=TIME-HOUR*100)
-df[['TIME']]  <- ifelse(is.na(df[['HOUR']]),
-                        '12:00',
-                        paste0(sprintf('%02d', df[['HOUR']]), ':',
-                               sprintf('%02d', df[['MINUTE']])))
+df <- df %>%
+  #mutate(DATE=mdy(DATE)) %>%
+#  mutate(HOUR=floor(TIME/100),
+ #        MINUTE=TIME-HOUR*100) %>%
+  separate(TIME, into = c("hour","min"), sep = -2 ) %>%
+  mutate(TIME_ = paste(hour,min,sep = ":")) %>%
+  mutate(TIME = hm(TIME_)) %>%
+  mutate(DATETIME_ = paste(DATE,TIME,sep = " ")) %>%
+  mutate(DATETIME = as_datetime(DATETIME_)) %>%
+  select(-hour, -min, - DATETIME_, -TIME_)
 
-df <- mutate(df, DATETIME=paste0(format(DATE, '%Y-%m-%d'), ' ', TIME) %>%
-                            ymd_hm())
+
+#df[['TIME']]  <- ifelse(is.na(df[['HOUR']]),
+ #                       '12:00',
+  #                      paste0(sprintf('%02d', df[['HOUR']]), ':',
+   #                            sprintf('%02d', df[['MINUTE']])))
+
+#df <- mutate(df, DATETIME=paste0(format(DATE, '%Y-%m-%d'), ' ', TIME) %>%
+ #                           ymd_hm())
 
 # remove Whiskey Creek
 idx.whiskey <- which(df$SITE == "SR3333")
@@ -276,26 +320,36 @@ detection_limits <- readRDS('detection_limits.Rdata')
 #   facet_wrap(~VAR, scales='free_y', ncol=1)
 # NOTE: DL switch on 2008-04-01
 
-# compute rpd test
+
+
+
 df.rpd <- df.orig %>%
-  select(YEAR, MONTH, DAY, SITE, TP_ppm, TP_DUP, PO4_ppm, PO4_DUP, TN_ppm, TN_DUP, NH4_ppm, NH4_DUP, NO23_ppm, NO23_DUP, TSS_ppm, TSS_DUP) %>%
+  select(DATE, YEAR, MONTH, DAY, SITE, TP_ppm, TP_DUP, PO4_ppm, PO4_DUP, TN_ppm, TN_DUP, NH4_ppm, NH4_DUP, NO23_ppm, NO23_DUP, TSS_ppm, TSS_DUP) %>%
   filter(SITE %in% stn$SITE) %>%
-  mutate(DATE=ymd(paste(YEAR,MONTH,DAY,sep='-')),
-         SITE=factor(SITE)) %>%
+  mutate(SITE=factor(SITE)) %>%
   select(SITE, DATE, TP_ppm:TSS_DUP) %>%
-  gather(VAR_TYPE, VALUE, -SITE, -DATE) %>%
+  pivot_longer(c(TP_ppm:TSS_DUP),names_to="VAR_TYPE",values_to="VALUE") %>%
+  #  gather(VAR_TYPE, VALUE, -SITE, -DATE) %>%
+  mutate(VALUE=as.character(VALUE)) %>%
   separate(VAR_TYPE, c("VAR", "TYPE"), sep="[_]") %>%
-  mutate(TYPE=plyr::revalue(TYPE, c("ppm"="PRIMARY", "DUP"="DUP"))) %>%
-  spread(TYPE, VALUE) %>%
-  filter(!is.na(DUP)) %>%
+  mutate(TYPE=ifelse(TYPE=="ppm","PRIMARY","DUP")) %>%
+  unique() %>%
+  pivot_wider(names_from=TYPE,values_from=VALUE) %>%
+  mutate(PRIMARY=as.numeric(PRIMARY)) %>%
+  mutate(DUP=as.numeric(DUP)) %>%
   left_join(detection_limits, by="VAR") %>%
+  unnest(cols=c(PRIMARY,DUP)) %>%
   mutate(DL_PERIOD=ifelse(DATE < ymd("2008-04-01"), 'UPPER', 'LOWER'),
          DL=ifelse(DL_PERIOD=='UPPER', UPPERDL, LOWERDL),
          HALF_DL=DL/2,
          DIFF=abs(PRIMARY-DUP),
          RPD=abs(PRIMARY-DUP)/((PRIMARY+DUP)/2),
          RPD_TYPE=ifelse(PRIMARY > 5*DL & DUP > 5*DL, 'HIGH', 'LOW'),
-         RPD_PASS=ifelse(RPD_TYPE=='HIGH', RPD<=0.2, DIFF<=DL))
+         RPD_PASS=ifelse(RPD_TYPE=='HIGH', RPD<=0.2, DIFF<=DL)) %>%
+  filter(!is.na(DUP))
+
+
+
 
 # number of rejected samples by RPD type
 filter(df.rpd, RPD_PASS==FALSE) %>%
@@ -328,7 +382,7 @@ p <- select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) 
   gather(SAMPLE, VALUE, PRIMARY, DUP) %>%
   ggplot(aes(DATE, VALUE, color=RPD_PASS)) +
   geom_line(aes(y=HALF_DL), color='black', alpha=0.5) +
-  geom_point(aes(size=RPD_PASS)) +
+  geom_point() + # removed aes(size = RPD_PASS) for now, as it's giving me a weird error
   scale_color_manual('Pass RPD?', values=c('TRUE'='grey50', 'FALSE'='orangered')) +
   scale_size_manual('Pass RPD?', values=c('TRUE'=1, 'FALSE'=2)) +
   scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
@@ -345,7 +399,7 @@ print(p)
 p <- select(df.rpd, SITE, DATE, VAR, PRIMARY, DUP, HALF_DL, RPD_TYPE, RPD_PASS) %>%
   ggplot(aes(PRIMARY, DUP, color=RPD_PASS)) +
   geom_abline(linetype=2) +
-  geom_point(aes(size=RPD_PASS)) +
+  geom_point() + # aes(size=RPD_PASS)
   scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                 labels=log_labels(c(1, 2, 3, 5, 7), 10^seq(-3, 3))) +
   scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
@@ -400,7 +454,7 @@ cat('\n\n')
 
 df <- left_join(df, outliers, by=c('DATE', 'SITE_NAME', 'VAR')) %>%
   mutate(FLAGGED=ifelse(is.na(FLAGGED), FALSE, FLAGGED))
-stopifnot(sum(df$FLAGGED)==nrow(outliers))
+stopifnot(sum(df$FLAGGED)==nrow(outliers)) # not true
 
 # assign OUTLIER QAQC flag
 idx.outlier <- which(df$FLAGGED)
