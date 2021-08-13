@@ -8,6 +8,8 @@ config.yml
 *_cache/
 
 csv/sprague_loads_*.csv
+csv/loads_*.csv
+csv/wq_kt_sprague.csv
 
 *.jpg
 *.png
@@ -16,3 +18,5 @@ csv/sprague_loads_*.csv
 *.pdf
 *.html
 *.zip
+
+data/raw/prism/rasters

@@ -73,7 +73,7 @@ stn_incbasin <- stn %>%
 #stopifnot(file.exists(GIS_DIR))
 
 DATA_DIR <- './data'
-GIS_DIR <- file.path(DATA_DIR, 'sprague', 'gis')
+GIS_DIR <- file.path(DATA_DIR, 'raw', 'gis')
 stopifnot(file.exists(GIS_DIR))
 
 # basin ----
@@ -91,7 +91,7 @@ cat("Loading shapefile:", filename, '\n')
 #basin_shp <- readShapeSpatial(filename,
                               #proj4string = CRS("+proj=longlat +datum=WGS84"))
 
-basin_shp <- st_read("./data/sprague/gis/sprague_basin.shp")
+basin_shp <- st_read("./data/raw/gis/sprague_basin.shp")
 #basin_shp <- st_set_crs(basin_shp, "+proj=longlat +datum=WGS84")
 
 st_crs(basin_shp)
@@ -111,7 +111,7 @@ cat("Loading shapefile:", filename, '\n')
 #subbasin_shp <- readShapeSpatial(filename,
  #                                proj4string = CRS("+proj=longlat +datum=WGS84"))
 
-subbasin_shp <- st_read("./data/sprague/gis/sprague_subbasins.shp")
+subbasin_shp <- st_read("./data/raw/gis/sprague_subbasins.shp")
 #subbasin_shp <- st_set_crs(subbasin_shp, "+proj=longlat +datum=WGS84")
 
 subbasin <- fortify(subbasin_shp, region="SITE") %>%
@@ -132,7 +132,7 @@ cat("Loading shapefile:", filename, '\n')
 #incbasin_ivory_shp <- readShapeSpatial(filename,
  #                                      proj4string = CRS("+proj=longlat +datum=WGS84"))
 
-incbasin_ivory_shp <- st_read("./data/sprague/gis/sprague_incbasins_ivory.shp")
+incbasin_ivory_shp <- st_read("./data/raw/gis/sprague_incbasins_ivory.shp")
 
 incbasin_ivory <- fortify(incbasin_ivory_shp, region="SITE") %>%
   filter(SITE != 'WR1000') %>%
@@ -155,7 +155,7 @@ filename <- file.path(GIS_DIR, 'sprague_incbasins.shp')
 cat("Loading shapefile:", filename, '\n')
 #incbasin_shp <- readShapeSpatial(filename,
  #                                proj4string = CRS("+proj=longlat +datum=WGS84"))
-incbasin_shp <- st_read("./data/sprague/gis/sprague_incbasins.shp")
+incbasin_shp <- st_read("./data/raw/gis/sprague_incbasins.shp")
 incbasin <- fortify(incbasin_shp, region="SITE") %>%
   filter(SITE != 'WR1000') %>%
  # mutate(SITE=id) %>%
@@ -197,7 +197,7 @@ filename <- file.path(GIS_DIR, 'sprague_flowlines.shp')
 cat("Loading shapefile:", filename, '\n')
 #flowline_shp <- readShapeSpatial(filename,
  #                                proj4string = CRS("+proj=longlat +datum=WGS84"))
-flowline_shp <- st_read("./data/sprague/gis/sprague_flowlines.shp")
+flowline_shp <- st_read("./data/raw/gis/sprague_flowlines.shp")
 flowline <- fortify(flowline_shp)
 
 # basemap ----

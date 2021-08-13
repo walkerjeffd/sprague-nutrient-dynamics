@@ -329,7 +329,7 @@ mutate(q.usgs,
   facet_wrap(~WYEAR)
 
 # air temperature ----
-temp <- read.csv('./data/sprague/prism/prism_temp_beatty.csv', stringsAsFactors=FALSE)
+temp <- read.csv('./data/raw/prism/prism_temp_beatty.csv', stringsAsFactors=FALSE)
 temp <- mutate(temp, MONTHYEAR=mdy(MONTHYEAR), WYEAR=fluxr::wyear(MONTHYEAR), MONTH=month(MONTHYEAR))
 
 temp %>%

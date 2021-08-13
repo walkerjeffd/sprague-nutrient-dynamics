@@ -12,10 +12,7 @@ load('gis.Rdata')
 
 
 # load ----
-#DATA_DIR <- getOption('UKL_DATA')
-#GIS_DIR <- file.path(DATA_DIR, '../gis/sprague/geomorph')
-DATA_DIR <- './data'
-GIS_DIR <- file.path(DATA_DIR, 'sprague', 'geomorphology')
+GIS_DIR <- file.path('data', 'raw', 'geomorphology')
 
 filename <- file.path(GIS_DIR, 'incremental_basins_geomorphology_clip.csv')
 cat("Loading geomorphology areas from:", filename, '\n')

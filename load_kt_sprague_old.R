@@ -12,7 +12,7 @@ source('functions.R')
 
 # DATA_DIR <- config::get("data_dir")
 
-filename <- file.path('data', 'sprague', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
+filename <- file.path('data', 'raw', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
 cat('Loading file:', filename, '\n')
 
 df <- read.csv(filename, stringsAsFactors=FALSE)
@@ -136,7 +136,7 @@ df_2001_2014 <- dplyr::select(df_2001_2014, DATE, MONTH, DAY, YEAR, TIME, LAT, L
 # updated data
 
 
-filename <- file.path('data', 'sprague', 'kt', 'SR_2014_2020.csv')
+filename <- file.path('data', 'raw', 'kt', 'SR_2014_2020.csv')
 cat('Loading file:', filename, '\n')
 
 df_2014_2020 <- read.csv(filename, stringsAsFactors=FALSE)
@@ -263,7 +263,7 @@ select(stn.raw, SITE, DESCRIPTION=SITE_DESCRIPTION, LAT=LAT_DD, LON=LON_DD) %>%
 
 # load manual stn list from csv
 cat("Loading site table from csv\n")
-stn <- read.csv(file.path('data', 'sprague', 'kt', 'kt_sprague_stations.csv'), stringsAsFactors=FALSE)
+stn <- read.csv(file.path('data', 'raw', 'kt', 'kt_sprague_stations.csv'), stringsAsFactors=FALSE)
 
 # load shapefile with subbasin areas
 cat("Loading basins shapefile and adding drainage area to sites table\n")
@@ -271,7 +271,7 @@ cat("Loading basins shapefile and adding drainage area to sites table\n")
 # subbasins_shp <- readShapeSpatial(file.path(DATA_DIR, '../gis/sprague/r_wgs84/sprague_subbasins.shp'),
 #                                   proj4string = CRS("+proj=longlat +datum=WGS84"))
 # subbasins <- fortify(subbasins_shp, region="SITE")
-subbasins_shp <- st_read(file.path('data/sprague/gis/sprague_subbasins.shp'), crs = 4326)
+subbasins_shp <- st_read('data/raw/gis/sprague_subbasins.shp', crs = 4326)
 
 stn <- left_join(stn, select(as_tibble(subbasins_shp), SITE, AreaSqKM), by="SITE") %>%
   dplyr::rename(DRAINAGE_AREA_SQKM=AreaSqKM)
