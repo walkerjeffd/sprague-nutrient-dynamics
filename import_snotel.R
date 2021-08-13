@@ -1,4 +1,4 @@
-[library(tidyverse)
+library(tidyverse)
 library(snotelr)
 library(dplyr)
 library(tidyr)
@@ -19,7 +19,7 @@ DATA_DIR <- './data'
 
 # load data ----
 #snotel_dir <- file.path(DATA_DIR, 'met', 'snotel')
-snotel_dir <- file.path(DATA_DIR, 'sprague', 'snotel')
+snotel_dir <- file.path(DATA_DIR, 'raw', 'snotel')
 files <- c(#'QUARTZ MOUNTAIN'='706_QUARTZ MOUNTAIN_20150219.txt',
   'SUMMER RIM'='800_SUMMER RIM_20150219.txt',
   'TAYLOR BUTTE'='810_TAYLOR BUTTE_20150219.txt',

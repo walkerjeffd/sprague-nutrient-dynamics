@@ -41,7 +41,7 @@ for (site in levels(wq$SITE_NAME)) {
     mutate(VALUE=log10(VALUE)) %>%
     select(-VAR_UNITS) %>%
     group_by(DATE,VAR) %>%
-    mutate(row=row_number()) %>%
+    mutate(row=1:nrow(.)) %>%
     pivot_wider(names_from="VAR", values_from="VALUE") %>%
     filter(SITE_NAME==site) %>%
     select(-DATE, -SITE, -SITE_NAME) %>%

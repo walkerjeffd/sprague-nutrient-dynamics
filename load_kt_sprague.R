@@ -136,7 +136,7 @@ df_2001_2014 <- dplyr::select(df_2001_2014, DATE, MONTH, DAY, YEAR, TIME, LAT, L
 # updated data
 
 
-filename <- file.path('data', 'sprague', 'kt', 'SR_2014_2020.csv')
+filename <- file.path('data', 'raw', 'kt', 'SR_2014_2020.csv')
 cat('Loading file:', filename, '\n')
 
 df_2014_2020 <- read.csv(filename, stringsAsFactors=FALSE)

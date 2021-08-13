@@ -10,7 +10,7 @@ cat("Loading OWRD dataset...\n\n")
 DATA_DIR <- './data'
 
 # load stn ----
-filename <- file.path(DATA_DIR, 'sprague', 'owrd', 'owrd_stations.csv')
+filename <- file.path(DATA_DIR, 'raw', 'owrd', 'owrd_stations.csv')
 cat("Loading stations from:", filename, "\n")
 stn.owrd <- read.csv(filename, stringsAsFactors=FALSE)
 
@@ -36,7 +36,7 @@ stn.owrd.list <- stn.owrd %>%  select(STATION_ID) %>% mutate(STATION_ID=as.chara
 
 # load ----
 q.owrd <- lapply(stn.owrd$STATION_ID, function(site) {
-  filename <- file.path(DATA_DIR, 'sprague', 'owrd',
+  filename <- file.path(DATA_DIR, 'raw', 'owrd',
                         paste0('Station_', site, '_mean_daily_flow.txt'))
 
 

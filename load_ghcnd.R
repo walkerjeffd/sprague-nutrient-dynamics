@@ -27,7 +27,7 @@ ghcnd <- mutate(ghcnd,
                 WYEAR=fluxr::wyear(DATE))
 stn.ghcnd <- select(ghcnd, STATION, STATION_NAME, ELEVATION, LATITUDE, LONGITUDE) %>% unique
 
-df.ghcnd_ %>% select(STATION_ID) %>% unique
+df.ghcnd %>% select(STATION_ID) %>% unique
 
 # plots ----
 ggplot(ghcnd, aes(DATE, PRCP)) +

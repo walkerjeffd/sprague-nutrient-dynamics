@@ -17,7 +17,7 @@ DATA_DIR <- './data'
 
 
 # load site info ----
-filename <- file.path(DATA_DIR, 'sprague', 'ghcnd', 'ghcnd_sprague.csv')
+filename <- file.path(DATA_DIR, 'raw', 'ghcnd', 'ghcnd_sprague.csv')
 cat('Loading GHCND dataset from:', filename, '\n\n')
 
 ghcnd <- read.csv(filename, stringsAsFactors=FALSE, na.strings='-9999') %>%

@@ -19,16 +19,16 @@ source('load_nlcd.R') # works, needs a few lines fixed (questions)
 source('load_geomorph.R') # works
 source('load_pou.R') # works
 
-source('import_ghcnd.R') # Good, except there is a difference in site numbers and data available
-source('import_snotel.R') # looks good
-source('import_owrd.R') # looks good
-source('import_usgs.R')
-
 source('load_ghcnd.R') # works
 source('load_snotel.R') # works
 source('load_owrd.R') # works
 source('load_usgs.R') # works
 source('load_prism.R') # works
+
+source('import_ghcnd.R') # Good, except there is a difference in site numbers and data available
+source('import_snotel.R') # looks good
+source('import_owrd.R') # looks good
+#source('import_usgs.R')
 
 # compute flows and loads
 source('compute_flows.R') # works
