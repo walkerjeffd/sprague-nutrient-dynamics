@@ -1,3 +1,5 @@
+library(tidyverse)
+library(snotelr)
 library(dplyr)
 library(tidyr)
 library(lubridate)
@@ -52,9 +54,11 @@ water_day <- function(x, start_month = 10) {
 snotel <- snotel %>%
   mutate(
                  SWE_cm=SWE_in*2.54,
-                 mutate(DATE = ymd(DATE)) ,
+
+                 DATE = ymd(DATE) ,
                  WYEAR=fluxr::wyear(DATE),
                  WDAY = water_day (DATE),
+                 SITE_NAME=as.factor(SITE_NAME),
                  WDAY_LABEL=as.Date("2001-10-01")+days(WDAY))
 
 snotel <- snotel %>%
@@ -126,7 +130,142 @@ p <- snotel %>%
 print(p)
 dev.off()
 
+# updated data import ----
 
+stn.snotel.ID <-  c("810","1010","800")
+
+snotel.update <- lapply(stn.snotel.ID,function(x) {
+  data <- snotel_download(site_id = x ,internal=T)
+})
+
+snotel.update <- do.call(bind_rows,snotel.update)
+
+snotel.update <-  snotel.update %>%
+  dplyr::rename(SWE_mm=snow_water_equivalent,SITE_NAME=site_name,DATE=date) %>%
+  mutate(SITE_NAME=toupper(SITE_NAME),
+         DATE=ymd(DATE),
+         YEAR=year(DATE),
+         MONTH=month(DATE),
+         WYEAR=fluxr::wyear(DATE),
+         WDAY = water_day (DATE),
+         WDAY_LABEL=as.Date("2001-10-01")+days(WDAY),
+         WYEAR_GRP=ifelse(WYEAR>2001&WYEAR<2013,"WY2002-2012",
+                          ifelse(WYEAR>2012&WYEAR<2017,"WY2013-2016",
+                                 ifelse(WYEAR>2016,"WY2017-2021","OTHER"))),
+         SITE_NAME=sub("\\s+$", "", SITE_NAME)) %>%
+  mutate(SITE_NAME=ifelse(SITE_NAME=="TAYLOR BUTTE ","TAYLOR BUTTE",
+                          ifelse(SITE_NAME=="CRAZYMAN FLAT ","CRAZYMAN FLAT",
+                                 ifelse(SITE_NAME=="SUMMER RIM ","SUMMER RIM",SITE_NAME)))) %>%
+  mutate(SWE_cm=SWE_mm*0.1) %>%
+  filter(WYEAR > 1980) %>%
+  select(SITE_NAME,DATE,SWE_cm,YEAR,MONTH,WYEAR,WDAY,WDAY_LABEL,WYEAR_GRP)
+
+
+snotel.update %>%
+  filter(WYEAR=="2013") %>%
+  ggplot()+
+  geom_point( aes(x=DATE,y=SWE_cm),color="red",alpha=0.5)+
+  geom_point(data=filter(snotel, WYEAR=="2013"),aes(x=DATE,y=SWE_cm),color="blue",alpha=0.5)+
+  facet_wrap(~SITE_NAME,ncol=1)+
+  theme_bw()
+
+# time series of SWE to verify the data are the same with the new and prior imports
+
+names <- unique(snotel.update$WYEAR)
+plot_list = list()
+for (ii in names) {
+
+  # colors <- c("GHCND original import"="blue","GHCND updated import"="red")
+
+  p <-
+    snotel.update %>%
+    filter(WYEAR == ii) %>%
+    ggplot()+
+    geom_point( aes(x=DATE,y=SWE_cm),color="red",alpha=0.4)+
+    geom_point(data=filter(snotel, WYEAR==ii),aes(x=DATE,y=SWE_cm),color="blue",alpha=0.4)+
+    facet_wrap(~SITE_NAME,ncol=1)+
+    theme_bw() +
+    ggtitle(as.character(ii))+
+    labs(x="Date",y=as.character(ii))
+  plot_list[[ii]] = p
+  ggsave(p, file=paste0("explore/snotel/snotel_SWE_", ii,".png"), width = 14, height = 10, units = "in")
+}
+
+filename <- "./pdf/import/snotel_SWE.pdf"
+pdf(file = filename,height=8.5,width=11)
+
+for(ii in names) {
+  print(plot_list[[ii]])
+
+}
+dev.off()
+
+# aggregate by wyr update----
+
+snotel.wyr.update <- snotel.update %>%
+  dplyr::group_by(SITE_NAME, WYEAR) %>%
+  dplyr::summarise(N=sum(!is.na(SWE_cm)),
+                   SWE_MEAN_cm=mean(SWE_cm, na.rm=TRUE),
+                   SWE_MAX_cm=max(SWE_cm, na.rm=TRUE)) %>%
+  ungroup %>%
+  filter(N>=300)
+
+snotel.wyr.update <- snotel.update %>%
+  filter(month(DATE)==4, day(DATE)==1) %>%
+  select(SITE_NAME, WYEAR, SWE_APR_cm=SWE_cm) %>%
+  left_join(snotel.wyr.update, by=c('SITE_NAME', 'WYEAR')) %>%
+  select(SITE_NAME, WYEAR, N, SWE_APR_cm, SWE_MEAN_cm, SWE_MAX_cm)
+
+filename <- "report/snotel-daily-ts-update.png"
+cat('\nSaving daily timeseries plot to:', filename, '\n')
+png(filename=filename, res=200, width=10, height=6, units = 'in')
+p <- snotel.update %>%
+  mutate(DATE = ymd(DATE)) %>%
+  ggplot(aes(DATE, SWE_cm)) +
+  geom_line() +
+  labs(x="Date", y="Snow Water Equivalent (cm)") +
+  facet_wrap(~SITE_NAME, ncol=1, scales='free_y') +
+  scale_x_date( date_breaks ="5 years",
+                date_labels = "%Y",
+                limits=c(as.Date("1981-12-31"), as.Date("2021-08-30")))+
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+print(p)
+dev.off()
+
+filename <- "report/snotel-daily-water-day-update.png"
+cat('\nSaving water day plot plot to:', filename, '\n')
+png(filename=filename, res=200, width=10, height=4, units = 'in')
+p <- snotel.update %>%
+  filter( WYEAR >= 2002) %>%
+  #mutate(WYEAR_GRP=ifelse(WYEAR>=2013, paste0('WY', WYEAR), "WY2002-2012")) %>%
+  filter(WDAY<=280) %>%
+  mutate(WDAY_LABEL = ymd(WDAY_LABEL)) %>%
+  ggplot(aes(WDAY_LABEL, SWE_cm, #size=WYEAR_GRP,
+             linetype=WYEAR_GRP, color=WYEAR_GRP, group=WYEAR)) +
+  geom_line(aes(x = WDAY_LABEL, y = SWE_cm)) +
+  scale_x_date(date_breaks = "1 month",
+               date_labels = "%b") +
+  facet_wrap(~SITE_NAME, scales='free', nrow=1) +
+  scale_color_brewer(palette="Dark2")+
+ # scale_color_manual('', values=c('WY2002-2012'='grey50',
+  #                                'WY2013'='deepskyblue',
+   #                               'WY2014'='orangered')) +
+  scale_size_manual('', values=c('WY2002-2012'=0.25,
+                                 'WY2013'=0.5,
+                                 'WY2014'=0.5)) +
+  scale_linetype_manual('', values=c('WY2002-2012'='solid',
+                                     'WY2013'='dashed',
+                                     'WY2014'='dashed')) +
+  labs(x="Water Year Date", y="Snow Water Equivalent (in)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face="bold"))
+print(p)
+dev.off()
+
+snotel <- snotel.update
+snotel.wyr <- snotel.wyr.update
 
 # save ----
 filename <- 'csv/stn_snotel.csv'

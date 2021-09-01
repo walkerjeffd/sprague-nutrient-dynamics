@@ -22,9 +22,12 @@ log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
 start_date <- as.Date('2000-10-01')
-end_date <- as.Date('2014-09-30')
+end_date <- as.Date('2020-08-30')
+#end_date <- as.Date('2014-09-30')
 start_date_ivory <- as.Date('2008-10-01')
-end_date_ivory <- as.Date('2014-09-30')
+end_date_ivory <- as.Date('2020-08-30')
+#end_date_ivory <- as.Date('2014-09-30')
+
 
 ref_sites <- c('Power'='USGS-11501000',
                'Lone_Pine'='USGS-11501000',
@@ -308,7 +311,7 @@ stn.map <- rbind(select(stn.kt_sprague, SITE_NAME, REF_LABEL, LAT, LON) %>% muta
 #st_sfc(cast_all(incbasin))
 
 
-filename <- file.path('pdf', 'flow-data.pdf')
+filename <- file.path('pdf', 'flow-data_update.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
@@ -343,7 +346,7 @@ if (!file.exists(file.path('pdf', 'flow-model'))) {
 }
 
 site <- 'Power'
-pdf(file.path('pdf', 'flow-model', 'flow-model-summary.pdf'), width=11, height=8.5)
+pdf(file.path('pdf', 'flow-model', 'flow-model-summary-update.pdf'), width=11, height=8.5)
 for (site in levels(q$SITE_NAME)) {
   cat('..', site, '\n')
   p.ts <- filter(q, SITE_NAME==site) %>%
@@ -658,7 +661,7 @@ dev.off()
 # dev.off()
 
 # report ----
-filename <- 'report/map-flow-station.png'
+filename <- 'report/map-flow-station-update.png'
 cat("\nSaving reference station map to:", filename, '\n')
 png(filename, width=8, height=5, res=200, units='in')
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
@@ -694,7 +697,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
 print(p)
 dev.off()
 
-filename <- 'report/results-flow-daily-ts.png'
+filename <- 'report/results-flow-daily-ts-update.png'
 cat("Saving daily flows to:", filename, '\n')
 png(filename, width=8, height=6, res=200, units='in')
 p <- ggplot(q.model, aes(DATE)) +
@@ -709,7 +712,7 @@ p <- ggplot(q.model, aes(DATE)) +
 print(p)
 dev.off()
 
-filename <- 'report/results-flow-annual-ts.png'
+filename <- 'report/results-flow-annual-ts-update.png'
 cat("Saving annual flows to:", filename, '\n')
 png(filename, width=8, height=6, res=200, units='in')
 p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
@@ -725,7 +728,7 @@ p <- mutate(q.out, WYEAR=wyear(DATE)) %>%
 print(p)
 dev.off()
 
-filename <- file.path('pdf', 'flow-validation.pdf')
+filename <- file.path('pdf', 'flow-validation-update.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 

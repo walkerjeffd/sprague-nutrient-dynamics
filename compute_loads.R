@@ -16,14 +16,14 @@ load('gis.Rdata')
 
 dataset_levels <- c("POR", "RECENT")
 site_name_levels <- levels(stn.kt_sprague$SITE_NAME)
-wyear_ranges <- list(POR=c(2001, 2014),
-                     RECENT=c(2009, 2014),
-                     IVORY=c(2009, 2014),
-                     TSS=c(2010, 2014))
-predict_wyear_ranges <- list(POR=c(2002, 2014),
-                             RECENT=c(2010, 2014),
-                             IVORY=c(2010, 2014),
-                             TSS=c(2011, 2014))
+wyear_ranges <- list(POR=c(2001, 2020),
+                     RECENT=c(2009, 2020),
+                     IVORY=c(2009, 2020),
+                     TSS=c(2010, 2020))
+predict_wyear_ranges <- list(POR=c(2002, 2020),
+                             RECENT=c(2010, 2020),
+                             IVORY=c(2010, 2020),
+                             TSS=c(2011, 2020))
 
 # load flow data ----
 # (saved from compute_flows.R)
@@ -113,7 +113,13 @@ q <- lapply(names(wq.kt_sprague), function(dataset) {
 table(q$SITE_NAME, q$DATASET)
 
 wq <- select(wq, DATASET, SITE, SITE_NAME, DATE, VAR, Qs, C)
-wq.wide <- spread(wq, VAR, C)
+wq.wide <- wq %>%
+  dplyr::group_by(DATASET,DATE,SITE,SITE_NAME) %>%
+  #mutate(duplicated_C=duplicated(C)) %>% filter(duplicated_C=='TRUE')
+  #mutate(id=row(.)) %>%
+  pivot_wider(id_cols=c(DATE,SITE,SITE_NAME,Qs),names_from=VAR,values_from=C)
+######## PIVOT_WIDER ISSUE AGAIN, TRIED id_cols, adding row number, and grouping the data, nothing has fixed it
+# spread(wq, VAR, C)
 
 df <- left_join(mutate(q, SITE=as.character(SITE)),
                 mutate(wq.wide,
