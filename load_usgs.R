@@ -2,6 +2,8 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(ggplot2)
+library(cowplot)
+library(waterData)
 theme_set(theme_bw())
 
 rm(list=ls())
@@ -28,7 +30,7 @@ stn.usgs <- read.table(filename,
                                  '11497550'='Godowa',
                                  '11501000'='Power')))
 
-# load data ----
+# load data prior ----
 filename <- file.path(DATA_DIR, 'raw', 'usgs',
                       '11495800_sprague_nf_1993-05-01_2012-10-10.txt')
 cat("Loading flow data from:", filename, "\n")
@@ -47,21 +49,51 @@ cat("Loading flow data from:", filename, "\n")
 q.11501000 <- read.table(file=filename,
                          skip=28, col.names=c('AGENCY', 'STATION_ID', 'DATE', 'FLOW', 'FLAG'), stringsAsFactors=FALSE)
 
-q.usgs <- rbind(q.11501000, q.11495800)
+q.usgs.prior <- rbind(q.11501000, q.11495800)
 
-q.usgs <- mutate(q.usgs,
+q.usgs.prior <- mutate(q.usgs.prior,
                  DATE=ymd(DATE),
                  STATION_ID=as.character(STATION_ID))
 
-q.usgs <- dplyr::rename(q.usgs, SOURCE=AGENCY)
+q.usgs.prior <- dplyr::rename(q.usgs.prior, SOURCE=AGENCY)
 
-q.usgs <- left_join(q.usgs,
+q.usgs.prior <- left_join(q.usgs.prior,
                     select(stn.usgs, STATION_ID, SITE_NAME),
                     by='STATION_ID')
 
-stn_period <- dplyr::group_by(q.usgs, STATION_ID) %>%
+stn_period_prior <- dplyr::group_by(q.usgs.prior, STATION_ID) %>%
   dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE))
+
+stn.usgs_prior <- filter(stn.usgs, STATION_ID %in% stn_period_prior$STATION_ID) %>%
+  left_join(stn_period_prior, by="STATION_ID")
+
+
+# load data updated ----
+
+q.usgs <- rbind(importDVs(staid="11495800",code="00060",sdate="1920-01-01",edate="2021-08-20"),
+                   importDVs(staid="11497500",code="00060",sdate="1920-01-01",edate="2021-08-20"),
+                 #  importDVs(staid="11497550",code="00060",sdate="1920-01-01",edate="2021-08-20"),
+                   importDVs(staid="11501000",code="00060",sdate="1920-01-01",edate="2021-08-20"))
+
+q.usgs <- q.usgs %>%
+  dplyr::rename(DATE=dates,FLOW=val,STATION_ID=staid,FLAG=qualcode) %>%
+  mutate(STATION_ID=as.character(STATION_ID),
+         DATE=ymd(DATE),
+         YEAR=year(DATE),
+         SOURCE="USGS") %>%
+  mutate(SITE_NAME=ifelse(STATION_ID=='11495800','NF',
+                          ifelse(STATION_ID=='11497500','Beatty',
+                                 ifelse(STATION_ID=='11497550','Godowa',
+                                        ifelse(STATION_ID=='11501000','Power',NA)))))
+
+q.usgs <- left_join(q.usgs,
+                    select(stn.usgs, STATION_ID, SITE_NAME),
+                    by=c('STATION_ID','SITE_NAME'))
+
+stn_period <- dplyr::group_by(q.usgs, STATION_ID) %>%
+  dplyr::summarise(START_DATE=min(DATE),
+                   END_DATE=max(DATE))
 
 stn.usgs <- filter(stn.usgs, STATION_ID %in% stn_period$STATION_ID) %>%
   left_join(stn_period, by="STATION_ID")
@@ -71,6 +103,15 @@ ggplot(q.usgs, aes(DATE, FLOW)) +
   geom_line() +
   facet_wrap(~STATION_ID+SITE_NAME, scales='free_y', ncol=1) +
   labs(x='', y='Flow (cfs)', title='USGS Daily Flow Data')
+
+q.usgs %>%
+  filter(!SITE_NAME=="Beatty") %>%
+ggplot() +
+  geom_line( aes(DATE, FLOW),color="red",alpha=0.4) +
+  geom_line(data=q.usgs.prior,aes(DATE,FLOW),color="blue",alpha=0.4)+
+  facet_wrap(~STATION_ID+SITE_NAME, scales='free_y', ncol=1) +
+  labs(x='', y='Flow (cfs)', title='USGS Daily Flow Data')
+ggsave("./explore/usgs/flow.png",width=14,height=10)
 
 # save ----
 filename <- file.path('csv', 'stn_usgs.csv')

@@ -69,7 +69,7 @@ df.beatty <- filter(q.owrd, STATION_ID=='11497500') %>%
             Q_mm_mon=sum(Q_mm_d, na.rm=TRUE)) %>%
   mutate(WYEAR=wyear(MONTHYEAR),
          MONTH=month(MONTHYEAR)) %>%
-  filter(WYEAR <= 2014) %>%
+ # filter(WYEAR <= 2014) %>%
   left_join(filter(prism.mon, SITE_NAME=='Godowa') %>%
               select(MONTHYEAR, PRCP_mm_mon),
             by=c('MONTHYEAR')) %>%
@@ -105,7 +105,7 @@ df.power <- filter(q.usgs, SITE_NAME=='Power') %>%
             Q_mm_mon=sum(Q_mm_d, na.rm=TRUE)) %>%
   mutate(WYEAR=wyear(MONTHYEAR),
          MONTH=month(MONTHYEAR)) %>%
-  filter(WYEAR <= 2014) %>%
+ # filter(WYEAR <= 2014) %>%
   left_join(filter(prism.mon, SITE_NAME=='Power') %>%
               select(MONTHYEAR, PRCP_mm_mon),
             by=c('MONTHYEAR')) %>%
@@ -124,18 +124,21 @@ df.power %>%
 
 # merge ----
 df.wyr <- left_join(ungroup(q.wyr), ungroup(prism.wyr), by=c('SITE_NAME', 'WYEAR')) %>%
-  filter(WYEAR %in% seq(2001, 2014)) %>%
+  filter(WYEAR %in% seq(2001, 2021)) %>%
   mutate(Q_PRCP=Q_cm_yr/PRCP_cm_yr) %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(subbasin_area$SITE_NAME)))
 
 # plots ----
-filename <- file.path('pdf', 'flow-precip-relationships.pdf')
+filename <- file.path('pdf', 'flow-precip-relationships-update.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 
 p.beatty <- df.beatty.wyr %>%
-  mutate(GROUP=ifelse(WYEAR <= 2012, '1982-2012',
-                      ifelse(WYEAR==2013, '2013', '2014'))) %>%
+  mutate(#GROUP=ifelse(WYEAR <= 2012, '1982-2012',
+          #            ifelse(WYEAR==2013, '2013', '2014'))) %>%
+  GROUP=ifelse(WYEAR<=2012,"1982-2012",
+                   ifelse(WYEAR>=2013&WYEAR<=2016,"2013-2016",
+                         ifelse(WYEAR>2016,"2017-2021","OTHER")))) %>%
   ggplot(aes(PRCP_cm_yr, Q_cm_yr)) +
   geom_point(aes(color=GROUP), size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +
@@ -144,8 +147,9 @@ p.beatty <- df.beatty.wyr %>%
   xlim(0, NA) +
   ylim(0, NA)
 p.power <- df.power.wyr %>%
-  mutate(GROUP=ifelse(WYEAR <= 2012, '1982-2012',
-                      ifelse(WYEAR==2013, '2013', '2014'))) %>%
+  mutate(  GROUP=ifelse(WYEAR<=2012,"1982-2012",
+                        ifelse(WYEAR%in%c(2013,2014),"2013-2014",
+                               ifelse(WYEAR>=2015,"2015-2021","OTHER")))) %>%
   ggplot(aes(PRCP_cm_yr, Q_cm_yr)) +
   geom_point(aes(color=GROUP), size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +
@@ -158,8 +162,10 @@ grid.arrange(grobs=list(p.beatty, p.power),
              ncol=2, nrow=2,
              top='Long Term Annual Precip vs Flow, 1982-2012')
 
-p <- mutate(df.wyr, GROUP=ifelse(WYEAR <= 2012, '2001-2012',
-                        ifelse(WYEAR==2013, '2013', '2014'))) %>%
+p <- df.wyr %>%
+  mutate(  GROUP=ifelse(WYEAR<=2012,"1982-2012",
+                        ifelse(WYEAR%in%c(2013,2014),"2013-2014",
+                               ifelse(WYEAR>=2015,"2015-2021","OTHER")))) %>%
   ggplot(aes(PRCP_cm_yr, Q_cm_yr)) +
   geom_point(aes(color=GROUP), size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +
@@ -171,7 +177,8 @@ print(p)
 p.max <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_MAX_cm), by='WYEAR') %>%
   filter(!is.na(SITE_NAME)) %>%
   mutate(GROUP=ifelse(WYEAR <= 2012, '2001-2012',
-                      ifelse(WYEAR==2013, '2013', '2014'))) %>%
+                      ifelse(WYEAR%in%c(2013,2014), '2013-2014',
+                             ifelse(WYEAR>=2015,'2015-2021','OTHER')))) %>%
   ggplot(aes(SWE_MAX_cm, Q_cm_yr, color=GROUP)) +
   geom_point(size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +
@@ -183,7 +190,8 @@ p.max <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_
 p.apr <- full_join(df.wyr, select(snotel.wyr, SNOTEL_NAME=SITE_NAME, WYEAR, SWE_APR_cm), by='WYEAR') %>%
   filter(!is.na(SITE_NAME)) %>%
   mutate(GROUP=ifelse(WYEAR <= 2012, '2001-2012',
-                      ifelse(WYEAR==2013, '2013', '2014'))) %>%
+                      ifelse(WYEAR%in%c(2013,2014), '2013-2014',
+                             ifelse(WYEAR>=2015,'2015-2021','OTHER')))) %>%
   ggplot(aes(SWE_APR_cm, Q_cm_yr, color=GROUP)) +
   geom_point(size=2) +
   scale_color_manual('', values=c('grey50', 'orangered', 'deepskyblue3')) +

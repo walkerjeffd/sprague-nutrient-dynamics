@@ -39,8 +39,11 @@ for (site in levels(wq$SITE_NAME)) {
   cat('..', site, '\n')
   p <- wq %>%
     mutate(VALUE=log10(VALUE)) %>%
+    mutate(DATE=ymd(DATE)) %>%
     select(-VAR_UNITS) %>%
-    spread(VAR, VALUE) %>%
+    group_by(DATE,VAR) %>%
+    mutate(row=1:nrow(.)) %>%
+    pivot_wider(names_from="VAR", values_from="VALUE") %>%
     filter(SITE_NAME==site) %>%
     select(-DATE, -SITE, -SITE_NAME) %>%
     ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
@@ -55,6 +58,27 @@ for (site in levels(wq$SITE_NAME)) {
   print(p, left=0.5, bottom=0.5)
 }
 dev.off()
+
+WHAT <-
+wq %>%
+  filter(SITE_NAME=="Power") %>%
+  mutate(VALUE=log10(VALUE)) %>%
+  mutate(DATE=ymd(DATE)) %>%
+  select(-VAR_UNITS) %>%
+  dplyr::group_by(DATE,SITE,VAR) %>%
+  mutate(row=1:nrow(.)) %>%
+  pivot_wider(id_cols=c(DATE,SITE_NAME,SITE),names_from="VAR", values_from="VALUE") %>%
+  #filter(SITE_NAME==site) %>%
+  select(-DATE, -SITE, -SITE_NAME) %>%
+  ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
+          upper=list(continuous=wrap("smooth",method="lm")),
+          title=paste0('Station: ', site))+
+  #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
+  #ggpairs(upper=list(continuous="points", params=c(size=1)),
+  #       lower=list(continuous="points", params=c(size=1)),
+  #      title=paste0('Station: ', site),
+  #     params=list(labelSize=6)) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-station.pdf')
 cat('Printing:', filename, '\n')
@@ -72,8 +96,8 @@ for (variable in levels(wq$VAR)) {
     select(-YEAR, -WEEK) %>%
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
 
-    ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
-            upper=list(continuous=wrap("smooth",method="lm")),
+    ggpairs(lower=list(continuous=wrap("smooth",method="lm"),size=0.5),
+            upper=list(continuous=wrap("smooth",method="lm"),size=0.5),
             title=paste0('Variable: ', variable))+
     #ggpairs(upper=list(continuous="points", params=c(size=1)),
      #       lower=list(continuous="points", params=c(size=1)),

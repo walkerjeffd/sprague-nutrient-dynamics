@@ -151,7 +151,7 @@ prism_subbasin_wyr %>%
   geom_boxplot()
 
 # report figures
-filename <- "report/prism-annual-precip.png"
+filename <- "report/prism-annual-precip-update.png"
 cat('Saving annual precip plot to:', filename, '\n')
 png(filename, width=6, height=4, res=200, units="in")
 p <- ggplot() +
@@ -166,7 +166,7 @@ p <- ggplot() +
 print(p)
 dev.off()
 
-filename <- "report/prism-monthly-precip.png"
+filename <- "report/prism-monthly-precip-update.png"
 cat('Saving monthly precip boxplots to:', filename, '\n')
 png(filename, width=6, height=4, res=200, units="in")
 p <- prism_subbasin %>%

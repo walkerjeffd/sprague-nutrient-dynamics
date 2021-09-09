@@ -1,6 +1,7 @@
 library(ggplot2)
 library(ggmap)
 library(dplyr)
+library(sf)
 
 rm(list=ls())
 

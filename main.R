@@ -4,62 +4,62 @@
 
 source('functions.R')
 # load data
-source('load_detection_limits.R') # works
-source('load_outliers.R') # works
-source('load_network.R') # works
+source('load_detection_limits.R')
+source('load_outliers.R')
+source('load_network.R')
 
-source('load_kt_sprague.R') # works
+source('load_kt_sprague.R')
 
 # TODO: update files below here for new package versions
 
-source('load_kt_sprague_synop.R') # works
+source('load_kt_sprague_synop.R') # address this part of the project in the next meeting
 
-source('load_gis.R') # works
-source('load_nlcd.R') # works, needs a few lines fixed (questions)
-source('load_geomorph.R') # works
-source('load_pou.R') # works
+source('load_gis.R')
+source('load_nlcd.R')
+source('load_geomorph.R')
+source('load_pou.R')
 
-source('load_ghcnd.R') # works
-source('load_snotel.R') # works
-source('load_owrd.R') # works
-source('load_usgs.R') # works
-source('load_prism.R') # works
+source('load_ghcnd.R') # difference in site numbers and data available
+source('load_snotel.R')
+source('load_owrd.R')
+source('load_usgs.R')
+source('load_prism.R')
 
 # compute flows and loads
-source('compute_flows.R') # i updated R and something broke in the mapping, i think i need to apply something in st_cast or convert the stamen map into something that works with sf
-source('compute_flow_precip.R') # works
-source('compute_loads.R') # works
+source('compute_flows.R') # updated, figures marked with -update to compare with original output
+source('compute_flow_precip.R') # updated, check with Jeff and Jake on WYEAR grouping in figures
+source('compute_loads.R') # i am also having a pivot_wider issue in this file, line 120, and this is preventing me from saving the data needed for the plot_loads_summary file
 
 # plot datasets
-source('plot_dataset_outliers.R') # works, but are the colors not working? issue with applying numeric classification to a factor variable. the solution may be more apparent once i understand the data set better
-source('plot_dataset_splots.R') # works
-source('plot_dataset_timeseries.R') # works
-source('plot_synoptic.R') # works
-source('plot_maps.R') # WORKS
+source('plot_dataset_outliers.R') # updated to include through 2020 data, although outliers are not identified for new data yet and therefore not marked
+source('plot_dataset_splots.R') # figures updated except dataset-scatterplots-variable.png, error is due to the pivot_wider command on line 46
+source('plot_dataset_timeseries.R') # updated through 2020 data
+source('plot_synoptic.R')
+source('plot_maps.R')
 
 # source('plot_flow_ciy_method.R')
 
-# plot met data
-source('plot_nlcd.R') # works
-source('plot_prism.R') # works
-source('plot_snotel.R') # WORKS
-source('plot_climate.R') # works
+# plot met data, updated to include 2015 - 2020 data
+source('plot_nlcd.R')
+source('plot_prism.R')
+source('plot_snotel.R')
+source('plot_climate.R')
 
 # plot loads
-source('plot_loads_summary.R') # works when I run the file, however running from here produces a yint issue. it must be pulling text from a previous version?
-source('plot_loads_maps.R') # maps are not working yet, need to convert to sf
+source('plot_loads_summary.R') # need to finish troubleshooting compute_loads.R file
+source('plot_loads_maps.R') # there is a difference in format between the site names in two of the dataframes, one a geometry file and one not. at this time, i cannot get them into the same format, needs additional troubleshooting
 source('plot_loads_tiles.R') # works
 
-source('plot_loads_network.R') # works
-source('plot_loads_landuse.R') # works
+source('plot_loads_network.R')
+source('plot_loads_landuse.R')
 
-source('plot_nutrient_dynamics.R') # works
+source('plot_nutrient_dynamics.R')
 source('plot_gannett.R') # need one more file
-source('plot_anthro.R') # works
+source('plot_anthro.R')
 
 # source('plot_loads_data.R')
 # source('plot_loads_residuals.R')
 # source('plot_loads_problems.R')
 
 # compute and plot trends
-source('compute_trends.R')
+source('compute_trends.R') # wq package not working, need to find alternate for seasonal kendall test
