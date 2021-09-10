@@ -39,7 +39,7 @@ p <- mutate(prism_subbasin, MONTH=ordered(month(MONTHYEAR), levels=c(10:12, 1:9)
   dplyr::group_by(SITE_NAME, MONTH) %>%
   dplyr::summarise(PRCP=median(PRCP)/25.4) %>%
   ggplot(aes(MONTH, PRCP, color=SITE_NAME, group=SITE_NAME)) +
-  stat_summary(fun.y=sum, geom="line") +
+  stat_summary(fun=sum, geom="line") +
   scale_color_manual('Site', values = RColorBrewer::brewer.pal(n=8, name='Dark2')) +
   ggtitle('Median Monthly Precipitation by Drainage Subbasin and Month') +
   labs(x='Month', y='Monthly Precip (in/mon)')
@@ -119,7 +119,7 @@ p.mon <- prcp %>%
   mutate(MONTH=month(MONTHYEAR),
          MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
   spread(SOURCE, PRCP) %>%
-  ggplot(aes(PRISM, GHCND, color=MONTH)) +
+  ggplot(aes(PRISM, GHCND, color=as.factor(MONTH))) +
   geom_point() +
   geom_abline(linetype=2) +
   labs(x="PRISM @ Sprague Basin (in/mon)", y="GHCND @ Klamath Falls (in/mon)") +

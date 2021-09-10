@@ -127,8 +127,8 @@ for (dataset in c('POR')) {
   dev.off()
 }
 
-periods <- list(P2002=c('2002-2014'),
-                P2010=c('2010-2014', '2011-2014'))
+periods <- list(P2002=c('2002-2020'),
+                P2010=c('2010-2020', '2011-2020'))
 dataset <- 'POR'
 filename <- file.path('pdf', tolower(dataset), 'loads-summary-site.pdf')
 cat('Printing:', filename, '\n')
@@ -478,7 +478,7 @@ flows_mon <- filter(loads_df[['mon']],
 
 flows_site <- filter(loads_df[['site']],
                     DATASET=="POR",
-                    PERIOD=="2010-2014",
+                    PERIOD=="2010-2020",
                     TERM %in% c("Q", "Q_AREA")) %>%
   droplevels %>%
   spread(TERM, VALUE) %>%

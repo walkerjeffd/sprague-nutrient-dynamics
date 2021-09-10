@@ -8,7 +8,6 @@ theme_set(theme_bw())
 rm(list=ls())
 
 load('kt_sprague.Rdata')
-outliers <- readRDS('outliers.Rdata')
 source('functions.R')
 
 if (!file.exists(file.path('pdf', 'dataset', 'outliers'))) {

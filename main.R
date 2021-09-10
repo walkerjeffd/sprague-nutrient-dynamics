@@ -3,15 +3,13 @@
 # 2014-2015
 
 source('functions.R')
+
 # load data
 source('load_detection_limits.R')
 source('load_outliers.R')
 source('load_network.R')
 
 source('load_kt_sprague.R')
-
-# TODO: update files below here for new package versions
-
 source('load_kt_sprague_synop.R') # address this part of the project in the next meeting
 
 source('load_gis.R')
@@ -28,11 +26,11 @@ source('load_prism.R')
 # compute flows and loads
 source('compute_flows.R') # updated, figures marked with -update to compare with original output
 source('compute_flow_precip.R') # updated, check with Jeff and Jake on WYEAR grouping in figures
-source('compute_loads.R') # i am also having a pivot_wider issue in this file, line 120, and this is preventing me from saving the data needed for the plot_loads_summary file
+source('compute_loads.R') # works
 
 # plot datasets
 source('plot_dataset_outliers.R') # updated to include through 2020 data, although outliers are not identified for new data yet and therefore not marked
-source('plot_dataset_splots.R') # figures updated except dataset-scatterplots-variable.png, error is due to the pivot_wider command on line 46
+source('plot_dataset_splots.R') # updated
 source('plot_dataset_timeseries.R') # updated through 2020 data
 source('plot_synoptic.R')
 source('plot_maps.R')
@@ -46,7 +44,7 @@ source('plot_snotel.R')
 source('plot_climate.R')
 
 # plot loads
-source('plot_loads_summary.R') # need to finish troubleshooting compute_loads.R file
+source('plot_loads_summary.R') # works
 source('plot_loads_maps.R') # there is a difference in format between the site names in two of the dataframes, one a geometry file and one not. at this time, i cannot get them into the same format, needs additional troubleshooting
 source('plot_loads_tiles.R') # works
 
