@@ -23,6 +23,8 @@ wq <- filter(wq.raw, !FLAGGED, QAQC %in% c('PASS', 'RPD')) %>%
   mutate(VAR_UNITS=ordered(VAR_UNITS, levels=unique(VAR_UNITS))) %>%
   select(DATE, SITE, SITE_NAME, VAR, VAR_UNITS, VALUE)
 
+wq_nodups <- unique(wq,by=c("DATE","SITE","SITE_NAME","VAR","VAR_UNITS"))
+
 idx <- which(wq$VAR == 'COND' & log10(wq$VALUE) < 1.2)
 wq <- wq[-idx, ]
 
@@ -32,20 +34,22 @@ wq <- wq[-idx, ]
 variable <- 'TP'
 site <- 'Power'
 
+
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-variable.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
+pdf(filename, width=18, height=13)
 for (site in levels(wq$SITE_NAME)) {
   cat('..', site, '\n')
   p <- wq %>%
     mutate(VALUE=log10(VALUE)) %>%
     mutate(DATE=ymd(DATE)) %>%
     select(-VAR_UNITS) %>%
-    group_by(DATE,VAR) %>%
-    mutate(row=1:nrow(.)) %>%
+    dplyr::group_by(DATE,VAR) %>%
+    #mutate(row=1:nrow(.)) %>%
     pivot_wider(names_from="VAR", values_from="VALUE") %>%
     filter(SITE_NAME==site) %>%
     select(-DATE, -SITE, -SITE_NAME) %>%
+    ungroup %>%
     ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
             upper=list(continuous=wrap("smooth",method="lm")),
             title=paste0('Station: ', site))+
@@ -82,7 +86,7 @@ wq %>%
 
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-station.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
+pdf(filename, width=15, height=10)
 for (variable in levels(wq$VAR)) {
   cat('..', variable, '\n')
   p <- wq %>%

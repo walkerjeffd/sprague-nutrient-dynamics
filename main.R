@@ -19,7 +19,7 @@ source('load_nlcd.R')
 source('load_geomorph.R')
 source('load_pou.R')
 
-source('load_ghcnd.R') # difference in site numbers and data available
+source('load_ghcnd.R')
 source('load_snotel.R')
 source('load_owrd.R')
 source('load_usgs.R')
