@@ -23,8 +23,6 @@ wq <- filter(wq.raw, !FLAGGED, QAQC %in% c('PASS', 'RPD')) %>%
   mutate(VAR_UNITS=ordered(VAR_UNITS, levels=unique(VAR_UNITS))) %>%
   select(DATE, SITE, SITE_NAME, VAR, VAR_UNITS, VALUE)
 
-wq_nodups <- unique(wq,by=c("DATE","SITE","SITE_NAME","VAR","VAR_UNITS"))
-
 idx <- which(wq$VAR == 'COND' & log10(wq$VALUE) < 1.2)
 wq <- wq[-idx, ]
 
@@ -34,37 +32,32 @@ wq <- wq[-idx, ]
 variable <- 'TP'
 site <- 'Power'
 
-
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-variable.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=18, height=13)
+pdf(filename, width=11, height=8.5)
 for (site in levels(wq$SITE_NAME)) {
   cat('..', site, '\n')
   p <- wq %>%
     mutate(VALUE=log10(VALUE)) %>%
-    mutate(DATE=ymd(DATE)) %>%
     select(-VAR_UNITS) %>%
-    dplyr::group_by(DATE,VAR) %>%
-    #mutate(row=1:nrow(.)) %>%
     pivot_wider(names_from="VAR", values_from="VALUE") %>%
     filter(SITE_NAME==site) %>%
     select(-DATE, -SITE, -SITE_NAME) %>%
-    ungroup %>%
     ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
             upper=list(continuous=wrap("smooth",method="lm")),
             title=paste0('Station: ', site))+
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
     #ggpairs(upper=list(continuous="points", params=c(size=1)),
-     #       lower=list(continuous="points", params=c(size=1)),
-      #      title=paste0('Station: ', site),
-       #     params=list(labelSize=6)) +
+    #       lower=list(continuous="points", params=c(size=1)),
+    #      title=paste0('Station: ', site),
+    #     params=list(labelSize=6)) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
   print(p, left=0.5, bottom=0.5)
 }
 dev.off()
 
 WHAT <-
-wq %>%
+  wq %>%
   filter(SITE_NAME=="Power") %>%
   mutate(VALUE=log10(VALUE)) %>%
   mutate(DATE=ymd(DATE)) %>%
@@ -86,7 +79,7 @@ wq %>%
 
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-station.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=15, height=10)
+pdf(filename, width=11, height=8.5)
 for (variable in levels(wq$VAR)) {
   cat('..', variable, '\n')
   p <- wq %>%
@@ -104,8 +97,8 @@ for (variable in levels(wq$VAR)) {
             upper=list(continuous=wrap("smooth",method="lm"),size=0.5),
             title=paste0('Variable: ', variable))+
     #ggpairs(upper=list(continuous="points", params=c(size=1)),
-     #       lower=list(continuous="points", params=c(size=1)),
-      #      title=paste0('Variable: ', variable)) +
+    #       lower=list(continuous="points", params=c(size=1)),
+    #      title=paste0('Variable: ', variable)) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
   print(p, left=0.5, bottom=0.5)
   Sys.sleep(1)
@@ -121,8 +114,8 @@ filename <- file.path("pdf", "dataset", "dataset-seasonal-patterns.pdf")
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- mutate(wq,
-       WDAY=water_day(DATE),
-       WDAY_DATE=ymd("2000-10-01") + days(WDAY)) %>%
+            WDAY=water_day(DATE),
+            WDAY_DATE=ymd("2000-10-01") + days(WDAY)) %>%
   ggplot(aes(WDAY_DATE, VALUE)) +
   geom_point(size=0.7) +
   geom_smooth(method="loess", se=FALSE, span=0.5) +
