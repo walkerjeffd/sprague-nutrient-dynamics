@@ -114,12 +114,7 @@ table(q$SITE_NAME, q$DATASET)
 
 wq <- select(wq, DATASET, SITE, SITE_NAME, DATE, VAR, Qs, C)
 wq.wide <- wq %>%
-  dplyr::group_by(DATASET,DATE,SITE,SITE_NAME) %>%
-  #mutate(duplicated_C=duplicated(C)) %>% filter(duplicated_C=='TRUE')
-  #mutate(id=row(.)) %>%
-  pivot_wider(id_cols=c(DATE,SITE,SITE_NAME,Qs),names_from=VAR,values_from=C)
-######## PIVOT_WIDER ISSUE AGAIN, TRIED id_cols, adding row number, and grouping the data, nothing has fixed it
-# spread(wq, VAR, C)
+  pivot_wider(id_cols=c(DATASET,DATE,SITE,SITE_NAME,Qs),names_from=VAR,values_from=C)
 
 df <- left_join(mutate(q, SITE=as.character(SITE)),
                 mutate(wq.wide,
@@ -171,7 +166,7 @@ estimate_loads <- function(df, dataset, variable, site) {
   loads
 }
 # x <- filter(df, DATASET=='RECENT', SITE_NAME=="Power", VAR=="TP") %>% estimate_loads(.)
-# x <- filter(df, DATASET=='POR', SITE_NAME=="Power", VAR=="TP") %>% estimate_loads(., 'POR', 'TP', 'Power')
+x <- filter(df, DATASET=='POR', SITE_NAME=="Power", VAR=="TP") %>% estimate_loads(., 'POR', 'TP', 'Power')
 # x <- filter(df, DATASET=='POR', SITE_NAME=="SF_Ivory", VAR=="TP") %>% estimate_loads(., 'POR', 'TP', 'SF_Ivory')
 
 loads <- lapply(dataset_levels, function(dataset) {
@@ -317,7 +312,7 @@ df_site_por_2002 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
             L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
-stopifnot(all(df_site_por_2002$PERIOD == '2002-2014'))
+stopifnot(all(df_site_por_2002$PERIOD == '2002-2020'))
 
 df_site_por_2010 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
                            WYEAR >= 2010) %>%
@@ -332,7 +327,7 @@ df_site_por_2010 <- filter(df_wyr, DATASET=="POR", VAR!="TSS",
             L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
-stopifnot(all(df_site_por_2010$PERIOD == '2010-2014'))
+stopifnot(all(df_site_por_2010$PERIOD == '2010-2020'))
 
 df_site_recent <- filter(df_wyr, DATASET=="RECENT", VAR!="TSS") %>%
   dplyr::group_by(DATASET, VAR, SITE_NAME, SEASON) %>%
@@ -346,7 +341,7 @@ df_site_recent <- filter(df_wyr, DATASET=="RECENT", VAR!="TSS") %>%
             L=mean(L),
             C=ifelse(L <= 0 | Q <= 0, NA, L/Q)) %>%
   ungroup
-stopifnot(all(df_site_recent$PERIOD == '2010-2014'))
+stopifnot(all(df_site_recent$PERIOD == '2010-2020'))
 
 df_site <- rbind(df_site_tss, df_site_por_2002, df_site_por_2010, df_site_recent) %>%
   mutate(PERIOD=factor(PERIOD),

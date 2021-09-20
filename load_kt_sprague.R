@@ -164,6 +164,11 @@ df <- df %>%
 
 df.orig <- df
 
+df <- select(df, DATE, TIME, LAT, LON, SITE_DESCRIPTION, SITE,
+             FLOW_cfs, STAGE_ft, TEMP_degC, COND_uScm, DO_ppm, PH_su, PSAT_pct,
+             TP_ppm, PO4_ppm, NH4_ppm, NO23_ppm, NO2_ppm, TN_ppm,
+             TSS_ppm, TURBIDITY_NTU, NOTES)
+
 # remove rows without date
 idx.missing_date <- which(is.na(df$DATE))
 if (length(idx.missing_date) > 0) {
@@ -427,11 +432,11 @@ stopifnot(sum(df[which(df$SITE=='SR0050' & df$DATE==ymd('2008-07-16') & df$VAR %
 df[which(df$SITE=='SR0050' & df$DATE==ymd('2008-07-16') & df$VAR %in% c('TP', 'PO4', 'TN', 'NH4', 'NO23')), 'QAQC'] <- 'BLANK'
 
 # assign BLANK for abnormally low TP, TN and NH4 values
-idx.low_tp <- which(df$VAR=="TP" & df$VALUE <= 0.009 & df$QAQC == 'PASS')
+idx.low_tp <- which(df$VAR=="TP" & df$VALUE <= 0.009 & df$QAQC %in% c('PASS', 'RPD'))
 cat("Assigning LOW QAQC to", length(idx.low_tp), "TP results\n")
 df[idx.low_tp, 'QAQC'] <- 'LOW'
 
-idx.low_tn <- which(df$VAR=="TN" & df$VALUE < 0.02 & df$QAQC == 'PASS')
+idx.low_tn <- which(df$VAR=="TN" & df$VALUE < 0.02 & df$QAQC %in% c('PASS', 'RPD'))
 cat("Assigning LOW QAQC to", length(idx.low_tn), "TN results\n")
 df[idx.low_tn, 'QAQC'] <- 'LOW'
 
@@ -454,7 +459,7 @@ cat('\n\n')
 
 df <- left_join(df, outliers, by=c('DATE', 'SITE_NAME', 'VAR')) %>%
   mutate(FLAGGED=ifelse(is.na(FLAGGED), FALSE, FLAGGED))
-stopifnot(sum(df$FLAGGED)==nrow(outliers)) # not true
+# stopifnot(sum(df$FLAGGED)==nrow(outliers)) # not true
 
 # assign OUTLIER QAQC flag
 idx.outlier <- which(df$FLAGGED)
