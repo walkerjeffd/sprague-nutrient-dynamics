@@ -422,7 +422,7 @@ p <- ggplot(loads_wyr_por_tp, aes(factor(WYEAR), mean, fill=TERM)) +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=0.2) +
   scale_fill_manual('', values=c(C='orangered', LAREA='olivedrab3', L='olivedrab3', QAREA='steelblue', Q='steelblue')) +
   facet_grid(VAR_TERM~SITE_NAME, scales='free_y') +
-  scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014)) +
+  scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014,"",2016,"",2018,"",2020)) +
   scale_y_continuous(labels=scales::comma) +
   guides(fill='none') +
   labs(x='Water Year',
@@ -450,7 +450,7 @@ p <- ggplot(loads_wyr_por, aes(factor(WYEAR), C)) +
   geom_bar(stat='identity', fill='orangered') +
   geom_errorbar(aes(ymin=C-C_se, ymax=C+C_se), width=0.4, size=0.2) +
   facet_grid(VAR~SITE_NAME, scales='free_y') +
-  scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014)) +
+  scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014,"",2016,"",2018,"",2020)) +
   scale_y_continuous(labels=scales::comma) +
   labs(x='Water Year',
        y='FWM Concentration (ppb)') +

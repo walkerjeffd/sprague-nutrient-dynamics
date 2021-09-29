@@ -21,10 +21,10 @@ log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
 log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
-start_date <- as.Date('2000-10-01')
+start_date <- as.Date('2008-10-01')
 end_date <- as.Date('2020-08-30')
 #end_date <- as.Date('2014-09-30')
-start_date_ivory <- as.Date('2008-10-01')
+start_date_ivory <- as.Date('2000-10-01')
 end_date_ivory <- as.Date('2020-08-30')
 #end_date_ivory <- as.Date('2014-09-30')
 
@@ -97,7 +97,7 @@ por.kt <- dplyr::group_by(q.kt_sprague, SITE_NAME) %>%
 q.kt.power <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Power", "Lone_Pine")) %>%
   spread(SITE_NAME, FLOW)
-q.ref.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Power")
+q.ref.power <- filter(q.usgs, as.Date(DATE)>=start_date_ivory, as.Date(DATE)<=end_date_ivory, SITE_NAME=="Power")
 q.power <- mutate(q.ref.power, REF_SITE_NAME="Power",
                   REF_SOURCE="USGS") %>%
   select(DATE, REF_FLOW=FLOW, REF_SITE_NAME, REF_SOURCE) %>%
@@ -110,7 +110,7 @@ q.power <- mutate(q.ref.power, REF_SITE_NAME="Power",
 q.kt.sycan <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME=="Sycan") %>%
   spread(SITE_NAME, FLOW)
-q.ref.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Sycan")
+q.ref.sycan <- filter(q.owrd, as.Date(DATE)>=start_date_ivory, as.Date(DATE)<=end_date_ivory, SITE_NAME=="Sycan")
 q.sycan <- mutate(q.ref.sycan,
                   REF_SITE_NAME="Sycan",
                   REF_SOURCE="OWRD") %>%
@@ -125,7 +125,7 @@ q.kt.beatty <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Godowa", "SF_Ivory",
                           "SF", "NF_Ivory", "NF")) %>%
   spread(SITE_NAME, FLOW)
-q.ref.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Beatty")
+q.ref.beatty <- filter(q.owrd, as.Date(DATE)>=start_date_ivory, as.Date(DATE)<=end_date_ivory, SITE_NAME=="Beatty")
 q.beatty <- mutate(q.ref.beatty,
                    REF_SITE_NAME="Beatty",
                    REF_SOURCE="OWRD") %>%
@@ -733,6 +733,7 @@ cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 
 p <- q.valid %>%
+  filter(DATE>=start_date) %>%
   ggplot(aes(DATE, VALUE, color=TERM)) +
   geom_line(aes(color="OWRD Station", y=VALID_Q), size=0.3) +
   geom_point(aes(color="WQ Station", y=Q), size=1) +
@@ -748,7 +749,8 @@ p <- q.valid %>%
 print(p)
 
 p <- q.valid %>%
-  ggplot(aes(VALID_Q, Q)) +
+  filter(DATE>=start_date) %>%
+    ggplot(aes(VALID_Q, Q)) +
   geom_point(size=1, alpha=0.7) +
   geom_abline(linetype=2, show.legend=TRUE) +#aes(color='1:1 Line'), ) +
   geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.rmse, R2=paste0("R2 = ", scales::percent(R2))),
@@ -764,6 +766,7 @@ p <- q.valid %>%
 print(p)
 
 p <- q.valid.mon %>%
+  filter(DATE>=start_date) %>%
   ggplot(aes(DATE, VALUE, color=TERM)) +
   geom_line(aes(color="OWRD Station", y=VALID_Q)) +
   geom_point(aes(color="WQ Station", y=Q), size=1.5) +
@@ -779,6 +782,7 @@ p <- q.valid.mon %>%
 print(p)
 
 p <- q.valid.mon %>%
+  filter(DATE>=start_date) %>%
   ggplot(aes(VALID_Q, Q)) +
   geom_point() +
   geom_abline( linetype=2, show.legend=TRUE) + # aes(color='1:1 Line'),

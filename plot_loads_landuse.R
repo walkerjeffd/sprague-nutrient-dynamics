@@ -20,10 +20,10 @@ source('functions.R')
 
 units <- c(Q='hm3/d', L='kg/d', C='ppb')
 term_labels <- c(Q='Flow (hm3/d)', L='Load (kg/d)', C='Conc (ppb)')
-period_labels <- c(P2010='WY2010-2014',
-                   P2002='WY2002-2014')
-period_wyears <- c(P2010=c(2010, 2014),
-                   P2002=c(2002, 2014))
+period_labels <- c(P2010='WY2010-2020',
+                   P2002='WY2002-2020')
+period_wyears <- c(P2010=c(2010, 2020),
+                   P2002=c(2002, 2020))
 variables <- list(P2010=c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23', 'TSS'),
                   P2002=c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23'))
 stn_subbasin <- list(P2010=c('Power', 'Lone_Pine', 'Godowa+Sycan', 'Godowa', 'Sycan', 'SF_Ivory+NF_Ivory', 'SF_Ivory', 'NF_Ivory', 'SF', 'NF'),
@@ -89,9 +89,9 @@ df_site <- loads_df[['site']] %>%
   #mutate(PERIOD=plyr::revalue(PERIOD, c("2002-2014"="P2002",
    #                                     "2010-2014"="P2010",
     #                                    "2011-2014"="P2010")),
-  mutate(PERIOD=ifelse(PERIOD=="2002-2014","P2002",
-                       ifelse(PERIOD=="2010-2014","P2010",
-                       ifelse(PERIOD=="2011-2014","P2010",PERIOD)))) %>%
+  mutate(PERIOD=ifelse(PERIOD=="2002-2020","P2002",
+                       ifelse(PERIOD=="2010-2020","P2010",
+                       ifelse(PERIOD=="2011-2020","P2010",PERIOD)))) %>%
   mutate(PERIOD=as.character(PERIOD))
 
 # set up pou subbasin
@@ -132,12 +132,13 @@ for (period in c("P2002", "P2010")) {
                                  period_labels[[period]], ".pdf"))
     cat('Printing:', filename, '\n')
     pdf(filename, width=8.5, height=11)
-    p <- filter(df_site_area, PERIOD==period, TERM=="C",
+    p <- df_site_area %>%
+      filter( PERIOD==period, TERM=="C",
                 EXTENT==extent, LANDUSE=="POU",
                 SITE_NAME %in% stn_subbasin[[period]]) %>%
       ggplot(aes(AREA_FRAC, VALUE, color=SITE_NAME)) +
       geom_point(size=2) +
-      facet_grid(VAR ~ SEASON, scales="free_y") +
+      facet_wrap(VAR ~ SEASON, scales="free_y") +
       scale_x_continuous(labels=scales::percent) +
       scale_color_manual('Station', values=color_site) +
       labs(x="Cumulative Fraction POU Irrigation Area (%)",
@@ -332,7 +333,7 @@ df_pou_rho <- df_site_area %>%
   #select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
 
-filename <- 'report/results-load-pou-WY2010-2014-valley.png'
+filename <- 'report/results-load-pou-WY2010-2020-valley.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=8, height=8, res=200, units='in')
 p <- filter(df_site_area, PERIOD=="P2010", TERM=="C",
@@ -440,7 +441,7 @@ df_nlcd_rho <- df_site_area %>%
 
 
 
-filename <- 'report/results-load-nlcd-WY2010-2014-basin.png'
+filename <- 'report/results-load-nlcd-WY2010-2020-basin.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=11, height=8, res=200, units='in')
 p <- filter(df_site_area, PERIOD=="P2010", TERM=="C",

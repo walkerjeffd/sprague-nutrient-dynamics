@@ -117,7 +117,7 @@ df %>%
   facet_grid(SITE_NAME~SEASON, scales="free")
 
 # report figures ----
-filename <- file.path('report', 'erosion-tss-flow.png')
+filename <- file.path('report', 'erosion-tss-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -140,7 +140,7 @@ print(p)
 dev.off()
 
 
-filename <- file.path('report', 'erosion-tp-tss.png')
+filename <- file.path('report', 'erosion-tp-tss-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -162,7 +162,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-ppfrac-tss.png')
+filename <- file.path('report', 'erosion-ppfrac-tss-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -185,7 +185,7 @@ print(p)
 dev.off()
 
 
-filename <- file.path('report', 'erosion-pp-tss.png')
+filename <- file.path('report', 'erosion-pp-tss-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -207,7 +207,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-pp-flow.png')
+filename <- file.path('report', 'erosion-pp-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -229,7 +229,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-ppfrac-flow.png')
+filename <- file.path('report', 'erosion-ppfrac-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -251,7 +251,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-ppfrac-boxplot.png')
+filename <- file.path('report', 'erosion-ppfrac-boxplot-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=6, height=4, res=200, units="in")
 p <- df %>%
@@ -266,7 +266,7 @@ dev.off()
 
 
 
-filename <- file.path('report', 'erosion-tn-flow.png')
+filename <- file.path('report', 'erosion-tn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -288,7 +288,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-nh4-flow.png')
+filename <- file.path('report', 'erosion-nh4-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -310,7 +310,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-no23-flow.png')
+filename <- file.path('report', 'erosion-no23-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -332,7 +332,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-orgn-flow.png')
+filename <- file.path('report', 'erosion-orgn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -354,7 +354,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-inorgn-flow.png')
+filename <- file.path('report', 'erosion-inorgn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -376,7 +376,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-pct-orgn-flow.png')
+filename <- file.path('report', 'erosion-pct-orgn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -398,7 +398,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-orgn-inorgn-ratio-flow.png')
+filename <- file.path('report', 'erosion-orgn-inorgn-ratio-flow-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -420,7 +420,7 @@ print(p)
 dev.off()
 
 
-filename <- file.path('report', 'erosion-tn-tss.png')
+filename <- file.path('report', 'erosion-tn-tss-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -442,7 +442,7 @@ p <- df %>%
 print(p)
 dev.off()
 
-filename <- file.path('report', 'erosion-orgn-tss.png')
+filename <- file.path('report', 'erosion-orgn-tss-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -465,7 +465,7 @@ print(p)
 dev.off()
 
 
-filename <- file.path('report', 'erosion-pct-orgn-tss.png')
+filename <- file.path('report', 'erosion-pct-orgn-tss-update.png')
 cat('Saving Figure:', filename, '\n')
 png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
@@ -501,7 +501,7 @@ df %>%
 
 
 
-pdf(file.path('pdf', 'erosion.pdf'), width=11, height=8.5)
+pdf(file.path('pdf', 'erosion-update.pdf'), width=11, height=8.5)
 p <- df %>%
   filter(SEASON=="Annual") %>%
   ggplot(aes(WDAY_LABEL, FLOW)) +

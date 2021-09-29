@@ -34,7 +34,7 @@ site <- 'Power'
 
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-variable.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
+pdf(filename, width=18, height=13)
 for (site in levels(wq$SITE_NAME)) {
   cat('..', site, '\n')
   p <- wq %>%
@@ -56,30 +56,9 @@ for (site in levels(wq$SITE_NAME)) {
 }
 dev.off()
 
-WHAT <-
-  wq %>%
-  filter(SITE_NAME=="Power") %>%
-  mutate(VALUE=log10(VALUE)) %>%
-  mutate(DATE=ymd(DATE)) %>%
-  select(-VAR_UNITS) %>%
-  dplyr::group_by(DATE,SITE,VAR) %>%
-  mutate(row=1:nrow(.)) %>%
-  pivot_wider(id_cols=c(DATE,SITE_NAME,SITE),names_from="VAR", values_from="VALUE") %>%
-  #filter(SITE_NAME==site) %>%
-  select(-DATE, -SITE, -SITE_NAME) %>%
-  ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
-          upper=list(continuous=wrap("smooth",method="lm")),
-          title=paste0('Station: ', site))+
-  #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
-  #ggpairs(upper=list(continuous="points", params=c(size=1)),
-  #       lower=list(continuous="points", params=c(size=1)),
-  #      title=paste0('Station: ', site),
-  #     params=list(labelSize=6)) +
-  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
-
 filename <- file.path('pdf', 'dataset', 'dataset-scatterplots-station.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
+pdf(filename, width=18, height=13)
 for (variable in levels(wq$VAR)) {
   cat('..', variable, '\n')
   p <- wq %>%
@@ -112,7 +91,7 @@ log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
 
 filename <- file.path("pdf", "dataset", "dataset-seasonal-patterns.pdf")
 cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
+pdf(filename, width=18, height=13)
 p <- mutate(wq,
             WDAY=water_day(DATE),
             WDAY_DATE=ymd("2000-10-01") + days(WDAY)) %>%

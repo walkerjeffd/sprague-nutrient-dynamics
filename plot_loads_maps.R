@@ -26,9 +26,9 @@ df_wyr <- loads_df$wyr %>%
   mutate(VALUE=ifelse(TERM %in% c('Q', 'Q_AREA', 'L', 'L_AREA'),
                       VALUE*365.25, VALUE))
 df_site <- loads_df$site %>%
-  mutate(PERIOD=plyr::revalue(PERIOD, c('2011-2014'='P2010',
-                                        '2010-2014'='P2010',
-                                        '2002-2014'='P2002'))) %>%
+  mutate(PERIOD=plyr::revalue(PERIOD, c('2011-2020'='P2010',
+                                        '2010-2020'='P2010',
+                                        '2002-2020'='P2002'))) %>%
   mutate(VALUE=ifelse(TERM %in% c('Q', 'Q_AREA', 'L', 'L_AREA'),
                       VALUE*365.25, VALUE))
 
@@ -40,8 +40,8 @@ subbasin_levels <- list(P2010=levels(subbasin_area$SITE_NAME),
 incbasin_levels <- list(P2010=setdiff(levels(incbasin_area$INC_SITE_NAME), c("Godowa-SF-NF")),
                         P2002=setdiff(levels(incbasin_area$INC_SITE_NAME),
                                       c("Godowa-SF_Ivory-NF_Ivory", "SF_Ivory-SF", "NF_Ivory-NF")))
-wyears_levels <- list(P2010=c(2010, 2014),
-                      P2002=c(2002, 2014))
+wyears_levels <- list(P2010=c(2010, 2020),
+                      P2002=c(2002, 2020))
 
 
 
@@ -84,16 +84,21 @@ scale_fill_term_inc <- list(
 map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
   ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
    # coord_sf(crs = st_crs(4326)) +
-    geom_sf(aes(x = long, y = lat, group = group),
+    geom_sf(aes(), # removed group=group
                  data = incbasin[[period]],
                  color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
-    geom_sf(aes(x = long, y = lat, fill = VALUE),inherit.aes=FALSE,
-                 data = subbasin[[period]] %>%
-                   left_join(filter(df_site, PERIOD==period, SEASON==season, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels[[period]]),
-                             by='SITE_NAME') %>%
+    geom_sf(aes(fill = VALUE),inherit.aes=FALSE,
+                 data = (subbasin[[period]] %>%
+              left_join(df_site %>%
+                          filter(DATASET==dataset,
+                                 PERIOD==period, SEASON==season,
+                                 VAR==variable, TERM==term,
+                                 SITE_NAME %in% subbasin_levels[[period]]) %>%
+                          #mutate(INC_SITE_NAME=SITE_NAME) %>%
+                          mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=incbasin[[period]]$SITE_NAME), by = "SITE_NAME"))),
                mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])), # PRIOR WORK
                  colour = 'black', size = 0.2) +
-    geom_sf(aes(x = long, y = lat, group = group), data = basin,
+    geom_sf(aes(), data = basin, # removed group=group
                  color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
     geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
     scale_fill_term[[term]] +
@@ -107,7 +112,8 @@ map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
 # map_subbasin(dataset='POR', period='P2002', season='Summer (Jul-Sep)', variable='TP', term='C')
 
 bar_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
-  p <- filter(df_site, PERIOD==period, SEASON==season, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels[[period]]) %>%
+  p <- df_site %>%
+    filter( PERIOD==period, SEASON==season, DATASET==dataset, VAR==variable, TERM==term, SITE_NAME %in% subbasin_levels[[period]]) %>%
     mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME)))) %>%
     ggplot(aes(x=SITE_NAME, y=VALUE, fill=VALUE)) +
     geom_bar(stat='identity', color='grey50') +
@@ -165,54 +171,60 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
   if (term == 'C') {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
      # coord_sf(crs = st_crs(4326)) +
-      geom_sf(aes(x = long, y = lat, group = group),
+      geom_sf(aes( ), # removed group=group from aes
                    data = incbasin[[period]] ,
                    color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
-      geom_sf(aes(x = long, y = lat, fill = VALUE, group=id),inherit.aes=FALSE,
-                   data = filter(incbasin[[period]], !(INC_SITE_NAME %in% c('Sycan', 'NF', 'SF'))) %>%
-               # mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])), # does this need to be added to address the difference in column type formats between the two dataframes?
-                     left_join(filter(df_site ,
-                                      DATASET==dataset,
-                                      PERIOD==period, SEASON==season,
-                                      VAR==variable, TERM==term,
-                                      SITE_NAME %in% incbasin_levels[[period]]),
-                               by=c('INC_SITE_NAME'='SITE_NAME')),
-                   colour = 'black', size = 0.2) +
-      geom_sf(aes(x = long, y = lat, group = group), data = basin,
-                   color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
+      geom_sf(aes(fill = VALUE),inherit.aes=FALSE, # removed group=id from aes
+              data = (incbasin[[period]] %>%
+                        filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
+                        mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
+                        left_join(df_site %>%
+                                    filter(DATASET==dataset,
+                                           PERIOD==period, SEASON==season,
+                                           VAR==variable, TERM==term,
+                                           SITE_NAME %in% incbasin_levels[[period]]) %>%
+                                    mutate(INC_SITE_NAME=SITE_NAME) %>%
+                                    mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))),
+            colour = 'black', size = 0.2) +
+      geom_sf(aes( ), data = basin,# removed group=group from aes
+                  color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
-      geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-                data=incbasin[[period]] %>%
-                  mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
-                  dplyr::group_by(INC_SITE_NAME) %>%
-                  dplyr::summarise(long=mean(c(min(long), max(long))),
-                            lat=mean(c(min(lat), max(lat)))),
-                fontface='bold', size=3) +
+     # geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
+      #          data=incbasin[[period]] %>%
+       #           mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
+        #          dplyr::group_by(INC_SITE_NAME) %>%
+         #         dplyr::summarise(long=mean(c(min(long), max(long))),
+          #                 lat=mean(c(min(lat), max(lat)))),
+           #   fontface='bold', size=3) +
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   } else {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
      # coord_sf(crs = st_crs(4326)) +
-      geom_sf(aes(x = long, y = lat, group = group), data = incbasin[[period]],
+      geom_sf(aes( ), data = incbasin[[period]],# removed group=group from aes
                    color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
-      geom_sf(aes(x = long, y = lat, fill = VALUE, group=id),inherit.aes=FALSE,
-                   data = incbasin[[period]] %>%
-                     left_join(filter(df_site,
-                                      DATASET==dataset, VAR==variable, TERM==term,
-                                      PERIOD==period, SEASON==season,
-                                      SITE_NAME %in% incbasin_levels[[period]]),
-                               by=c('INC_SITE_NAME'='SITE_NAME')),
-                   colour = 'black', size = 0.2) +
-      geom_sf(aes(x = long, y = lat, group = group), data = basin,
+      geom_sf(aes( fill = VALUE),inherit.aes=FALSE,# removed group=id from aes
+              data = (incbasin[[period]] %>%
+                        filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
+                        mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
+                        left_join(df_site %>%
+                                    filter(DATASET==dataset,
+                                           PERIOD==period, SEASON==season,
+                                           VAR==variable, TERM==term,
+                                           SITE_NAME %in% incbasin_levels[[period]]) %>%
+                                    mutate(INC_SITE_NAME=SITE_NAME) %>%
+                                    mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))),
+              colour = 'black', size = 0.2) +
+      geom_sf(aes( ), data = basin,# removed group=group from aes
                    color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
-      geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-                data=incbasin[[period]] %>%
-                  mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
-                  dplyr::group_by(INC_SITE_NAME) %>%
-                  dplyr::summarise(long=mean(c(min(long), max(long))),
-                            lat=mean(c(min(lat), max(lat)))),
-                fontface='bold', size=3) +
+   #   geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
+    #            data=incbasin[[period]] %>%
+     #             mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
+      #            dplyr::group_by(INC_SITE_NAME) %>%
+       #           dplyr::summarise(long=mean(c(min(long), max(long))),
+        #                    lat=mean(c(min(lat), max(lat)))),
+         #       fontface='bold', size=3) +
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   }
@@ -225,6 +237,20 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
                      color='grey50')
   p
 }
+
+
+
+test <- incbasin[[period]] %>%  filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
+          mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
+          left_join(df_site %>%
+                      filter(DATASET==dataset,
+                             PERIOD==period, SEASON==season,
+                             VAR==variable, TERM=='C',
+                             SITE_NAME %in% incbasin_levels[[period]]) %>%
+                      mutate(INC_SITE_NAME=SITE_NAME) %>%
+                    mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)))
+
+
 # map_incbasin(dataset='POR', period='P2002', season='Annual',
 #              variable='FLOW', term='Q_AREA',
 #              title=paste0('Mean Annual Flow per Unit Area', '   |   ',
@@ -367,7 +393,7 @@ for (period in c('P2002', 'P2010')) {
   cat('.. INCBASINS', '\n')
   for (variable in variables) {
     if (variable == 'TSS') {
-      period_label <- 'WY2011-2014'
+      period_label <- 'WY2011-2020'
     } else {
       period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
     }
@@ -416,27 +442,32 @@ for (period in c('P2002', 'P2010')) {
   period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
   maps.c <- lapply(variables, function(variable) {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-      geom_polygon(aes(x = long, y = lat, group = group),
-                   data = incbasin[[period]],
+      geom_sf(aes(),data = incbasin[[period]],inherit.aes=F,
                    color = 'grey50', fill = NA, size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = filter(incbasin[[period]], !(INC_SITE_NAME %in% c("Sycan", "NF", "SF"))) %>%
-                     left_join(filter(df_site, DATASET==dataset, PERIOD==period,
-                                      SEASON==season, VAR==variable, TERM==term,
-                                      SITE_NAME %in% incbasin_levels[[period]],
-                                      !(SITE_NAME %in% c('NF', 'SF', 'Sycan'))),
-                               by=c('INC_SITE_NAME'='SITE_NAME')),
-                   colour = 'black', size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+      geom_sf(aes(fill = VALUE), inherit.aes=F,# removed group=id
+                 data = (incbasin[[period]] %>%
+                             filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
+                             mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
+                             left_join(df_site %>%
+                                         filter(DATASET==dataset,
+                                                PERIOD==period,
+                                                SEASON==season,
+                                                VAR==variable,
+                                                TERM==term,
+                                                SITE_NAME %in% incbasin_levels[[period]]) %>%
+                                         mutate(INC_SITE_NAME=SITE_NAME) %>%
+                                         mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))) ,
+              colour = 'black', size = 0.2) +
+      geom_sf(aes(), data = basin,inherit.aes=F, # removed group=group
                    color = 'black', fill = NA, size = 0.2) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
       scale_fill_gradient2('Change in\nFWM Conc (ppb)', high='orangered', mid='white', low='black', space='Lab') +
       ggtitle(variable) +
       theme(legend.text=element_text(size=8),
             legend.position='bottom',
-            plot.margin=grid::unit(c(0.5, 0, 0.5, 0), 'lines'))
-            # strip.text=element_text(size=12, face='bold'),
-            # strip.background=element_blank())
+           plot.margin=grid::unit(c(0.5, 0, 0.5, 0), 'lines'))
+            # strip.text=element_text(size=12, face='bold'),   ##these were already marked out
+            # strip.background=element_blank())    ##these were already marked out
     ggplotGrob(p)
   })
 
@@ -453,17 +484,23 @@ for (period in c('P2002', 'P2010')) {
     }
 
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-      geom_polygon(aes(x = long, y = lat, group = group),
-                   data = incbasin[[period]],
+      geom_sf(aes(), # removed group=group
+                   data = incbasin[[period]],inherit.aes=F,
                    color = 'grey50', fill = NA, size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = incbasin[[period]] %>%
-                     left_join(x, by=c('INC_SITE_NAME'='SITE_NAME')) %>%
-                     mutate(VAR=ordered(as.character(VAR), levels=levels(df_site$VAR)),
-                            INC_SITE_NAME=ordered(as.character(INC_SITE_NAME),
-                                                  levels=incbasin_levels[[period]])),
-                   colour = 'black', size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+      geom_sf(aes(fill = VALUE), inherit.aes=F,# removed group=id
+              data = (incbasin[[period]] %>%
+                       mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
+                        left_join(df_site %>%
+                                    filter(DATASET==dataset,
+                                           PERIOD==period,
+                                           SEASON==season,
+                                           VAR==variable,
+                                           TERM==term,
+                                           SITE_NAME %in% incbasin_levels[[period]]) %>%
+                                    mutate(INC_SITE_NAME=SITE_NAME) %>%
+                                    mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))) ,
+              colour = 'black', size = 0.2) +
+     geom_sf(aes(), data = basin,inherit.aes=F, # removed group=group
                    color = 'black', fill = NA, size = 0.2) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]],
                  fill = 'deepskyblue', pch = 21, color = 'black', size = 2) +
@@ -488,16 +525,25 @@ for (period in c('P2002', 'P2010')) {
   }
 
   maps.q <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-      geom_polygon(aes(x = long, y = lat, group = group),
-                   data = incbasin[[period]],
+    geom_sf(aes(), # removed group=group
+                   data = incbasin[[period]],inherit.aes=F,
                    color = 'grey50', fill = NA, size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, fill = VALUE, group=id),
-                   data = incbasin[[period]] %>%
-                     left_join(x.flow, by=c('INC_SITE_NAME'='SITE_NAME')) %>%
-                     mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME),
-                                              levels=incbasin_levels[[period]])),
-                   colour = 'black', size = 0.2) +
-      geom_polygon(aes(x = long, y = lat, group = group), data = basin,
+
+
+    geom_sf(aes(fill = VALUE), inherit.aes=F,# removed group=id
+            data = (incbasin[[period]] %>%
+                      mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
+                      left_join(df_site %>%
+                                  filter(DATASET==dataset,
+                                         PERIOD==period,
+                                         SEASON==season,
+                                         VAR==variable,
+                                         TERM==term,
+                                         SITE_NAME %in% incbasin_levels[[period]]) %>%
+                                  mutate(INC_SITE_NAME=SITE_NAME) %>%
+                                  mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))) ,
+            colour = 'black', size = 0.2) +
+    geom_sf(aes(), data = basin, inherit.aes=F,# removed group=group
                    color = 'black', fill = NA, size = 0.2) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]],
                  fill = 'deepskyblue', pch = 21, color = 'black', size = 2) +
@@ -532,6 +578,7 @@ for (period in c('P2002', 'P2010')) {
 # report ----
 
 # subbasin
+# THESE HAVE AN ISSUE WITH SITE_NAME, NEED TO TROUBLESHOOT
 png('report/results-load-map-subbasin-tp-conc.png', width=10, height=8, res=200, units='in')
 dash_subbasin('POR', 'P2010', 'Annual', 'TP', 'C', '')
 dev.off()

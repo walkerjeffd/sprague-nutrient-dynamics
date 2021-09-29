@@ -7,7 +7,8 @@ library(ggmap)
 library(gridExtra)
 library(scales)
 library(fluxr)
-library(wq)
+library(wq) # antiquated
+library(rkt)
 library(zoo)
 theme_set(theme_bw())
 
@@ -23,7 +24,7 @@ load('prism.Rdata')
 source('functions.R')
 
 # load data ----
-year_range <- 2002:2014
+year_range <- 2002:2020
 
 df_wyr <- loads_df[['wyr']] %>%
   filter(DATASET=="POR",
@@ -51,7 +52,7 @@ df_mon <- loads_df[['mon']] %>%
   select(-DATASET) %>%
   mutate(N_DAY=days_in_month(MONTHYEAR)) %>%
   spread(TERM, VALUE) %>%
-  rename(DATE=MONTHYEAR) %>%
+  dplyr::rename(DATE=MONTHYEAR) %>%
   droplevels
 
 df_mon.flow <- filter(df_mon, VAR=='FLOW') %>%
@@ -89,7 +90,7 @@ trend.sk <- function(x, value_var, months, month_label, years, log_trans=TRUE, w
     t <- z
   }
 
-  sk <- seaKen(t)
+  sk <- rkt(t)#seaKen(t)
 #   slope <- ifelse(abs(sk$sen.slope) < 1E-5, 0, sk$sen.slope)
   slope <- sk$sen.slope
   if (log_trans) {
@@ -147,7 +148,7 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
     z <- ts(x[[value_var]], start=start_yr, freq=1)
   }
 
-  mk <- mannKen(z)
+  mk <- rkt(z)# mannKen(z)
 
 #   slope <- ifelse(abs(mk$sen.slope) < 1E-5, 0, mk$sen.slope)
 #   slope.pct <- mk$sen.slope.pct/100

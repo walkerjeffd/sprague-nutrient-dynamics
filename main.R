@@ -25,7 +25,7 @@ source('load_prism.R')
 
 # compute flows and loads
 source('compute_flows.R') # updated, figures marked with -update to compare with original output
-source('compute_flow_precip.R') # updated, check with Jeff and Jake on WYEAR grouping in figures
+source('compute_flow_precip.R') # updated
 source('compute_loads.R') # works
 
 # plot datasets
@@ -45,7 +45,8 @@ source('plot_climate.R')
 
 # plot loads
 source('plot_loads_summary.R') # works
-source('plot_loads_maps.R') # there is a difference in format between the site names in two of the dataframes, one a geometry file and one not. at this time, i cannot get them into the same format, needs additional troubleshooting
+source('plot_loads_maps.R') # there is a difference in format between the site names in two of the dataframes, one a geometry file and one not. at this time, i cannot get them into the same format, needs additional troubleshooting,
+####**********this is the next troubleshooting spot
 source('plot_loads_tiles.R') # works
 
 source('plot_loads_network.R')
