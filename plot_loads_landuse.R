@@ -325,12 +325,10 @@ df_pou_rho <- df_site_area %>%
   dplyr::group_by(VAR) %>%
   mutate(MAX_VALUE=max(VALUE)) %>%
   dplyr::group_by(VAR, SEASON, MAX_VALUE) %>%
-  dplyr::summarise(rho=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$estimate,
-                   p=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$p.value) %>%
-  #do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
-  #mutate(rho=ct$estimate,
-  #       p=ct$p.value) %>%
-  #select(-ct) %>%
+  do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
+  mutate(rho=ct$estimate,
+         p=ct$p.value) %>%
+  select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
 
 filename <- 'report/results-load-pou-WY2010-2020-valley.png'
@@ -431,12 +429,10 @@ df_nlcd_rho <- df_site_area %>%
   dplyr::group_by(VAR) %>%
   mutate(MAX_VALUE=max(VALUE)) %>%
   dplyr::group_by(LANDUSE, VAR, SEASON, MAX_VALUE) %>%
-  dplyr::summarise(rho=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$estimate,
-                   p=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")$p.value) %>%
-  #do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
- # mutate(rho=ct$estimate,
-  #       p=ct$p.value) %>%
- # select(-ct) %>%
+  do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
+  mutate(rho=ct$estimate,
+         p=ct$p.value) %>%
+  select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
 
 

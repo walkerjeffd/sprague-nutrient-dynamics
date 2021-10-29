@@ -20,7 +20,7 @@ network <- readRDS('network.Rdata')
 
 units <- c(Q='hm3/d', L='kg/d', C='ppb')
 term_labels <- c(Q='Flow (hm3/d)', L='Load (kg/d)', C='FWM Conc (ppb)')
-period_labels <- c(P2002='WY2002-2014', P2010='WY2010-2014')
+period_labels <- c(P2002='WY2002-2020', P2010='WY2010-2020')
 
 # compute total subbasin areas of junction stations
 subbasin_area <- select(subbasin_area, SITE_NAME, AREA_KM2) %>%
@@ -38,9 +38,9 @@ df_site <- loads_df[['site']] %>%
          SITE_NAME %in% subbasin_area$SITE_NAME) %>%
   select(-DATASET, -START_DATE, -END_DATE, -N_DAY, -N_YEAR) %>%
   droplevels() %>%
-  mutate(PERIOD=plyr::revalue(PERIOD, c("2002-2014"="P2002",
-                                        "2010-2014"="P2010",
-                                        "2011-2014"="P2010")),
+  mutate(PERIOD=plyr::revalue(PERIOD, c("2002-2020"="P2002",
+                                        "2010-2020"="P2010",
+                                        "2011-2020"="P2010")),
          PERIOD=as.character(PERIOD)) %>%
   filter(!(SITE_NAME=="SF+NF" & PERIOD=="P2010"))
 
@@ -174,7 +174,7 @@ df_segments_tp_tn <- filter(df_segments, PERIOD=='P2010', VAR %in% c('TP', 'TN',
   filter(!(VAR_TERM %in% c('TN_Q'))) %>%
   mutate(VAR_TERM=ordered(VAR_TERM, levels=c('FLOW_Q', 'TP_L', 'TP_C', 'TN_L', 'TN_C')))
 
-filename <- 'report/results-load-network-tp-tn-WY2010-2014.png'
+filename <- 'report/results-load-network-tp-tn-WY2010-2020.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=10, height=8, res=200, units='in')
 p <- df_site_tp_tn %>%
@@ -206,7 +206,7 @@ p <- df_site_tp_tn %>%
 print(p)
 dev.off()
 
-filename <- 'report/results-load-network-all-conc-WY2010-2014.png'
+filename <- 'report/results-load-network-all-conc-WY2010-2020.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, height=10, width=10, res=200, units='in')
 p <- filter(df_site, PERIOD=='P2010', TERM=='C',

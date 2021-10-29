@@ -7,6 +7,7 @@ theme_set(theme_bw())
 library(gridExtra)
 
 rm(list=ls())
+theme_set(theme_bw())
 
 # load data ----
 load('kt_sprague.Rdata')
@@ -27,7 +28,7 @@ term_colors <- c('L'='olivedrab3',
 
 for (dataset in c('POR')) {
   cat('Printing:', file.path('data','pdf', tolower(dataset), 'loads-summary-wyr.pdf'), '\n')
-  pdf(file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), width=11, height=8.5)
+  pdf(file.path('pdf', tolower(dataset), 'loads-summary-wyr.pdf'), width=16, height=8.5)
   p <- filter(loads_df[['wyr']], DATASET==dataset, TERM=='C',
               SITE_NAME %in% site_name_levels,
               SEASON=="Annual") %>%
@@ -103,7 +104,7 @@ for (dataset in c('POR')) {
 for (dataset in c('POR')) {
   filename <- file.path('pdf', tolower(dataset), 'loads-summary.pdf')
   cat('Printing:', filename, '\n')
-  pdf(filename, width=11, height=8.5)
+  pdf(filename, width=16, height=8.5)
   variables <- setdiff(levels(loads_df[['wyr']]$VAR), 'FLOW')
   for (variable in variables) {
     cat('..', variable, '\n')
@@ -132,7 +133,7 @@ periods <- list(P2002=c('2002-2020'),
 dataset <- 'POR'
 filename <- file.path('pdf', tolower(dataset), 'loads-summary-site.pdf')
 cat('Printing:', filename, '\n')
-pdf(filename, width=11, height=8.5)
+pdf(filename, width=16, height=8.5)
 lapply(periods, function(period) {
   p.q_area <- filter(loads_df[['site']], DATASET==dataset, VAR=='FLOW', TERM=='Q_AREA',
                      SEASON=="Annual", PERIOD %in% period,
@@ -208,6 +209,7 @@ dev.off()
 # pdf: diagnostics ----
 variable_levels <- c('TP', 'PO4', 'TN', 'NH4', 'NO23', 'TSS')
 site_levels <- c('Power', 'Lone_Pine', 'Sycan', 'Godowa', 'SF_Ivory', 'SF', 'NF_Ivory', 'NF')
+theme_set(theme_bw(base_size=7))
 for (dataset in c('POR')) {
   if (!file.exists(file.path('pdf', tolower(dataset), 'loads-model'))) {
     dir.create(file.path('pdf', tolower(dataset), 'loads-model'))
@@ -225,6 +227,21 @@ for (dataset in c('POR')) {
     dev.off()
   }
 }
+
+# create figure for report, TP at Power
+# formatting is off, ask Jeff about
+
+      dataset <- 'POR'
+      variable <- 'TP'
+      site <- 'Power'
+      theme_set(theme_bw(base_size=7))
+plot_summary <- plot_flux_summary(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
+ggsave("./report/flux-summary-TP-Power.png",plot_summary,width=11,height=8.5)
+plot_monthly <- plot_flux_monthly(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
+ggsave("./report/flux-monthly-TP-Power.png",plot_monthly,width=11,height=8.5)
+plot_residuals <- plot_flux_residuals(loads[[dataset]][[variable]][[site]], site=site, variable=variable)
+ggsave("./report/flux-residuals-TP-Power.png",plot_residuals,width=11,height=8.5)
+
 
 # pdf: compare datasets ----
 # filename <- 'pdf/loads-model-fits.pdf'
@@ -394,8 +411,8 @@ loads_wyr_por_tp <- lapply(c('TP', 'TN'), function (variable) {
   spread(STAT, VALUE) %>%
   unite(VAR_TERM, VAR, TERM, remove=FALSE) %>%
   filter(!(VAR_TERM %in% c("TN_Q", "TN_QAREA"))) %>%
-  mutate(VAR_TERM=ifelse(VAR_TERM=="FLOW_Q","TP_Q",VAR_TERM),
-         VAR_TERM=ifelse(VAR_TERM=="FLOW_QAREA","TP_QAREA",VAR_TERM),
+  mutate(VAR_TERM=ifelse(VAR_TERM=="TP_Q","FLOW_Q",VAR_TERM),
+         VAR_TERM=ifelse(VAR_TERM=="TP_QAREA","FLOW_QAREA",VAR_TERM),
       #VAR_TERM=plyr::revalue(VAR_TERM, c(TP_Q="FLOW_Q", TP_QAREA="FLOW_QAREA")),
          VAR_TERM=ordered(VAR_TERM, levels=c("FLOW_Q", "FLOW_QAREA",
                                              "TP_L", "TP_LAREA", "TP_C",
@@ -416,7 +433,8 @@ loads_wyr_por <- lapply(names(loads[['POR']]), function (variable) {
 
 filename <- 'report/results-load-annual-tp-tn.png'
 cat('Saving report figure:', filename, '\n')
-png(filename, width=10, height=12, res=200, units='in')
+#png(filename, width=9, height=10, res=200, units='in')
+theme_set(theme_bw())
 p <- ggplot(loads_wyr_por_tp, aes(factor(WYEAR), mean, fill=TERM)) +
   geom_bar(stat='identity') +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=0.2) +
@@ -426,22 +444,23 @@ p <- ggplot(loads_wyr_por_tp, aes(factor(WYEAR), mean, fill=TERM)) +
   scale_y_continuous(labels=scales::comma) +
   guides(fill='none') +
   labs(x='Water Year',
-       y=paste(rev(c('pdf/_archive/20150510/Power vs Godowa+Sycan - Measured.pdfFlow (hm3/yr)         ',
-                     '    Runoff (cm/yr)        ',
-                     'TP Load (kg/yr)       ',
-                     'TP Export (kg/km2/yr) ',
+       y=paste(rev(c('Flow (hm3/yr)         ',
+                     '  Runoff (cm/yr)        ',
+                     ' TP Load (kg/yr)     ',
+                     'TP Export (kg/km2/yr)',
                      'FWM TP Conc (ppb) ',
-                     'TN Load (kg/yr)       ',
-                     'TN Export (kg/km2/yr) ',
+                     'TN Load (kg/yr)  ',
+                     'TN Export (kg/km2/yr)',
                      'FWM TN Conc (ppb) ')),
                collapse=' ')) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         axis.title.y=element_text(size=10),
         strip.background=element_blank(),
         strip.text.y=element_blank(),
-        strip.text.x=element_text(face='bold'))
-print(p)
-dev.off()
+        strip.text.x=element_text(face='bold',size=9))
+ggsave(paste0("./",filename),p,height=11,width=10)
+#print(p)
+#dev.off()
 
 filename <- 'report/results-load-annual.png'
 cat('Saving report figure:', filename, '\n')
@@ -456,7 +475,7 @@ p <- ggplot(loads_wyr_por, aes(factor(WYEAR), C)) +
        y='FWM Concentration (ppb)') +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         strip.background=element_blank(),
-        strip.text=element_text(face='bold'))
+        strip.text=element_text(face='bold',size=9))
 print(p)
 dev.off()
 

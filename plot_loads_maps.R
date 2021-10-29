@@ -84,7 +84,7 @@ scale_fill_term_inc <- list(
 map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
   ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
    # coord_sf(crs = st_crs(4326)) +
-    geom_sf(aes(), # removed group=group
+    geom_sf(aes(),
                  data = incbasin[[period]],
                  color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
     geom_sf(aes(fill = VALUE),inherit.aes=FALSE,
@@ -94,9 +94,7 @@ map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
                                  PERIOD==period, SEASON==season,
                                  VAR==variable, TERM==term,
                                  SITE_NAME %in% subbasin_levels[[period]]) %>%
-                          #mutate(INC_SITE_NAME=SITE_NAME) %>%
-                          mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=incbasin[[period]]$SITE_NAME), by = "SITE_NAME"))),
-               mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])), # PRIOR WORK
+               mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])))),
                  colour = 'black', size = 0.2) +
     geom_sf(aes(), data = basin, # removed group=group
                  color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
@@ -122,7 +120,9 @@ bar_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
     coord_flip() +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
     ggtitle(title)
+
   p
+
 }
 # bar_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='L_AREA')
 # bar_subbasin(dataset='POR', period='P2010', season='Annual', variable='TP', term='C')
@@ -167,11 +167,24 @@ dash_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
 # dash_subbasin('POR', 'P2010', 'Annual', 'TP', 'C',
 #               paste0('Mean Annual FWM Concentration', '   |   ', 'Dataset: POR   |   Variable: TP\n'))
 
+new <- incbasin$P2010
+
+
+what <- new %>%
+  mutate(lat = sf::st_coordinates(.)[4,1],
+         lon = sf::st_coordinates(.)[4,2]) %>%
+  mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
+  dplyr::group_by(INC_SITE_NAME) %>%
+  dplyr::summarise(lon=mean(c(min(lon), max(lon))),
+                   lat=mean(c(min(lat), max(lat)))) %>%
+  as.data.frame() %>% select(-geometry) %>%
+  st_as_sf(coords=c("lon","lat"),crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+
 map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
   if (term == 'C') {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-     # coord_sf(crs = st_crs(4326)) +
-      geom_sf(aes( ), # removed group=group from aes
+      geom_sf(aes( ),
                    data = incbasin[[period]] ,
                    color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_sf(aes(fill = VALUE),inherit.aes=FALSE, # removed group=id from aes
@@ -186,26 +199,22 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
                                     mutate(INC_SITE_NAME=SITE_NAME) %>%
                                     mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))),
             colour = 'black', size = 0.2) +
-      geom_sf(aes( ), data = basin,# removed group=group from aes
+      geom_sf(aes( ), data = basin,
                   color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
-     # geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-      #          data=incbasin[[period]] %>%
-       #           mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
-        #          dplyr::group_by(INC_SITE_NAME) %>%
-         #         dplyr::summarise(long=mean(c(min(long), max(long))),
-          #                 lat=mean(c(min(lat), max(lat)))),
-           #   fontface='bold', size=3) +
+    geom_sf_text( aes(label=INC_SITE_NAME),inherit.aes=FALSE,
+                   data = incbasin[[period]]%>%
+                     mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)),
+                  fontface='bold', size=3)+
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   } else {
     p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-     # coord_sf(crs = st_crs(4326)) +
-      geom_sf(aes( ), data = incbasin[[period]],# removed group=group from aes
+     geom_sf(aes( ), data = incbasin[[period]],# removed group=group from aes
                    color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_sf(aes( fill = VALUE),inherit.aes=FALSE,# removed group=id from aes
-              data = (incbasin[[period]] %>%
-                        filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
+            data = (incbasin[[period]] %>%
+                        #filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
                         mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
                         left_join(df_site %>%
                                     filter(DATASET==dataset,
@@ -215,16 +224,13 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
                                     mutate(INC_SITE_NAME=SITE_NAME) %>%
                                     mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME), by = "INC_SITE_NAME"))),
               colour = 'black', size = 0.2) +
-      geom_sf(aes( ), data = basin,# removed group=group from aes
+      geom_sf(aes( ), data = basin,
                    color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
-   #   geom_text(aes(x = long, y = lat, label = INC_SITE_NAME),
-    #            data=incbasin[[period]] %>%
-     #             mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) %>%
-      #            dplyr::group_by(INC_SITE_NAME) %>%
-       #           dplyr::summarise(long=mean(c(min(long), max(long))),
-        #                    lat=mean(c(min(lat), max(lat)))),
-         #       fontface='bold', size=3) +
+    geom_sf_text(  aes(label=INC_SITE_NAME),inherit.aes=FALSE,
+                   data = incbasin[[period]] %>%
+                     mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) ,
+                   fontface='bold', size=3)+
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   }
@@ -239,17 +245,7 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
 }
 
 
-
-test <- incbasin[[period]] %>%  filter(!INC_SITE_NAME %in% c('Sycan', 'NF', 'SF')) %>%
-          mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)) %>%
-          left_join(df_site %>%
-                      filter(DATASET==dataset,
-                             PERIOD==period, SEASON==season,
-                             VAR==variable, TERM=='C',
-                             SITE_NAME %in% incbasin_levels[[period]]) %>%
-                      mutate(INC_SITE_NAME=SITE_NAME) %>%
-                    mutate(INC_SITE_NAME=ordered(as.character(INC_SITE_NAME), levels=incbasin[[period]]$INC_SITE_NAME)))
-
+#map_incbasin('POR', 'P2010', 'Annual', 'TP', 'L', '')
 
 # map_incbasin(dataset='POR', period='P2002', season='Annual',
 #              variable='FLOW', term='Q_AREA',
@@ -578,7 +574,6 @@ for (period in c('P2002', 'P2010')) {
 # report ----
 
 # subbasin
-# THESE HAVE AN ISSUE WITH SITE_NAME, NEED TO TROUBLESHOOT
 png('report/results-load-map-subbasin-tp-conc.png', width=10, height=8, res=200, units='in')
 dash_subbasin('POR', 'P2010', 'Annual', 'TP', 'C', '')
 dev.off()

@@ -38,6 +38,7 @@ pou.basin <- full_join(pou.basin,
                          dplyr::rename(TOTAL_AREA_KM2=AREA_KM2,
                                 SITE_NAME=INC_SITE_NAME),
                        by="SITE") %>%
+  select(-geometry) %>%
   mutate(EXTENT="basin",
          AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2))
 
@@ -48,15 +49,15 @@ pou.valley <- full_join(pou.valley,
                           filter(INC_SITE_NAME != "Godowa-SF-NF") %>%
                           select(TOTAL_AREA_KM2=VALLEY_AREA_KM2,
                                  SITE_NAME=INC_SITE_NAME,
-                                 SITE, geometry), #added geometry so pou.basin and pou.valley had same formats
+                                 SITE, -geometry), #added geometry so pou.basin and pou.valley had same formats
                          by="SITE") %>%
   mutate(EXTENT="valley",
          AREA_KM2=ifelse(is.na(AREA_KM2), 0, AREA_KM2))
 
-pou <- rbind.fill(pou.basin, pou.valley) %>%
+pou <- bind_rows(pou.basin, pou.valley) %>%
   select(-SITE) %>%
-  pivot_longer(c(AREA_KM2, TOTAL_AREA_KM2),names_to="VAR",values_to="VALUE") %>%   #gather(VAR, VALUE, AREA_KM2, TOTAL_AREA_KM2) %>%
-  pivot_wider(names_from="SITE_NAME",values_from="VALUE") %>%   #spread(SITE_NAME, VALUE) %>%
+  pivot_longer(c(AREA_KM2, TOTAL_AREA_KM2),names_to="VAR",values_to="VALUE") %>%
+  pivot_wider(names_from="SITE_NAME",values_from="VALUE") %>%
   mutate(`Godowa-SF-NF`=`Godowa-SF_Ivory-NF_Ivory`+`SF_Ivory-SF`+`NF_Ivory-NF`,
          NF_Ivory=`NF_Ivory-NF`+NF,
          SF_Ivory=`SF_Ivory-SF`+SF,
@@ -66,10 +67,10 @@ pou <- rbind.fill(pou.basin, pou.valley) %>%
          `Godowa+Sycan`=Godowa+Sycan,
          `SF+NF`=SF+NF,
          `SF_Ivory+NF_Ivory`=SF_Ivory+NF_Ivory) %>%
-  pivot_longer(c(SF:`SF_Ivory+NF_Ivory`),names_to="SITE_NAME",values_to="VALUE") %>%   #gather(SITE_NAME, VALUE, -EXTENT, -VAR) %>%
+  pivot_longer(c(SF:`SF_Ivory+NF_Ivory`),names_to="SITE_NAME",values_to="VALUE") %>%
   filter(!is.na(VALUE)) %>%
   mutate(SITE_NAME=as.character(SITE_NAME)) %>%
-  spread(VAR, VALUE) %>%
+  pivot_wider(names_from=VAR, values_from=VALUE) %>%
   mutate(AREA_FRAC=ifelse(TOTAL_AREA_KM2==0, 0, AREA_KM2/TOTAL_AREA_KM2))
 
 pou_incbasin <- filter(pou, SITE_NAME %in% incbasin_area$INC_SITE_NAME) %>%

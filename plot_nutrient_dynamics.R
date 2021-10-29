@@ -119,7 +119,7 @@ df %>%
 # report figures ----
 filename <- file.path('report', 'erosion-tss-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in") # was inputting figure to report 3"x5", changed to ggsave to correct
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, TSS)) +
@@ -136,13 +136,14 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 
 filename <- file.path('report', 'erosion-tp-tss-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(TSS, TP)) +
@@ -159,12 +160,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-ppfrac-tss-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(TSS, 1-PO4_TP)) +
@@ -181,13 +183,15 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
+
 print(p)
 dev.off()
 
 
 filename <- file.path('report', 'erosion-pp-tss-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(TSS, PP)) +
@@ -204,12 +208,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-pp-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, PP)) +
@@ -226,12 +231,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-ppfrac-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, 1-PO4_TP)) +
@@ -248,18 +254,20 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-ppfrac-boxplot-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=6, height=4, res=200, units="in")
+#png(filename, width=6, height=4, res=200, units="in")
 p <- df %>%
   filter(SEASON=="Annual") %>%
   ggplot(aes(SITE_NAME, 1-PO4_TP)) +
   geom_boxplot(fill='grey80') +
   scale_y_continuous(labels=scales::percent, limits=c(0, 1)) +
   labs(x="Station", y="% Particulate P")
+ggsave(filename,p,width=6,height=4)
 print(p)
 dev.off()
 
@@ -268,7 +276,7 @@ dev.off()
 
 filename <- file.path('report', 'erosion-tn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, TN)) +
@@ -285,12 +293,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-nh4-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, NH4)) +
@@ -307,12 +316,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-no23-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, NO23)) +
@@ -329,12 +339,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-orgn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, ORGN)) +
@@ -351,12 +362,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-inorgn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, INORGN)) +
@@ -373,12 +385,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-pct-orgn-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, ORGN/TN)) +
@@ -395,12 +408,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-orgn-inorgn-ratio-flow-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(FLOW, ORGN/INORGN)) +
@@ -416,13 +430,14 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 
 filename <- file.path('report', 'erosion-tn-tss-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(TSS, TN)) +
@@ -439,12 +454,13 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 filename <- file.path('report', 'erosion-orgn-tss-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(TSS, ORGN)) +
@@ -461,13 +477,14 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 
 
 filename <- file.path('report', 'erosion-pct-orgn-tss-update.png')
 cat('Saving Figure:', filename, '\n')
-png(filename, width=10, height=6, res=200, units="in")
+#png(filename, width=10, height=6, res=200, units="in")
 p <- df %>%
   filter(SEASON!="Annual") %>%
   ggplot(aes(TSS, ORGN/TN)) +
@@ -484,6 +501,7 @@ p <- df %>%
         axis.text.x=element_text(size=8),
         strip.background=element_blank(),
         strip.text=element_text(face='bold'))
+ggsave(filename,p,width=10,height=6)
 print(p)
 dev.off()
 

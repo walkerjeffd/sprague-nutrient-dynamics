@@ -6,6 +6,8 @@ library(sf)
 library(exactextractr)
 library(fluxr)
 
+theme_set(theme_bw())
+
 # load: prism from 2015 ---------------------------------------------------
 # only used to validate new dataset fetched using {prism} package
 
@@ -153,7 +155,7 @@ prism_subbasin_wyr %>%
 # report figures
 filename <- "report/prism-annual-precip-update.png"
 cat('Saving annual precip plot to:', filename, '\n')
-png(filename, width=6, height=4, res=200, units="in")
+png(filename, width=6.5, height=4, res=200, units="in")
 p <- ggplot() +
   geom_bar(aes(WYEAR, PRCP), stat="identity",
            data=prism_subbasin_wyr %>%
@@ -162,7 +164,7 @@ p <- ggplot() +
   geom_text(aes(x=2013, y=mean_annual_precip+2), label="Mean", hjust=0, vjust=0, size=4) +
   labs(x="Water Year", y="Annual Precipitation (cm/yr)") +
   scale_y_continuous(breaks=seq(0, 100, 10)) +
-  scale_x_continuous(breaks=seq(1980, 2015, 5))
+  scale_x_continuous(breaks=seq(1980, 2020, 5))
 print(p)
 dev.off()
 

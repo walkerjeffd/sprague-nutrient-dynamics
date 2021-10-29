@@ -6,6 +6,7 @@ library(ggmap)
 library(gridExtra)
 library(scales)
 library(fluxr)
+library(sf)
 theme_set(theme_bw())
 
 rm(list=ls())
@@ -349,6 +350,8 @@ site <- 'Power'
 pdf(file.path('pdf', 'flow-model', 'flow-model-summary-update.pdf'), width=11, height=8.5)
 for (site in levels(q$SITE_NAME)) {
   cat('..', site, '\n')
+
+
   p.ts <- filter(q, SITE_NAME==site) %>%
     ggplot(aes(DATE, REF_FLOW)) +
     geom_line(aes(color='Reference'), size=0.25, show.legend = TRUE) +
@@ -410,12 +413,86 @@ for (site in levels(q$SITE_NAME)) {
           legend.justification=c(0, 1),
           legend.background=element_blank())
 
-  grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
+ grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
                layout_matrix=rbind(c(1, 1, 2), c(3, 4, 5)),
                top=paste0('\nStreamflow Model Diagnostics\nSite: ', site,
                           '  |  Reference Site: ', ref_sites[[site]]))
+
 }
 dev.off()
+
+# generate Power for report
+site <- 'Power'
+theme_set(theme_bw(base_size = 12))
+
+p.ts <- filter(q, SITE_NAME==site) %>%
+  ggplot(aes(DATE, REF_FLOW)) +
+  geom_line(aes(color='Reference'), size=0.25, show.legend = TRUE) +
+  geom_line(aes(x=DATE, y=Q, color='Interpolated'),
+            data=filter(q.out, SITE_NAME==site),
+            size=0.1,
+            show.legend = TRUE) +
+  geom_point(aes(y=FLOW, color='Biweekly'), size=0.4,
+             show.legend = TRUE) +
+  log_y +
+  scale_color_manual('',
+                     values=c('Reference'='grey50',
+                              'Biweekly'='red',
+                              'Interpolated'='red')) +
+  labs(x="Date", y="Flow (cfs)") +
+  guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid', 'solid'),
+                                                 shape=c(16, NA, NA)))) +
+  theme(legend.position='bottom')
+
+p.scatter <- filter(q, SITE_NAME==site) %>%
+  ggplot(aes(REF_FLOW, FLOW)) +
+  geom_point(size=1) +
+  log_y +
+  log_x +
+  geom_abline(linetype=2,show.legend=T)+#aes(color="1:1 Line"), linetype=2, show.legend=TRUE) +
+  scale_color_manual('', values=c('red')) +
+  labs(x="Flow @ Reference Site (cfs)", y=paste0("Flow @ ", site, " (cfs)")) +
+  theme(legend.position='bottom')
+
+p.resid <- filter(q.model, SITE_NAME==site) %>%
+  filter(!is.na(FLOW)) %>%
+  ggplot(aes(DATE, LN_RESID)) +
+  geom_hline(yintercept=0) +
+  geom_point(size=1) +
+  labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]")
+
+p.resid.flow <- filter(q.model, SITE_NAME==site) %>%
+  filter(!is.na(FLOW)) %>%
+  ggplot(aes(FLOW, LN_RESID)) +
+  geom_hline(yintercept=0) +
+  geom_point(size=1) +
+  labs(x="Measured Biweekly Flow (cfs)",
+       y="Log Flow Residual\nln[Measured/Scaled Reference]") +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
+
+p.ratio <- filter(q.model, !is.na(FLOW), SITE_NAME==site) %>%
+  mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
+  ggplot(aes(MONTH, RATIO)) +
+  geom_hline(yintercept=1, color='gray50') +
+  geom_boxplot(outlier.size=1) +
+  geom_point(aes(MONTH, RATIO, color="Mean"),
+             data=filter(ratios, SITE_NAME==site) %>%
+               mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))),
+             show.legend=TRUE) +
+  scale_color_manual('', values='orangered') +
+  labs(x="Month", y="Flow Ratio [Measured/Reference]") +
+  theme(legend.position=c(0, 1),
+        legend.justification=c(0, 1),
+        legend.background=element_blank())
+
+g <- grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
+                  layout_matrix=rbind(c(1, 1, 2), c(3, 4, 5)),
+                  top=paste0('\nStreamflow Model Diagnostics\nSite: ', site,
+                             '  |  Reference Site: ', ref_sites[[site]]))
+
+ggsave("./report/flow-model-Power.png",g,width=10.5,height=8)
+
 
 # filename <- file.path('pdf', 'flow-model.pdf')
 # cat('Printing:', filename, '\n')

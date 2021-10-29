@@ -15,7 +15,7 @@ source('functions.R')
 filename <- file.path('data', 'raw', 'kt', 'Sprague River--Water Quality Dataset 2001_2014_revised_20150127.csv')
 cat('Loading file:', filename, '\n')
 
-df_2001_2014 <- read.csv(filename, stringsAsFactors=FALSE)
+df_2001_2014 <- read.csv(filename)
 df_2001_2014 <- df_2001_2014 %>%
   dplyr::rename(
              INDEX=INDEX,
@@ -148,12 +148,8 @@ df_2014_2020 <- df_2014_2020 %>%
          SIO2_DUP, TSS_DUP, TURBIDITY_NTU, NOTES) %>%
   mutate(STAGE_ft=as.double(STAGE_ft), # 'n/a' converted to NA
          DATE=ymd(DATE))  %>%
- # unique() %>% # i've tried unique, duplicated, and distinct and the duplicate rows of data are not coming out.
   left_join(df_2001_2014 %>% select(SITE,LAT,LON) %>% unique) %>%
    filter(!is.na(MONTH))
-#mutate(FLOW_cfs=as.numeric(FLOW_cfs)) %>%
-  # mutate(LAT=as.character(LAT)) %>%
-  #mutate(LON=as.character(LON))
 
 df <- bind_rows(df_2001_2014,df_2014_2020)
 

@@ -7,7 +7,7 @@ library(ggmap)
 library(gridExtra)
 library(scales)
 library(fluxr)
-library(wq) # antiquated
+#library(wq) # antiquated
 library(rkt)
 library(zoo)
 theme_set(theme_bw())
@@ -53,6 +53,7 @@ df_mon <- loads_df[['mon']] %>%
   mutate(N_DAY=days_in_month(MONTHYEAR)) %>%
   spread(TERM, VALUE) %>%
   dplyr::rename(DATE=MONTHYEAR) %>%
+  mutate(DATE_NUM=decimal_date(DATE)) %>%
   droplevels
 
 df_mon.flow <- filter(df_mon, VAR=='FLOW') %>%
@@ -118,13 +119,89 @@ trend.sk <- function(x, value_var, months, month_label, years, log_trans=TRUE, w
                     SIGNIF=sig,
                     DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))		)
 }
-# trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
-#          value_var='C',
-#          months=1:12,
-#          month_label='Seasonal',
-#          years=2002:2014,
-#          log_trans=TRUE,
-#          water_year=TRUE)
+
+
+# make changes
+# with rkt package, the data do not need to be in time series format. by leaving dates as a vector, the package can account for 'non-regular sampling dates' within the data
+
+trend.sk <- function(x, value_var, months, month_label, years, water_year=TRUE, #log_trans=TRUE
+                     ) {
+  # months <- 1:4
+  # month_label <- 'Annual'
+  # years <- 1992:2010
+  # water_year <- TRUE
+
+  if (water_year==TRUE) {
+    x <- subset(x, MONTH %in% months & WYEAR %in% years)
+  } else {
+    x <- subset(x, MONTH %in% months & YEAR %in% years)
+  }
+#  if (log_trans) {
+#    z <- zoo(log10(x[[value_var]]), x[['DATE']])
+#  } else {
+#    z <- zoo(x[[value_var]], x[['DATE']])
+#  }
+
+
+
+  sk <- rkt(date=decimal_date(x$ DATE ),y=x$ value_var ,block=x$months)#seaKen(t)
+  #   slope <- ifelse(abs(sk$sen.slope) < 1E-5, 0, sk$sen.slope)
+  slope <- sk$B
+  # slope <- sk$sen.slope
+ # if (log_trans) {
+ #   slope.pct <- slope.pct <- 10^slope-1
+#  } else {
+ #   slope.pct <- sk$sen.slope.pct/100
+ # }
+
+ # intercept <- median(z - slope*time(z), na.rm=T)
+  #pval <- sk$p.value
+  pval <- sk$sl
+ # sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
+#  if (is.na(sig)) sig <- "p>0.10"
+
+  return(data.frame(TERM=value_var,
+                    LOG=log_trans,
+                    YEAR_SPAN=paste(min(years),max(years),sep='-'),
+                    MONTH_LABEL=month_label,
+                    METHOD='SeasonalKendall',
+                    MEAN.VAL=mean(x, na.rm=T),
+                    MEAN.TIME=decimal_date(mean(x$DATE)),
+                    #INTERCEPT=intercept,
+                    SLOPE=slope,
+                    #SLOPE.PCT=slope.pct,
+                    PVAL=pval,
+                   # SIGNIF=sig,
+                   # DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing'))
+                   )		)
+}
+
+# run rkt seasonal kendall alone
+
+testdf <- df_mon %>%
+  filter(SITE_NAME=="Power",VAR=="TP", WYEAR%in%c(2002:2019)) %>%
+  mutate(DATE_NUM=decimal_date(DATE))
+
+testrkt <- rkt(date=testdf$DATE_NUM,y=testdf$C,block=testdf$MONTH)
+print(testrkt)
+
+trendsk_test <- function(x,value_var){
+
+  sk <- rkt(date=x$DATE_NUM,y=x$value_var,block=x$MONTH)
+  print(sk)
+
+}
+
+trendsk_test(x=testdf,value_var=`C`)
+
+ trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
+          value_var='C',
+          months=1:12,
+          month_label="Seasonal",
+          years=2002:2019,
+          log_trans=TRUE,
+          water_year=TRUE)
+
 # trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
 #          value_var='C',
 #          months=10,
