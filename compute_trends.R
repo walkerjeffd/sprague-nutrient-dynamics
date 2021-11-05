@@ -21,6 +21,7 @@ load('loads.Rdata')
 load('kt_sprague.Rdata')
 load('prism.Rdata')
 
+
 source('functions.R')
 
 # load data ----
@@ -35,6 +36,8 @@ df_wyr <- loads_df[['wyr']] %>%
          !(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
   select(-DATASET) %>%
   spread(TERM, VALUE) %>%
+  mutate(DATE_NUM=decimal_date(DATE),
+         YEAR=year(DATE)) %>%
   droplevels
 
 df_wyr.flow <- filter(df_wyr, VAR=='FLOW') %>%
@@ -42,6 +45,7 @@ df_wyr.flow <- filter(df_wyr, VAR=='FLOW') %>%
 df_wyr <- filter(df_wyr, VAR!='FLOW') %>%
   select(-Q) %>%
   left_join(df_wyr.flow, by=c('SITE_NAME', 'WYEAR'))
+
 
 df_mon <- loads_df[['mon']] %>%
   filter(DATASET=="POR",
@@ -53,7 +57,8 @@ df_mon <- loads_df[['mon']] %>%
   mutate(N_DAY=days_in_month(MONTHYEAR)) %>%
   spread(TERM, VALUE) %>%
   dplyr::rename(DATE=MONTHYEAR) %>%
-  mutate(DATE_NUM=decimal_date(DATE)) %>%
+  mutate(DATE_NUM=decimal_date(DATE),
+         YEAR=year(DATE)) %>%
   droplevels
 
 df_mon.flow <- filter(df_mon, VAR=='FLOW') %>%
@@ -63,145 +68,95 @@ df_mon <- filter(df_mon, VAR!='FLOW') %>%
   left_join(df_mon.flow, by=c('SITE_NAME', 'DATE'))
 
 # trend functions ----
-trend.sk <- function(x, value_var, months, month_label, years, log_trans=TRUE, water_year=TRUE) {
-  # months <- 1:4
-  # month_label <- 'Annual'
-  # years <- 1992:2010
-  # water_year <- TRUE
+
+# seasonal kendall
+# with rkt package, the data do not need to be in time series format. by leaving dates as a vector, the package can account for 'non-regular sampling dates' within the data
+
+
+trend.sk <- function(x,months,month_label,years,value_var,water_year=TRUE,log_trans=TRUE){
 
   if (water_year==TRUE) {
     x <- subset(x, MONTH %in% months & WYEAR %in% years)
   } else {
     x <- subset(x, MONTH %in% months & YEAR %in% years)
   }
+
+
+ # if (log_trans) {
+#    z <- zoo(log10(x[[value_var]]), x[['DATE']]) # this part of the function is to make the dates consistent with ts (time series), #which we don't need because the updated rkt function relies on decimal dates instead of time series data.
+#  } else {
+#    z <- zoo(x[[value_var]], x[['DATE']])
+#  }
+
   if (log_trans) {
-    z <- zoo(log10(x[[value_var]]), x[['DATE']])
+    x[[value_var]] <- log10(x[[value_var]]) # convert to a log transform of the value_var
   } else {
-    z <- zoo(x[[value_var]], x[['DATE']])
+    x[[value_var]] <- x[[value_var]]
   }
 
-  z <- aggregate(z, as.yearmon, mean, na.rm=TRUE)
-  z <- as.ts(z)
-  z <- window(z, start=c(start(z)[1],1), end=c(end(z)[1], frequency(z)), extend=TRUE)
 
-  if (length(months)>1) {
-    t <- z[cycle(z) %in% months]
-    t <- ts(t, start=c(start(z)[1],1), end=c(end(z)[1],length(months)), frequency=length(months))
-  } else {
-    t <- z
-  }
+  sk <- rkt(date=x[['DATE_NUM']],y=x[[value_var]],block=x[['MONTH']])
 
-  sk <- rkt(t)#seaKen(t)
-#   slope <- ifelse(abs(sk$sen.slope) < 1E-5, 0, sk$sen.slope)
-  slope <- sk$sen.slope
+  slope <- sk[['B']]
+  pval <- sk[['sl']] %>%  as.numeric
+
   if (log_trans) {
     slope.pct <- slope.pct <- 10^slope-1
   } else {
     slope.pct <- sk$sen.slope.pct/100
   }
 
-  intercept <- median(t - slope*time(t), na.rm=T)
-  pval <- sk$p.value
+
+
   sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
-  if (is.na(sig)) sig <- "p>0.10"
+  if (is.na(sig)) {sig <- "p>0.10"}
+
+  intercept <- median(x[[value_var]] - slope*time(x[[value_var]]), na.rm=T) # is this correct? check w jeff
 
   return(data.frame(TERM=value_var,
                     LOG=log_trans,
                     YEAR_SPAN=paste(min(years),max(years),sep='-'),
                     MONTH_LABEL=month_label,
                     METHOD='SeasonalKendall',
-                    MEAN.VAL=mean(t, na.rm=T),
-                    MEAN.TIME=decimal_date(mean(x$DATE)),
                     INTERCEPT=intercept,
+                    MEAN.VAL=mean(x[[value_var]],na.rm=T),
+                    MEAN.TIME=mean(x[['DATE_NUM']]),
                     SLOPE=slope,
                     SLOPE.PCT=slope.pct,
                     PVAL=pval,
                     SIGNIF=sig,
-                    DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))		)
-}
-
-
-# make changes
-# with rkt package, the data do not need to be in time series format. by leaving dates as a vector, the package can account for 'non-regular sampling dates' within the data
-
-trend.sk <- function(x, value_var, months, month_label, years, water_year=TRUE, #log_trans=TRUE
-                     ) {
-  # months <- 1:4
-  # month_label <- 'Annual'
-  # years <- 1992:2010
-  # water_year <- TRUE
-
-  if (water_year==TRUE) {
-    x <- subset(x, MONTH %in% months & WYEAR %in% years)
-  } else {
-    x <- subset(x, MONTH %in% months & YEAR %in% years)
-  }
-#  if (log_trans) {
-#    z <- zoo(log10(x[[value_var]]), x[['DATE']])
-#  } else {
-#    z <- zoo(x[[value_var]], x[['DATE']])
-#  }
-
-
-
-  sk <- rkt(date=decimal_date(x$ DATE ),y=x$ value_var ,block=x$months)#seaKen(t)
-  #   slope <- ifelse(abs(sk$sen.slope) < 1E-5, 0, sk$sen.slope)
-  slope <- sk$B
-  # slope <- sk$sen.slope
- # if (log_trans) {
- #   slope.pct <- slope.pct <- 10^slope-1
-#  } else {
- #   slope.pct <- sk$sen.slope.pct/100
- # }
-
- # intercept <- median(z - slope*time(z), na.rm=T)
-  #pval <- sk$p.value
-  pval <- sk$sl
- # sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
-#  if (is.na(sig)) sig <- "p>0.10"
-
-  return(data.frame(TERM=value_var,
-                    LOG=log_trans,
-                    YEAR_SPAN=paste(min(years),max(years),sep='-'),
-                    MONTH_LABEL=month_label,
-                    METHOD='SeasonalKendall',
-                    MEAN.VAL=mean(x, na.rm=T),
-                    MEAN.TIME=decimal_date(mean(x$DATE)),
-                    #INTERCEPT=intercept,
-                    SLOPE=slope,
-                    #SLOPE.PCT=slope.pct,
-                    PVAL=pval,
-                   # SIGNIF=sig,
-                   # DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing'))
-                   )		)
-}
-
-# run rkt seasonal kendall alone
-
-testdf <- df_mon %>%
-  filter(SITE_NAME=="Power",VAR=="TP", WYEAR%in%c(2002:2019)) %>%
-  mutate(DATE_NUM=decimal_date(DATE))
-
-testrkt <- rkt(date=testdf$DATE_NUM,y=testdf$C,block=testdf$MONTH)
-print(testrkt)
-
-trendsk_test <- function(x,value_var){
-
-  sk <- rkt(date=x$DATE_NUM,y=x$value_var,block=x$MONTH)
-  print(sk)
+                    DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing'))))
 
 }
 
-trendsk_test(x=testdf,value_var=`C`)
 
- trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
-          value_var='C',
-          months=1:12,
-          month_label="Seasonal",
-          years=2002:2019,
-          log_trans=TRUE,
-          water_year=TRUE)
+test <- prism.mon%>%
+  filter(SITE_NAME=="Power")
+test.wyr <- prism.wyr%>%
+  filter(SITE_NAME=="Power")
 
+trend.sk(test,
+         month_label='All Months',
+         months=1:12,
+         years=2010:2019,
+         value_var='PRCP',
+         log_trans=TRUE,
+         water_year=TRUE)
+
+trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
+             months=1:12,
+             month_label='Annual',
+             years=2002:2020,
+             value_var='C',
+             water_year=TRUE,
+             log_trans=TRUE)
+#trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
+#          value_var='C',
+#          months=1:12,
+#          month_label='Seasonal',
+#          years=2002:2014,
+#          log_trans=TRUE,
+#          water_year=TRUE)
 # trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
 #          value_var='C',
 #          months=10,
@@ -210,6 +165,8 @@ trendsk_test(x=testdf,value_var=`C`)
 #          log_trans=TRUE,
 #          water_year=TRUE)
 
+
+# mann kendall
 trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_year=TRUE) {
   if (water_year==TRUE) {
     x <- subset(x, WYEAR %in% years)
@@ -219,36 +176,41 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
     start_yr <- min(x[['YEAR']])
   }
 
-  if (log_trans) {
-    z <- ts(log10(x[[value_var]]), start=start_yr, freq=1)
+ # if (log_trans) { # the code doesn't actually use this, it was to convert to a time series object and the rkt package requires a decimal date, not time series
+ #   z <- ts(log10(x[[value_var]]), start=start_yr, freq=1)
+#  } else {
+#    z <- ts(x[[value_var]], start=start_yr, freq=1)
+#  }
+
+  if (log_trans) { # but i will do a log transform on the dataframe
+    x[[value_var]] <- log10(x[[value_var]])
   } else {
-    z <- ts(x[[value_var]], start=start_yr, freq=1)
+    x[[value_var]] <- x[[value_var]]
   }
 
-  mk <- rkt(z)# mannKen(z)
+  sk <- rkt(date=x[['DATE_NUM']],y=x[[value_var]])
 
-#   slope <- ifelse(abs(mk$sen.slope) < 1E-5, 0, mk$sen.slope)
-#   slope.pct <- mk$sen.slope.pct/100
-#
-  slope <- mk$sen.slope
+  slope <- sk[['B']]
+  pval <- sk[['sl']] %>%  as.numeric
+
   if (log_trans) {
-    slope.pct <- 10^slope-1
+    slope.pct <- slope.pct <- 10^slope-1
   } else {
-    slope.pct <- mk$sen.slope.pct/100
+    slope.pct <- sk$sen.slope.pct/100
   }
 
-  intercept <- median(z - slope*time(z), na.rm=T)
-  pval <- mk$p.value
   sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
-  if (is.na(sig)) sig <- "p>0.10"
+  if (is.na(sig)) {sig <- "p>0.10"}
+
+  intercept <- median(x[[value_var]] - slope*time(x[[value_var]]), na.rm=T) # is this correct? check w jeff
 
   data.frame(TERM=value_var,
              LOG=log_trans,
              YEAR_SPAN=paste(min(years),max(years),sep='-'),
              MONTH_LABEL=month_label,
              METHOD='MannKendall',
-             MEAN.VAL=mean(z, na.rm=T),
-             MEAN.TIME=mean(time(z)),
+             MEAN.VAL=mean(x[[value_var]],na.rm=T),
+             MEAN.TIME=mean(x[['DATE_NUM']]),
              INTERCEPT=intercept,
              SLOPE=slope,
              SLOPE.PCT=slope.pct,
@@ -256,13 +218,29 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
              SIGNIF=sig,
              DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))
 }
-# trend.mk(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
-#          value_var='C',
-#          month_label='Annual',
-#          years=2002:2014,
-#          log_trans=TRUE,
-#          water_year=TRUE)
 
+
+test <- prism.mon%>%
+  filter(SITE_NAME=="Power")
+test.wyr <- prism.wyr%>%
+  filter(SITE_NAME=="Power")
+
+trend.mk(test.wyr,
+         month_label='All Months',
+         years=2010:2019,
+         value_var='PRCP',
+         log_trans=TRUE,
+         water_year=TRUE)
+
+
+trend.mk(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
+          value_var='C',
+          month_label='Annual',
+          years=2002:2014,
+          log_trans=TRUE,
+          water_year=TRUE)
+
+# linear regression
 trend.lm <- function(x, value_var, years, month_label, log_trans=FALSE, water_year=TRUE) {
   if (water_year==TRUE) {
     x <- subset(x, WYEAR %in% years)
@@ -306,6 +284,21 @@ trend.lm <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
              SIGNIF=sig,
              DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))
 }
+
+
+test <- prism.mon%>%
+  filter(SITE_NAME=="NF")
+test.wyr <- prism.wyr%>%
+  filter(SITE_NAME=="NF")
+
+trend.lm(test.wyr,
+         month_label='All Months',
+         years=2010:2019,
+         value_var='PRCP',
+         log_trans=FALSE,
+         water_year=TRUE)
+
+
 # trend.lm(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
 #          value_var='C',
 #          month_label='Annual',
@@ -381,11 +374,16 @@ trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
                   TERM=ordered(TERM, levels=names(term_labs)))
   t_all
 }
-# trend.batch(x_mon=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
-#             x_wyr=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
-#             years=2002:2014,
+
+
+
+#trend.batch(x_mon=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
+#          x_wyr=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
+#           years=2002:2014,
 #             log_trans=TRUE,
 #             water_year=TRUE)
+
+
 
 # compute trends ----
 cat('Computing trend analysis...\n\n')
@@ -426,49 +424,55 @@ trends <- trends %>%
                                        "Decreasing (p<0.05)")))
 
 
+
 # precip trends ----
+
+
 trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRUE) {
-  x <- x.mon %>%
-    mutate(MONTH=month(MONTHYEAR))
+  x <- x.mon
+  #  mutate(MONTH=month(MONTHYEAR))
 
   value_var <- 'PRCP'
 
-  df.seasonal <- trend.sk(x, value_var=value_var,
+  df.seasonal <- trend.sk(x, value_var,
                           months=1:12, month_label='All Months',
                           years=years, log_trans=log_trans, water_year=water_year)
-  df.4_9 <- trend.sk(x, value_var=value_var,
+  df.4_9 <- trend.sk(x, value_var,
                      months=4:9, month_label='Apr-Sep',
                      years=years, log_trans=log_trans, water_year=water_year)
-  df.10_3 <- trend.sk(x, value_var=value_var,
+  df.10_3 <- trend.sk(x, value_var,
                       months=c(1:3, 10:12), month_label='Oct-Mar',
                       years=years, log_trans=log_trans, water_year=water_year)
-  df.fall <- trend.sk(x, value_var=value_var,
+  df.fall <- trend.sk(x, value_var,
                       months=c(10:12), month_label='Oct-Dec',
                       years=years, log_trans=log_trans, water_year=water_year)
-  df.winter <- trend.sk(x, value_var=value_var,
+  df.winter <- trend.sk(x, value_var,
                         months=1:3, month_label='Jan-Mar',
                         years=years, log_trans=log_trans, water_year=water_year)
-  df.spring <- trend.sk(x, value_var=value_var,
+  df.spring <- trend.sk(x, value_var,
                         months=4:6, month_label='Apr-Jun',
                         years=years, log_trans=log_trans, water_year=water_year)
-  df.summer <- trend.sk(x, value_var=value_var,
+  df.summer <- trend.sk(x, value_var,
                         months=7:9, month_label='Jul-Sep',
                         years=years, log_trans=log_trans, water_year=water_year)
   df <- rbind(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
 
   for (m in 1:12) {
-    df.m <- trend.sk(x=x, value_var=value_var,
+    df.m <- trend.sk(x=x, value_var,
                      months=m, month_label=as.character(m),
                      years=years, log_trans=log_trans, water_year=water_year)
     df <- rbind(df, df.m)
   }
 
-  df.mk <- trend.mk(x=x.wyr, value_var=value_var,
+
+
+  df.mk <- trend.mk(x=x.wyr, value_var,
                     years=years, month_label='Annual-MK',
                     log_trans=log_trans, water_year=water_year)
-  df.lm <- trend.lm(x=x.wyr, value_var=value_var,
+
+  df.lm <- trend.lm(x=x.wyr, value_var,
                     years=years, month_label='Annual-Reg',
-                    log_trans=log_trans, water_year=water_year)
+                    log_trans=FALSE, water_year=water_year)
 
   df <- rbind(df, df.mk, df.lm)
   df <- mutate(df,
@@ -482,29 +486,67 @@ trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRU
   df
 }
 
-prism.mon <- mutate(prism_subbasin,
-                    DATASET='PRISM',
-                    DATE=MONTHYEAR,
-                    VAR='PRCP',
-                    N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
-                    PRCP=PRCP/N.DAY) %>% # mean mm/day
+## test test
+
+trend.batch.prcp(x.mon=prism.mon %>% filter(SITE_NAME=="SF"), # Godowa/NF/SF produces the two equal dates same block error
+                 x.wyr=prism.wyr %>% filter(SITE_NAME=="SF"),
+                 years=year_range, log_trans=TRUE, water_year=TRUE)
+
+trend.batch.prcp.wut <- function(x.mon, years, log_trans=TRUE, water_year=TRUE) {
+ # x <- x.mon
+  value_var <- 'PRCP'
+
+  this <- trend.sk(x.mon, value_var,
+                   months=1:12, month_label='All Months',
+                   years=years, log_trans=log_trans, water_year=water_year)
+
+  return(this)
+}
+
+
+trend.sk(prism.mon %>% filter(SITE_NAME=="Power"), value_var='PRCP',
+         months=1:12, month_label='All Months',
+         years=year_range, log_trans=TRUE, water_year=TRUE)
+
+trend.batch.prcp.wut(x.mon=prism.mon %>% filter(SITE_NAME=="Power"),
+                     years=year_range,
+                     log_trans=TRUE,
+                     water_year=TRUE)
+
+## end test
+
+prism.mon <- prism_subbasin %>%
+  select(-geometry) %>%
+  mutate(DATE=MONTHYEAR,
+         VAR='PRCP',
+         N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
+         YEAR=year(DATE),
+         MONTH=month(DATE),
+         DATE_NUM=decimal_date(DATE),
+         PRCP=PRCP/N.DAY,PRCP=as.numeric(PRCP)) %>% # mean mm/day
   filter(WYEAR>=min(year_range), WYEAR<=max(year_range),
          SITE_NAME %in% levels(df_mon$SITE_NAME)) %>%
   droplevels
-prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR) %>%
-  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) # mm/day
+prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR,YEAR,DATE_NUM) %>%
+  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) %>%  # mm/day
+  mutate(PRCP=as.numeric(PRCP))
+
+
+
+
 
 cat('Computing precip trends...\n')
 trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
-  df <- trend.batch.prcp(filter(prism.mon, SITE_NAME==site),
-                         filter(prism.wyr, SITE_NAME==site),
+  df <- trend.batch.prcp(x.mon=prism.mon %>% filter(SITE_NAME==site),
+                         x.wyr=prism.wyr %>% filter(SITE_NAME==site),
                          years=year_range,
-                         log_trans=FALSE,
+                         log_trans=TRUE, # was originally noted as FALSE, won't run with this as FALSE, check with Jeff regarding log transforms and structure in trend.sk, trend.mk, and trend.lm
                          water_year=TRUE)
+
   df$SITE_NAME <- site
   df
 }) %>%
-  rbind_all() %>%
+  bind_rows() %>%
   mutate(SITE_NAME=ordered(SITE_NAME, levels=levels(stn.kt_sprague$SITE_NAME)),
          TERM="P",
          VAR="PRECIP") %>%
@@ -547,7 +589,7 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -563,7 +605,7 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
     ggplot(aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -603,7 +645,7 @@ plot_dot_season <- function(variable, seasons=c('All Months', 'Oct-Mar', 'Apr-Se
   ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -634,7 +676,7 @@ plot_dot_term <- function(term, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), v
   p <- ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -651,6 +693,48 @@ plot_dot_term <- function(term, seasons=c('All Months', 'Oct-Mar', 'Apr-Sep'), v
 # plot_dot_term(term='C')
 # plot_dot_term(term='C', c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep'))
 
+
+#### test: where are the trend lines on the figures
+# lm shows up, not seasonal or mann kendall
+x.trend <- filter(trends, SITE_NAME=="Power",
+                  VAR=="TP", TERM=='C', LOG==TRUE)
+x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall') %>%
+  select(SEASON=MONTH_LABEL, SLOPE, INTERCEPT)
+x.wyr.trends <- filter(x.trend, MONTH_LABEL %in% c('Annual-MK', 'Annual-Reg'))
+x.trends.all <- filter(x.trend, METHOD=='SeasonalKendall', MONTH_LABEL=='All Months') %>%
+  as.list()
+
+x.wyr <- filter(df_wyr, SITE_NAME=="Power", VAR=="TP")
+x.mon <- filter(df_mon, SITE_NAME=="Power", VAR=="TP") %>%
+  mutate(DDATE=decimal_date(DATE))
+x.mon$SEASON <- ifelse(x.mon$MONTH %in% seq(4, 9), 'Apr-Sep', 'Oct-Mar')
+
+n_year <- length(unique(x.wyr$WYEAR))
+
+x.mon %>%
+ggplot(aes(DDATE,C,color=SEASON))+
+  geom_point(show.legend=TRUE) +
+  geom_abline(data=x.mon.trends %>% filter(SEASON%in%c('Apr-Sep', 'Oct-Mar')),
+              aes(intercept=INTERCEPT,slope=SLOPE,color=SEASON))
+
+geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
+            data=filter(x.mon.trends, SEASON %in% c('Apr-Sep', 'Oct-Mar')), show.legend=TRUE)
+
+p.mon.ts <-
+  x.mon %>%
+  ggplot() + aes_string(x='DDATE', y='C', color='SEASON') +
+  geom_point(show.legend=TRUE) +
+  geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
+              data=filter(x.mon.trends, SEASON %in% c('Apr-Sep', 'Oct-Mar')), show.legend=TRUE) +
+  geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
+              data=filter(x.mon.trends, SEASON=='All Months'), show.legend=TRUE) +
+  scale_color_manual('Season', values=c('Apr-Sep'='olivedrab3', 'Oct-Mar'='orange', 'All Months'='black')) +
+  scale_x_continuous(breaks=seq(min(year_range), max(year_range),
+                                by=ifelse(n_year >= 10, 2, 1))) +
+  labs(x='', y=paste0('Monthly ')) +
+  theme(legend.position='top')
+
+##### end test
 plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
   x.trend <- filter(trends, SITE_NAME==site_name,
                     VAR==variable, TERM==term, LOG==log_trans)
@@ -696,11 +780,11 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
 
   p.mon.ts <- x.mon %>%
     ggplot() + aes_string(x='DDATE', y=term, color='SEASON') +
-    geom_point(show_guide=TRUE) +
+    geom_point(show.legend=TRUE) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
-                data=filter(x.mon.trends, SEASON %in% c('Apr-Sep', 'Oct-Mar')), show_guide=TRUE) +
+                data=filter(x.mon.trends, SEASON %in% c('Apr-Sep', 'Oct-Mar')), show.legend=TRUE) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
-                data=filter(x.mon.trends, SEASON=='All Months'), show_guide=TRUE) +
+                data=filter(x.mon.trends, SEASON=='All Months'), show.legend=TRUE) +
     scale_color_manual('Season', values=c('Apr-Sep'='olivedrab3', 'Oct-Mar'='orange', 'All Months'='black')) +
     scale_x_continuous(breaks=seq(min(year_range), max(year_range),
                                   by=ifelse(n_year >= 10, 2, 1))) +
@@ -708,14 +792,14 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     theme(legend.position='top')
 
   if (!log_trans) {
-    p.mon.ts <- p.mon.ts + geom_hline(yint=0, alpha=0)
+    p.mon.ts <- p.mon.ts + geom_hline(yintercept=0, alpha=0)
   }
 
   p.wyr.ts <- x.wyr %>%
     ggplot(aes_string(x='WYEAR', y=term)) +
     geom_point() +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, linetype=METHOD),
-                data=x.wyr.trends, show_guide=TRUE) +
+                data=x.wyr.trends, show.legend=TRUE) +
     scale_linetype_manual('Method', values=c('MannKendall'=1, 'LinearRegression'=2)) +
     scale_x_continuous(breaks=seq(min(year_range), max(year_range),
                                   by=ifelse(n_year >= 10, 2, 1))) +
@@ -723,7 +807,7 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     theme(legend.position='top')
 
   if (!log_trans) {
-    p.wyr.ts <- p.wyr.ts + geom_hline(yint=0, alpha=0)
+    p.wyr.ts <- p.wyr.ts + geom_hline(yintercept=0, alpha=0)
   }
 
   p.mon <- x.mon %>%
@@ -745,7 +829,7 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     ggplot(aes(MONTH_LABEL, SLOPE.PCT, fill=LABEL)) +
     geom_bar(stat='identity') +
     geom_bar(stat='identity', color='grey30', alpha=0) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -753,8 +837,8 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
                                "Decreasing (0.05<p<0.1)"="#AAC4DB",
                                "Decreasing (p<0.05)"="steelblue"),
                       drop=FALSE) +
-    geom_vline(xint=c(12.5, 16.5, 18.5), color='grey70') +
-    geom_hline(yint=0, color='grey50') +
+    geom_vline(xintercept=c(12.5, 16.5, 18.5), color='grey70') +
+    geom_hline(yintercept=0, color='grey50') +
     scale_y_continuous(labels=percent) +
     labs(x='', y='Trend Slope (%/yr)') +
     guides(fill=guide_legend(override.aes = list(colour=NA))) +
@@ -797,7 +881,9 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
                heights=c(10/24, 6/24, 8/24),
                top=title)
 }
-# plot_diagnostic(site_name='Power', variable='TP', term='C')
+
+
+plot_diagnostic(site_name='Power', variable='TP', term='C')
 
 plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
   term <- 'PRCP'
@@ -836,11 +922,11 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
 
   p.mon.ts <- x.mon %>%
     ggplot() + aes_string(x='DDATE', y=term, color='SEASON') +
-    geom_point(show_guide=TRUE) +
+    geom_point(show.legend=TRUE) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
-                data=filter(x.mon.trends, SEASON %in% c('Apr-Sep', 'Oct-Mar')), show_guide=TRUE) +
+                data=filter(x.mon.trends, SEASON %in% c('Apr-Sep', 'Oct-Mar')), show.legend=TRUE) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, color=SEASON),
-                data=filter(x.mon.trends, SEASON %in% c('All Months')), show_guide=TRUE) +
+                data=filter(x.mon.trends, SEASON %in% c('All Months')), show.legend=TRUE) +
     scale_color_manual('Season', values=c('Apr-Sep'='olivedrab3', 'Oct-Mar'='orange', 'All Months'='black')) +
     scale_x_continuous(breaks=seq(min(year_range), max(year_range),
                                   by=ifelse(n_year >= 10, 2, 1))) +
@@ -848,14 +934,14 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     theme(legend.position='top')
 
   if (!log_trans) {
-    p.mon.ts <- p.mon.ts + geom_hline(yint=0, alpha=0)
+    p.mon.ts <- p.mon.ts + geom_hline(yintercept=0, alpha=0)
   }
 
   p.wyr.ts <- x.wyr %>%
     ggplot(aes_string(x='WYEAR', y=term)) +
     geom_point() +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE, linetype=METHOD),
-                data=x.wyr.trends, show_guide=TRUE) +
+                data=x.wyr.trends, show.legend=TRUE) +
     scale_linetype_manual('Method', values=c('MannKendall'=1, 'LinearRegression'=2)) +
     scale_x_continuous(breaks=seq(min(year_range), max(year_range),
                                   by=ifelse(n_year >= 10, 2, 1))) +
@@ -863,7 +949,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     theme(legend.position='top')
 
   if (!log_trans) {
-    p.wyr.ts <- p.wyr.ts + geom_hline(yint=0, alpha=0)
+    p.wyr.ts <- p.wyr.ts + geom_hline(yintercept=0, alpha=0)
   }
 
   p.mon <- x.mon %>%
@@ -883,7 +969,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     ggplot(aes(MONTH_LABEL, SLOPE.PCT, fill=LABEL)) +
     geom_bar(stat='identity') +
     geom_bar(stat='identity', color='grey30', alpha=0) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -891,8 +977,8 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
                                "Decreasing (0.05<p<0.1)"="#AAC4DB",
                                "Decreasing (p<0.05)"="steelblue"),
                       drop=FALSE) +
-    geom_vline(xint=c(12.5, 16.5, 18.5), color='grey70') +
-    geom_hline(yint=0, color='grey50') +
+    geom_vline(xintercept=c(12.5, 16.5, 18.5), color='grey70') +
+    geom_hline(yintercept=0, color='grey50') +
     scale_y_continuous(labels=percent) +
     labs(x='', y='Trend Slope (%/yr)') +
     guides(fill=guide_legend(override.aes = list(colour=NA))) +
@@ -944,7 +1030,7 @@ plot_dot_precip <- function(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-J
   p <- ggplot(x.trend, aes(SLOPE.PCT, SITE_NAME)) +
     geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
     geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-    geom_vline(xint=0) +
+    geom_vline(xintercept=0) +
     scale_fill_manual('',
                       values=c("Increasing (p<0.05)"='orangered',
                                "Increasing (0.05<p<0.1)"="#FFA895",
@@ -1062,10 +1148,10 @@ trend_rep_c <- trend_rep_c %>%
   mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=rev(levels(SITE_NAME))))
 
 p <- ggplot(trend_rep_c, aes(SLOPE.PCT, SITE_NAME)) +
-  geom_vline(xint=0) +
+  geom_vline(xintercept=0) +
   geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
   geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-  geom_vline(xint=0) +
+  geom_vline(xintercept=0) +
   scale_fill_manual('',
                     values=c("Increasing (p<0.05)"='orangered',
                              "Increasing (0.05<p<0.1)"="#FFA895",
@@ -1101,10 +1187,10 @@ trend_rep_tp <- filter(trends,
                              levels=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')))
 
 p <- ggplot(trend_rep_tp, aes(SLOPE.PCT, SITE_NAME)) +
-  geom_vline(xint=0) +
+  geom_vline(xintercept=0) +
   geom_segment(mapping=aes(x=0, xend=SLOPE.PCT, y=SITE_NAME, yend=SITE_NAME)) +
   geom_point(mapping=aes(fill=LABEL), color='black', shape=21, size=4) +
-  geom_vline(xint=0) +
+  geom_vline(xintercept=0) +
   scale_fill_manual('',
                     values=c("Increasing (p<0.05)"='orangered',
                              "Increasing (0.05<p<0.1)"="#FFA895",
