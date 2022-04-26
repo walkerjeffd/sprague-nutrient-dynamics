@@ -35,7 +35,7 @@ gannett <- mutate(gannett, IDX=1) %>%
 
 df <- loads_df$site %>%
   filter(DATASET=="POR",
-         PERIOD=="2010-2014",
+         PERIOD=="2010-2020",
          SEASON=="Annual",
          VAR %in% c("FLOW", "TP"),
          TERM %in% c("Q", "L", "C"),
@@ -47,9 +47,10 @@ df <- loads_df$site %>%
   dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   left_join(gannett, by="SITE_NAME")
 
-df <- mutate(df,
+df <- mutate(df, # NO NEGATIVE NF VALUES FOR % P
              C_GW=60,
              L_GW=Q_GW*C_GW/1000,
              Q_RO=Q_TOT-Q_GW,
@@ -59,7 +60,7 @@ df <- mutate(df,
 df_sfnf <- filter(df, SITE_NAME %in% c("SF", "NF"))
 c_runoff <- sum(df_sfnf$L_RO)/sum(df_sfnf$Q_RO)*1000
 
-df <- mutate(df,
+df <- mutate(df,  # NEGATIVE VALUES FOR NF, IS THIS APPROPRIATE? the old figure has anthro TP at NF at 0, does it relate to that?
              Q_BRO=Q_RO,
              C_BRO=c_runoff,
              L_BRO=Q_BRO*C_BRO/1000,
@@ -67,7 +68,7 @@ df <- mutate(df,
              L_BACK=L_GW+L_BRO,
              C_BACK=L_BACK/Q_BACK*1000,
              Q_ANTH=Q_TOT,
-             L_ANTH=L_TOT-L_BACK,
+             L_ANTH=L_TOT-L_BACK, # THIS CALCULATION IS CREATING THE NEGATIVE VALUE
              C_ANTH=L_ANTH/Q_ANTH*1000)
 
 df <- gather(df, TERM_VAR, VALUE, Q_TOT:C_ANTH)
@@ -244,7 +245,8 @@ spread(df, TERM, VALUE) %>%
 
 # by year ----
 df_bg <- filter(df, TERM=="C", VAR=="BACK") %>%
-  select(SITE_NAME, C_BACK=VALUE)
+  select(SITE_NAME, C_BACK=VALUE) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME))
 
 df.wyr <- loads_df$wyr %>%
   filter(DATASET=="POR",
@@ -305,10 +307,11 @@ df.wyr <- loads_df$wyr %>%
  dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
-  left_join(gannett, by="SITE_NAME") %>%
+  left_join(gannett %>% mutate(SITE_NAME=as.character(SITE_NAME)), by="SITE_NAME") %>%
   mutate(Q_GW = ifelse(Q_GW > Q_TOT, Q_TOT, Q_GW),
          C_GW=60,
          L_GW=Q_GW*C_GW/1000) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   left_join(dplyr::rename(df_bg, C_RUN=C_BACK), by="SITE_NAME") %>%
   mutate(Q_RUN=Q_TOT-Q_GW,
          L_RUN=Q_RUN*C_RUN/1000,
@@ -370,7 +373,7 @@ grid.arrange(grobs=list(p1, p2), nrow=2)
 
 df.2002 <- loads_df$site %>%
   filter(DATASET=="POR",
-         PERIOD=="2002-2014",
+         PERIOD=="2002-2020",
          SEASON=="Annual",
          VAR %in% c("FLOW", "TP"),
          TERM %in% c("Q", "L", "C"),
@@ -382,6 +385,7 @@ df.2002 <- loads_df$site %>%
   dplyr::rename(Q_TOT=Q,
          L_TOT=L,
          C_TOT=C) %>%
+  mutate(SITE_NAME=as.character(SITE_NAME)) %>%
   left_join(gannett, by="SITE_NAME")
 
 df.2002 <- mutate(df.2002,

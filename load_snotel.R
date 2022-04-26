@@ -149,9 +149,13 @@ snotel.update <-  snotel.update %>%
          WYEAR=fluxr::wyear(DATE),
          WDAY = water_day (DATE),
          WDAY_LABEL=as.Date("2001-10-01")+days(WDAY),
-         WYEAR_GRP=ifelse(WYEAR>2001&WYEAR<2013,"WY2002-2012",
-                          ifelse(WYEAR>2012&WYEAR<2017,"WY2013-2016",
-                                 ifelse(WYEAR>2016,"WY2017-2021","OTHER"))),
+         WYEAR_GRP=ifelse(WYEAR>2001&WYEAR<2018,"WY2002-2017",
+                          ifelse(WYEAR==2018,"WY2018",
+                                 ifelse(WYEAR==2019,"WY2019",
+                                        ifelse(WYEAR==2020,"WY2020","OTHER")))),
+         #WYEAR_GRP=ifelse(WYEAR>2001&WYEAR<2013,"WY2002-2012",
+          #                ifelse(WYEAR>2012&WYEAR<2017,"WY2013-2016",
+           #                      ifelse(WYEAR>2016,"WY2017-2021","OTHER"))),
          SITE_NAME=sub("\\s+$", "", SITE_NAME)) %>%
   mutate(SITE_NAME=ifelse(SITE_NAME=="TAYLOR BUTTE ","TAYLOR BUTTE",
                           ifelse(SITE_NAME=="CRAZYMAN FLAT ","CRAZYMAN FLAT",
@@ -237,7 +241,7 @@ filename <- "report/snotel-daily-water-day-update.png"
 cat('\nSaving water day plot plot to:', filename, '\n')
 png(filename=filename, res=200, width=10, height=4, units = 'in')
 p <- snotel.update %>%
-  filter( WYEAR >= 2002) %>%
+  filter( WYEAR >= 2002& WYEAR < 2021) %>%
   #mutate(WYEAR_GRP=ifelse(WYEAR>=2013, paste0('WY', WYEAR), "WY2002-2012")) %>%
   filter(WDAY<=280) %>%
   mutate(WDAY_LABEL = ymd(WDAY_LABEL)) %>%
@@ -248,15 +252,18 @@ p <- snotel.update %>%
                date_labels = "%b") +
   facet_wrap(~SITE_NAME, scales='free', nrow=1) +
   scale_color_brewer(palette="Dark2")+
- # scale_color_manual('', values=c('WY2002-2012'='grey50',
-  #                                'WY2013'='deepskyblue',
-   #                               'WY2014'='orangered')) +
-  scale_size_manual('', values=c('WY2002-2012'=0.25,
-                                 'WY2013'=0.5,
-                                 'WY2014'=0.5)) +
-  scale_linetype_manual('', values=c('WY2002-2012'='solid',
-                                     'WY2013'='dashed',
-                                     'WY2014'='dashed')) +
+  scale_color_manual('', values=c('WY2002-2017'='#C0C0C0',
+                                  'WY2018'='deepskyblue',
+                                  'WY2019'='orangered',
+                                  'WY2020'='darkgreen')) +
+  scale_size_manual('', values=c('WY2002-2017'=0.25,
+                                 'WY2018'=0.5,
+                                 'WY2019'=0.5,
+                                 'WY2020'=0.5)) +
+  scale_linetype_manual('', values=c('WY2002-2017'='solid',
+                                     'WY2018'='dashed',
+                                     'WY2019'='dashed',
+                                     'WY2020'='dashed')) +
   labs(x="Water Year Date", y="Snow Water Equivalent (in)") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         strip.background=element_blank(),

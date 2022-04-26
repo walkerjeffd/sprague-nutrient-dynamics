@@ -6,6 +6,7 @@ library(ggmap)
 library(gridExtra)
 library(scales)
 library(fluxr)
+library(sf)
 theme_set(theme_bw())
 
 rm(list=ls())
@@ -21,10 +22,10 @@ log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
 log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
-start_date <- as.Date('2000-10-01')
+start_date <- as.Date('2008-10-01')
 end_date <- as.Date('2020-08-30')
 #end_date <- as.Date('2014-09-30')
-start_date_ivory <- as.Date('2008-10-01')
+start_date_ivory <- as.Date('2000-10-01')
 end_date_ivory <- as.Date('2020-08-30')
 #end_date_ivory <- as.Date('2014-09-30')
 
@@ -97,7 +98,7 @@ por.kt <- dplyr::group_by(q.kt_sprague, SITE_NAME) %>%
 q.kt.power <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Power", "Lone_Pine")) %>%
   spread(SITE_NAME, FLOW)
-q.ref.power <- filter(q.usgs, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Power")
+q.ref.power <- filter(q.usgs, as.Date(DATE)>=start_date_ivory, as.Date(DATE)<=end_date_ivory, SITE_NAME=="Power")
 q.power <- mutate(q.ref.power, REF_SITE_NAME="Power",
                   REF_SOURCE="USGS") %>%
   select(DATE, REF_FLOW=FLOW, REF_SITE_NAME, REF_SOURCE) %>%
@@ -110,7 +111,7 @@ q.power <- mutate(q.ref.power, REF_SITE_NAME="Power",
 q.kt.sycan <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME=="Sycan") %>%
   spread(SITE_NAME, FLOW)
-q.ref.sycan <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Sycan")
+q.ref.sycan <- filter(q.owrd, as.Date(DATE)>=start_date_ivory, as.Date(DATE)<=end_date_ivory, SITE_NAME=="Sycan")
 q.sycan <- mutate(q.ref.sycan,
                   REF_SITE_NAME="Sycan",
                   REF_SOURCE="OWRD") %>%
@@ -125,7 +126,7 @@ q.kt.beatty <- select(q.kt_sprague, -SITE, -SOURCE) %>%
   filter(SITE_NAME %in% c("Godowa", "SF_Ivory",
                           "SF", "NF_Ivory", "NF")) %>%
   spread(SITE_NAME, FLOW)
-q.ref.beatty <- filter(q.owrd, as.Date(DATE)>=start_date, as.Date(DATE)<=end_date, SITE_NAME=="Beatty")
+q.ref.beatty <- filter(q.owrd, as.Date(DATE)>=start_date_ivory, as.Date(DATE)<=end_date_ivory, SITE_NAME=="Beatty")
 q.beatty <- mutate(q.ref.beatty,
                    REF_SITE_NAME="Beatty",
                    REF_SOURCE="OWRD") %>%
@@ -349,6 +350,8 @@ site <- 'Power'
 pdf(file.path('pdf', 'flow-model', 'flow-model-summary-update.pdf'), width=11, height=8.5)
 for (site in levels(q$SITE_NAME)) {
   cat('..', site, '\n')
+
+
   p.ts <- filter(q, SITE_NAME==site) %>%
     ggplot(aes(DATE, REF_FLOW)) +
     geom_line(aes(color='Reference'), size=0.25, show.legend = TRUE) +
@@ -410,12 +413,86 @@ for (site in levels(q$SITE_NAME)) {
           legend.justification=c(0, 1),
           legend.background=element_blank())
 
-  grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
+ grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
                layout_matrix=rbind(c(1, 1, 2), c(3, 4, 5)),
                top=paste0('\nStreamflow Model Diagnostics\nSite: ', site,
                           '  |  Reference Site: ', ref_sites[[site]]))
+
 }
 dev.off()
+
+# generate Power for report
+site <- 'Power'
+theme_set(theme_bw(base_size = 12))
+
+p.ts <- filter(q, SITE_NAME==site) %>%
+  ggplot(aes(DATE, REF_FLOW)) +
+  geom_line(aes(color='Reference'), size=0.25, show.legend = TRUE) +
+  geom_line(aes(x=DATE, y=Q, color='Interpolated'),
+            data=filter(q.out, SITE_NAME==site),
+            size=0.1,
+            show.legend = TRUE) +
+  geom_point(aes(y=FLOW, color='Biweekly'), size=0.4,
+             show.legend = TRUE) +
+  log_y +
+  scale_color_manual('',
+                     values=c('Reference'='grey50',
+                              'Biweekly'='red',
+                              'Interpolated'='red')) +
+  labs(x="Date", y="Flow (cfs)") +
+  guides(colour=guide_legend(override.aes = list(linetype=c('blank', 'solid', 'solid'),
+                                                 shape=c(16, NA, NA)))) +
+  theme(legend.position='bottom')
+
+p.scatter <- filter(q, SITE_NAME==site) %>%
+  ggplot(aes(REF_FLOW, FLOW)) +
+  geom_point(size=1) +
+  log_y +
+  log_x +
+  geom_abline(linetype=2,show.legend=T)+#aes(color="1:1 Line"), linetype=2, show.legend=TRUE) +
+  scale_color_manual('', values=c('red')) +
+  labs(x="Flow @ Reference Site (cfs)", y=paste0("Flow @ ", site, " (cfs)")) +
+  theme(legend.position='bottom')
+
+p.resid <- filter(q.model, SITE_NAME==site) %>%
+  filter(!is.na(FLOW)) %>%
+  ggplot(aes(DATE, LN_RESID)) +
+  geom_hline(yintercept=0) +
+  geom_point(size=1) +
+  labs(x="Date", y="Log Flow Residual\nln[Measured/Scaled Reference]")
+
+p.resid.flow <- filter(q.model, SITE_NAME==site) %>%
+  filter(!is.na(FLOW)) %>%
+  ggplot(aes(FLOW, LN_RESID)) +
+  geom_hline(yintercept=0) +
+  geom_point(size=1) +
+  labs(x="Measured Biweekly Flow (cfs)",
+       y="Log Flow Residual\nln[Measured/Scaled Reference]") +
+  theme(strip.background=element_blank(),
+        strip.text=element_text(face='bold', size=12))
+
+p.ratio <- filter(q.model, !is.na(FLOW), SITE_NAME==site) %>%
+  mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))) %>%
+  ggplot(aes(MONTH, RATIO)) +
+  geom_hline(yintercept=1, color='gray50') +
+  geom_boxplot(outlier.size=1) +
+  geom_point(aes(MONTH, RATIO, color="Mean"),
+             data=filter(ratios, SITE_NAME==site) %>%
+               mutate(MONTH=ordered(MONTH, levels=c(seq(10, 12), seq(1, 9)))),
+             show.legend=TRUE) +
+  scale_color_manual('', values='orangered') +
+  labs(x="Month", y="Flow Ratio [Measured/Reference]") +
+  theme(legend.position=c(0, 1),
+        legend.justification=c(0, 1),
+        legend.background=element_blank())
+
+g <- grid.arrange(grobs=list(p.ts, p.scatter, p.ratio, p.resid, p.resid.flow),
+                  layout_matrix=rbind(c(1, 1, 2), c(3, 4, 5)),
+                  top=paste0('\nStreamflow Model Diagnostics\nSite: ', site,
+                             '  |  Reference Site: ', ref_sites[[site]]))
+
+ggsave("./report/flow-model-Power.png",g,width=10.5,height=8)
+
 
 # filename <- file.path('pdf', 'flow-model.pdf')
 # cat('Printing:', filename, '\n')
@@ -733,6 +810,7 @@ cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 
 p <- q.valid %>%
+  filter(DATE>=start_date) %>%
   ggplot(aes(DATE, VALUE, color=TERM)) +
   geom_line(aes(color="OWRD Station", y=VALID_Q), size=0.3) +
   geom_point(aes(color="WQ Station", y=Q), size=1) +
@@ -748,7 +826,8 @@ p <- q.valid %>%
 print(p)
 
 p <- q.valid %>%
-  ggplot(aes(VALID_Q, Q)) +
+  filter(DATE>=start_date) %>%
+    ggplot(aes(VALID_Q, Q)) +
   geom_point(size=1, alpha=0.7) +
   geom_abline(linetype=2, show.legend=TRUE) +#aes(color='1:1 Line'), ) +
   geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.rmse, R2=paste0("R2 = ", scales::percent(R2))),
@@ -764,6 +843,7 @@ p <- q.valid %>%
 print(p)
 
 p <- q.valid.mon %>%
+  filter(DATE>=start_date) %>%
   ggplot(aes(DATE, VALUE, color=TERM)) +
   geom_line(aes(color="OWRD Station", y=VALID_Q)) +
   geom_point(aes(color="WQ Station", y=Q), size=1.5) +
@@ -779,6 +859,7 @@ p <- q.valid.mon %>%
 print(p)
 
 p <- q.valid.mon %>%
+  filter(DATE>=start_date) %>%
   ggplot(aes(VALID_Q, Q)) +
   geom_point() +
   geom_abline( linetype=2, show.legend=TRUE) + # aes(color='1:1 Line'),

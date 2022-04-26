@@ -1,7 +1,6 @@
 # Sprague River Basin - Water Quality Loads and Trends
 # Jeffrey D Walker, PhD
 # 2014-2015
-
 source('functions.R')
 
 # load data
@@ -10,28 +9,28 @@ source('load_outliers.R')
 source('load_network.R')
 
 source('load_kt_sprague.R')
-source('load_kt_sprague_synop.R') # address this part of the project in the next meeting
+source('load_kt_sprague_synop.R')
 
 source('load_gis.R')
 source('load_nlcd.R')
 source('load_geomorph.R')
 source('load_pou.R')
 
-source('load_ghcnd.R') # difference in site numbers and data available
+source('load_ghcnd.R')
 source('load_snotel.R')
 source('load_owrd.R')
 source('load_usgs.R')
 source('load_prism.R')
 
 # compute flows and loads
-source('compute_flows.R') # updated, figures marked with -update to compare with original output
-source('compute_flow_precip.R') # updated, check with Jeff and Jake on WYEAR grouping in figures
-source('compute_loads.R') # works
+source('compute_flows.R')
+source('compute_flow_precip.R')
+source('compute_loads.R')
 
 # plot datasets
-source('plot_dataset_outliers.R') # updated to include through 2020 data, although outliers are not identified for new data yet and therefore not marked
-source('plot_dataset_splots.R') # updated
-source('plot_dataset_timeseries.R') # updated through 2020 data
+source('plot_dataset_outliers.R')
+source('plot_dataset_splots.R')
+source('plot_dataset_timeseries.R')
 source('plot_synoptic.R')
 source('plot_maps.R')
 
@@ -44,15 +43,15 @@ source('plot_snotel.R')
 source('plot_climate.R')
 
 # plot loads
-source('plot_loads_summary.R') # works
-source('plot_loads_maps.R') # there is a difference in format between the site names in two of the dataframes, one a geometry file and one not. at this time, i cannot get them into the same format, needs additional troubleshooting
-source('plot_loads_tiles.R') # works
+source('plot_loads_summary.R')
+source('plot_loads_maps.R')
+source('plot_loads_tiles.R')
 
 source('plot_loads_network.R')
 source('plot_loads_landuse.R')
 
 source('plot_nutrient_dynamics.R')
-source('plot_gannett.R') # need one more file
+source('plot_gannett.R')
 source('plot_anthro.R')
 
 # source('plot_loads_data.R')
@@ -60,4 +59,4 @@ source('plot_anthro.R')
 # source('plot_loads_problems.R')
 
 # compute and plot trends
-source('compute_trends.R') # wq package not working, need to find alternate for seasonal kendall test
+source('compute_trends.R')

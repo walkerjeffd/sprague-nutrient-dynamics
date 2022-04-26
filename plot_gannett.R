@@ -12,7 +12,7 @@ source('functions.R')
 load('loads.Rdata')
 
 #DATA_DIR <- getOption('UKL_DATA')
-DATA_DIR <- getOption('./data')
+DATA_DIR <- './data'
 
 gannett <- read.csv(file=file.path(DATA_DIR, 'raw', 'gannett', 'gannett.csv'),
                     stringsAsFactors=FALSE) %>%
@@ -23,7 +23,7 @@ season <- 'Summer (Jul-Sep)'
 study_wyr <- filter(loads_df[['wyr']],
                     SEASON==season,
                     DATASET=='POR',
-                    WYEAR %in% 2013:2014,
+                    WYEAR %in% 2013:2020,
                     # PERIOD=="2010-2014",
                     TERM=='Q') %>%
   mutate(SOURCE=as.character(WYEAR),
@@ -34,7 +34,7 @@ study_wyr <- filter(loads_df[['wyr']],
 study_site <- filter(loads_df[['site']],
                     SEASON==season,
                     DATASET=='POR',
-                    PERIOD=="2010-2014",
+                    PERIOD=="2010-2020",
                     TERM=='Q') %>%
   mutate(SOURCE=PERIOD,
          FLOW_hm3d=VALUE,
@@ -47,8 +47,8 @@ study_site <- filter(loads_df[['site']],
 flow <- rbind(gannett, study_wyr, study_site) %>%
   filter(SITE_NAME %in% gannett$SITE_NAME) %>%
   mutate(SITE_NAME=plyr::revalue(SITE_NAME, incbasin_names),
-         SITE_NAME=ordered(SITE_NAME, levels=unname(incbasin_names)))
-as.data.frame(flow)
+         SITE_NAME=ordered(SITE_NAME, levels=unname(incbasin_names))) %>%
+  as.data.frame
 
 # flow$SITE_NAME=ordered(flow$SITE_NAME, levels=levels(loads_df[['site']]$SITE_NAME))
 
@@ -60,15 +60,16 @@ spread(flow, SOURCE, FLOW_cfs) %>%
 filename <- 'report/gannet.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=8, height=6, res=200, units='in')
-p <- filter(flow, SOURCE %in% c("Gannett", "2010-2014")) %>%
-  mutate(SOURCE=ifelse(SOURCE=="Gannett", "Gannett et al (2007)", paste0("This Study (WY", SOURCE, ")"))) %>%
+p <- filter(flow, SOURCE %in% c("Gannett", 2010:2021)) %>%
+  mutate(label=ifelse(SOURCE=="Gannett","Gannett","2010-2020"),
+         SOURCE=ifelse(SOURCE=="Gannett", "Gannett et al (2007)", paste0("This Study (WY", label, ")"))) %>%
   ggplot(aes(SITE_NAME, FLOW_cfs, fill=SOURCE)) +
   geom_bar(stat='identity', position='dodge') +
-  geom_hline(yint=0, color='grey20') +
+  geom_hline(yintercept=0, color='grey20') +
   scale_y_continuous(breaks=seq(-20, 100, by=10)) +
   labs(x="", y="Flow (cfs)") +
   scale_fill_manual("", values=c("Gannett et al (2007)"="grey50",
-                                 "This Study (WY2010-2014)"="deepskyblue")) +
+                                 "This Study (WY2010-2020)"="deepskyblue")) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 print(p)
 dev.off()
@@ -167,7 +168,7 @@ p1 <- filter(loads_df[['day']], SITE_NAME %in% sites, TERM=="Q", DATASET=="POR")
   ggplot(aes(DATE, VALUE, color=SITE_NAME)) +
   geom_line() +
   geom_hline(aes(x=NULL, y=NULL, yintercept=VALUE, color=SITE_NAME),
-             data=filter(loads_df[['wyr']], TERM=="Q", SEASON=="Summer (Jul-Sep)", DATASET=="POR", WYEAR %in% 2010:2014, SITE_NAME %in% sites) %>%
+             data=filter(loads_df[['wyr']], TERM=="Q", SEASON=="Summer (Jul-Sep)", DATASET=="POR", WYEAR %in% 2010:2021, SITE_NAME %in% sites) %>%
                mutate(VALUE=hm3d_cfs(VALUE))) +
   geom_hline(aes(x=NULL, y=NULL, yintercept=VALUE, color=SITE_NAME),
              data=filter(loads_df[['site']], TERM=="Q", SEASON=="Summer (Jul-Sep)", DATASET=="POR", PERIOD=="2010-2014", SITE_NAME %in% sites) %>%
@@ -224,7 +225,7 @@ filter(loads_df[['day']],
 
 filename <- 'report/loads-mon-tp-tn.png'
 cat('Saving report figure to:', filename, '\n')
-png(filename, width=10, height=10, res=200, units='in')
+#png(filename, width=10, height=10, res=200, units='in')
 p <- filter(loads_df[['mon']],
        DATASET=="POR",
        VAR %in% c("FLOW", "TP", "TN"),
@@ -255,5 +256,6 @@ p <- filter(loads_df[['mon']],
 #          color=guide_legend('', override.aes = list(linetype=rep(c(5, 1), 4)))) +
   theme(strip.background=element_blank(),
         strip.text=element_blank())
-print(p)
-dev.off()
+ggsave(paste0("./",filename),p,width=10,height=10)
+#print(p)
+#dev.off()

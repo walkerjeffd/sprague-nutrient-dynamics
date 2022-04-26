@@ -2,6 +2,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(ggplot2)
+library(cowplot)
 theme_set(theme_bw())
 
 rm(list=ls())
@@ -106,6 +107,7 @@ q.owrd <- q.owrd %>%
          FLOW=gsub("\t","",FLOW),
          DATE_formatted=as.Date(DATE,format="%m-%d-%Y"),
          YEAR=year(DATE_formatted)) %>%
+ # mutate(Flow__ = ifelse(FLOW=="Mis",NA,FLOW))
   mutate(STATION_ID=as.integer(STATION_ID),
          FLOW=as.numeric(FLOW)) %>%
   select(-DATE) %>% dplyr::rename(DATE=DATE_formatted)%>%
@@ -117,15 +119,40 @@ owrd.orig <- q.owrd.prior %>%
 
 # compare previous data with new import
 q.owrd %>%
-  filter(YEAR=="2013") %>%
+ # filter(YEAR=="2013") %>%
   ggplot()+
   geom_point( aes(x=DATE,y=FLOW),color="red",alpha=0.5)+
-  geom_point(data=filter(q.owrd.prior, YEAR=="2013"),aes(x=DATE,y=FLOW),color="blue",alpha=0.5)+
+  geom_point(data=q.owrd.prior,aes(x=DATE,y=FLOW),color="blue",alpha=0.5)+
   facet_wrap(~STATION_ID)+
   theme_bw()
 
-# time series of FLOW to verify the data are the same with the new and prior imports
+# combine prior and updated data----
 
+# data prior to 2008 are labeled as missing (Mis) in the data import
+# combine updated data import with prior data set to produce the appropriate range
+# could this be a cutoff in the online data repository?
+
+q.owrd <- full_join(q.owrd.prior %>% filter(!DATE %in% q.owrd$DATE),
+                            q.owrd)
+
+
+plot_grid(q.owrd %>%
+   filter(YEAR>1980) %>%
+  ggplot()+
+  geom_point( aes(x=DATE,y=FLOW),color="black",alpha=0.5)+
+ # geom_point(data=q.owrd.prior,aes(x=DATE,y=FLOW),color="blue",alpha=0.5)+
+  facet_wrap(~STATION_ID,ncol=1)+
+  theme_bw(),
+
+q.owrd.prior %>%
+  filter(YEAR>1980) %>%
+  ggplot()+
+  geom_point( aes(x=DATE,y=FLOW),color="black",alpha=0.5)+
+  # geom_point(data=q.owrd.prior,aes(x=DATE,y=FLOW),color="blue",alpha=0.5)+
+  facet_wrap(~STATION_ID,ncol=1)+
+  theme_bw())
+
+# time series of FLOW to verify the data are the same with the new and prior imports ----
 names <- unique(q.owrd$YEAR)
 plot_list = list()
 for (ii in names) {

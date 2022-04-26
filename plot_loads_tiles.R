@@ -18,13 +18,13 @@ stn_incbasin <- list(P2002=c('Power-Lone_Pine', 'Lone_Pine-Godowa-Sycan', 'Godow
                    P2010=c('Power-Lone_Pine', 'Lone_Pine-Godowa-Sycan', 'Godowa-SF_Ivory-NF_Ivory', 'SF_Ivory-SF', 'NF_Ivory-NF'))
 variables <- list(P2002=c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23'),
                   P2010=c('TP', 'PO4', 'PP', 'TN', 'NH4', 'NO23', 'TSS'))
-wyears <- list(P2002=c(2002, 2014),
-               P2010=c(2010, 2014))
-period_labels <- list(P2002='WY2002-2014',
-                      P2010='WY2010-2014')
+wyears <- list(P2002=c(2002, 2020),
+               P2010=c(2010, 2020))
+period_labels <- list(P2002='WY2002-2020',
+                      P2010='WY2010-2020')
 term_names <- c('Q'='Flow', 'Q_AREA'='Flow per Area', 'C'='FWM Concentration', 'L'='Load', 'L_AREA'='Load per Area')
 
-wyr_labels <- seq(2002, 2014)
+wyr_labels <- seq(2002, 2020)
 wyr_labels[as.logical(wyr_labels %% 2)] <- ""
 mon_labels <- c(10:12, 1:9)
 mon_labels[as.logical(mon_labels %% 2)] <- ""
@@ -188,13 +188,14 @@ df_mon_report$VAR_LABEL <- ordered(df_mon_report$VAR_LABEL, levels=unique(df_mon
 
 df_mon_report.tile <- mutate(df_mon_report,
                       MONTH=ordered(MONTH, levels=rev(c(10:12, 1:9))),
-                      VALUE=log10(VALUE)) %>%
+                      VALUE=log10(VALUE),
+                      WYEAR=as.factor(WYEAR)) %>%
   group_by(VAR_LABEL) %>%
   mutate(VALUE=scale(VALUE)) %>%
   ungroup
 
 p <- df_mon_report.tile %>%
-  ggplot(aes(factor(WYEAR), MONTH, fill=VALUE)) +
+  ggplot(aes(WYEAR, MONTH, fill=VALUE)) +
   geom_tile() +
   facet_grid(VAR_LABEL~SITE_NAME) +
   scale_fill_gradientn('Standardized\nLog(Value)',
