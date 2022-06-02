@@ -1,0 +1,9 @@
+SITE_NAME,FLOW_cfs
+SF,24
+NF,59
+NF_Ivory-NF,33
+SF_Ivory-SF,13
+Godowa-SF_Ivory-NF_Ivory,94
+Sycan,21
+Lone_Pine-Godowa-Sycan,20
+Power-Lone_Pine,73

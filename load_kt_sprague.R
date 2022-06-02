@@ -424,7 +424,7 @@ stopifnot(sum(!df$RPD_PASS, na.rm=TRUE)==sum(df$QAQC=='RPD'))
 
 # assign BLANK for SF on 2008-07-16
 cat('Assigning BLANK QAQC to SF on 2008-07-16\n')
-stopifnot(sum(df[which(df$SITE=='SR0050' & df$DATE==ymd('2008-07-16') & df$VAR %in% c('TP', 'PO4', 'TN', 'NH4', 'NO23')), "VALUE"]) == 0.018)
+stopifnot(round(sum(df[which(df$SITE=='SR0050' & df$DATE==ymd('2008-07-16') & df$VAR %in% c('TP', 'PO4', 'TN', 'NH4', 'NO23')), "VALUE"]), 3) == 0.018)
 df[which(df$SITE=='SR0050' & df$DATE==ymd('2008-07-16') & df$VAR %in% c('TP', 'PO4', 'TN', 'NH4', 'NO23')), 'QAQC'] <- 'BLANK'
 
 # assign BLANK for abnormally low TP, TN and NH4 values

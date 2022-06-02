@@ -29,6 +29,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
              fill='deepskyblue', size=4, pch=21) +
   geom_text(aes(x = LONGITUDE, y = LATITUDE, label=SITE_NAME), data=stn.snotel,
             color='black', size=4, hjust=1.1) +
+  coord_sf(datum = NA) +
   ggtitle('SNOTEL Stations')
 print(p)
 makeFootnote()

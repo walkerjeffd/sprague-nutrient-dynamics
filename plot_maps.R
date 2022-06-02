@@ -19,6 +19,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
                color = 'orangered', alpha = 0, size = 0.5) +
   geom_sf(inherit.aes=FALSE, data = flowline,
             color='deepskyblue', size=0.2) +
+  coord_sf(datum = NA)
   ggtitle('Flowline and Basin')
 print(p)
 makeFootnote()
@@ -41,6 +42,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
             data = (filter(stn.kt_sprague, (SITE_NAME %in% c("Godowa", "Sycan"))) %>%
                       mutate(SITE_LABEL=paste0(SITE_NAME, " (", SITE, ")"))),
             size=4, hjust=1) +
+  coord_sf(datum = NA) +
   ggtitle('Klamath Tribes - Water Quality Stations and Subbasins')
 print(p)
 makeFootnote()
@@ -66,6 +68,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
             data = (filter(stn.kt_sprague, (SITE_NAME %in% c("Godowa", "Sycan"))) %>%
                       mutate(SITE_LABEL=paste0(SITE_NAME, " (", SITE, ")"))),
             size=4, hjust=1) +
+  coord_sf(datum = NA) +
   ggtitle('Incremental Subbasins (w/o Ivory Stations)')
 print(p)
 makeFootnote()
@@ -91,6 +94,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
             data = (filter(stn.kt_sprague, (SITE_NAME %in% c("Godowa", "Sycan"))) %>%
                       mutate(SITE_LABEL=paste0(SITE_NAME, " (", SITE, ")"))),
             size=4, hjust=1) +
+  coord_sf(datum = NA) +
 
   ggtitle('Incremental Subbasins (w/ Ivory Stations)')
 print(p)
@@ -106,6 +110,7 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
                color = 'orangered', fill = 'grey50', alpha = 0.1, size = 0.2) +
   geom_point(aes(x = LON, y = LAT), data = stn.kt_sprague,
              shape=21, fill='deepskyblue', size=3) +
+  coord_sf(datum = NA) +
   facet_wrap(~SITE_NAME, nrow=2) +
   ggtitle('Drainage Subbasins')
 print(p)

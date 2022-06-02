@@ -99,6 +99,7 @@ map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
     geom_sf(aes(), data = basin, # removed group=group
                  color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
     geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
+    coord_sf(datum = NA) +
     scale_fill_term[[term]] +
     facet_wrap(~SITE_NAME, nrow=2) +
     ggtitle(title) +
@@ -205,7 +206,8 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
     geom_sf_text( aes(label=INC_SITE_NAME),inherit.aes=FALSE,
                    data = incbasin[[period]]%>%
                      mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)),
-                  fontface='bold', size=3)+
+                  fontface='bold', size=3) +
+    coord_sf(datum = NA) +
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   } else {
@@ -230,7 +232,8 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
     geom_sf_text(  aes(label=INC_SITE_NAME),inherit.aes=FALSE,
                    data = incbasin[[period]] %>%
                      mutate(INC_SITE_NAME=plyr::revalue(INC_SITE_NAME, incbasin_names)) ,
-                   fontface='bold', size=3)+
+                   fontface='bold', size=3) +
+      coord_sf(datum = NA) +
       scale_fill_term_inc[[term]] +
       ggtitle(title)
   }
@@ -457,6 +460,7 @@ for (period in c('P2002', 'P2010')) {
       geom_sf(aes(), data = basin,inherit.aes=F, # removed group=group
                    color = 'black', fill = NA, size = 0.2) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
+      coord_sf(datum = NA) +
       scale_fill_gradient2('Change in\nFWM Conc (ppb)', high='orangered', mid='white', low='black', space='Lab') +
       ggtitle(variable) +
       theme(legend.text=element_text(size=8),
@@ -503,7 +507,8 @@ for (period in c('P2002', 'P2010')) {
       scale_fill_gradient2('Net Load per\nArea (kg/m2/yr)',
                            high="#006D2C", mid='white', low='black',
                            space='Lab',
-                           lim=color_limits)+
+                           lim=color_limits) +
+      coord_sf(datum = NA)+
       ggtitle(variable) +
       theme(legend.text=element_text(size=8),
             legend.position='bottom',
@@ -542,7 +547,8 @@ for (period in c('P2002', 'P2010')) {
     geom_sf(aes(), data = basin, inherit.aes=F,# removed group=group
                    color = 'black', fill = NA, size = 0.2) +
       geom_point(aes(x = LON, y = LAT), data = stn[[period]],
-                 fill = 'deepskyblue', pch = 21, color = 'black', size = 2) +
+                 fill = 'deepskyblue', pch = 21, color = 'black', size = 2)  +
+    coord_sf(datum = NA)+
       scale_fill_gradient2('Net Flow per\nArea (cm/yr)',
                            high="#08519C", mid='white', low='black',
                            space='Lab', lim=color_limits) +

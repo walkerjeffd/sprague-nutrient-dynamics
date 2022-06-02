@@ -24,6 +24,7 @@ period_labels <- c(P2002='WY2002-2020', P2010='WY2010-2020')
 
 # compute total subbasin areas of junction stations
 subbasin_area <- select(subbasin_area, SITE_NAME, AREA_KM2) %>%
+  st_drop_geometry() %>%
   mutate(GROUP=1) %>%
   spread(SITE_NAME, AREA_KM2) %>%
   mutate('Godowa+Sycan'=Godowa+Sycan,

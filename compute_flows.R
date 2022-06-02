@@ -316,7 +316,6 @@ filename <- file.path('pdf', 'flow-data_update.pdf')
 cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  coord_sf(crs = st_crs(4326)) +
   geom_sf(data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
           color="black",inherit.aes = FALSE,fill=NA) +
   geom_sf(data=flowline,
@@ -326,9 +325,23 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_point(aes(x = LON, y = LAT),
              data = stn.ref, shape = 17, size = 3, color='red',inherit.aes=T) +
   geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
-            data = mutate(stn.ref, REF_LABEL=paste0(REF_LABEL, "-", SITE_NAME)), fontface='bold', hjust=-0.1, size=4)
+            data = mutate(stn.ref, REF_LABEL=paste0(REF_LABEL, "-", SITE_NAME)), fontface='bold', hjust=-0.1, size=4) +
+  coord_sf(datum = NA)
 print(p)
 makeFootnote('Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.   ')
+
+p <- filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF") %>%
+  ggplot() +
+  geom_sf(color="black", fill=NA) +
+  geom_sf(data=flowline,
+          color="deepskyblue",inherit.aes = FALSE)+
+  geom_sf(data = basin,
+          color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
+  geom_point(aes(x = LON, y = LAT),
+             data = stn.ref, shape = 17, size = 3, color='red',inherit.aes=T) +
+  geom_text(aes(x = LON, y = LAT, label = REF_LABEL, vjust=ifelse(SITE=='11499100', -1, 1)),
+            data = mutate(stn.ref, REF_LABEL=paste0(REF_LABEL, "-", SITE_NAME)), fontface='bold', hjust=-0.1, size=4)
+print(p)
 
 p <- q.ref %>%
   mutate(DATE=as.Date(DATE)) %>%
@@ -742,7 +755,6 @@ filename <- 'report/map-flow-station-update.png'
 cat("\nSaving reference station map to:", filename, '\n')
 png(filename, width=8, height=5, res=200, units='in')
 p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
-  coord_sf(crs = st_crs(4326)) +
   geom_sf(data = flowline,
            color='deepskyblue', size=0.2,inherit.aes=FALSE) +
   geom_sf(data = filter(incbasin, INC_SITE_NAME != "Godowa-SF-NF"),
@@ -770,7 +782,8 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
             label='Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.',
             size=3,
             hjust=1,
-            color='grey50')
+            color='grey50') +
+  coord_sf(datum = NA)
 print(p)
 dev.off()
 

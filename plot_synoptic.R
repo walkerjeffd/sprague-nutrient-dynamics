@@ -59,7 +59,8 @@ p <- ggmap(map, extent = 'device', darken = c(0.2, 'white')) +
   geom_text(aes(x = LONGITUDE+0.02, y = LATITUDE-0.01, label = SITE_LABEL),
             data = filter(stn.kt_synoptic, SITE %in% c('SR0500')),
             size=4, hjust=0, vjust=1) +
-  ggtitle('Synoptic Stations')
+  ggtitle('Synoptic Stations') +
+  coord_sf(datum = NA)
 print(p)
 makeFootnote()
 

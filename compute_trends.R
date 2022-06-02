@@ -8,7 +8,7 @@ library(gridExtra)
 library(scales)
 library(fluxr)
 #library(wq) # antiquated
-library(rkt)
+library(EnvStats)
 library(zoo)
 theme_set(theme_bw())
 
@@ -73,6 +73,9 @@ df_mon <- filter(df_mon, VAR!='FLOW') %>%
 # with rkt package, the data do not need to be in time series format. by leaving dates as a vector, the package can account for 'non-regular sampling dates' within the data
 
 
+kendallTrendTest <- purrr::possibly(EnvStats::kendallTrendTest, NULL)
+kendallSeasonalTrendTest <- purrr::possibly(EnvStats::kendallSeasonalTrendTest, NULL)
+
 trend.sk <- function(x,months,month_label,years,value_var,water_year=TRUE,log_trans=TRUE){
 
   if (water_year==TRUE) {
@@ -95,53 +98,41 @@ trend.sk <- function(x,months,month_label,years,value_var,water_year=TRUE,log_tr
   }
 
 
-  sk <- rkt(date=x[['DATE_NUM']],y=x[[value_var]],block=x[['MONTH']])
+  # sk <- rkt(date=x[['DATE_NUM']],y=x[[value_var]],block=x[['MONTH']])
+  sk <- kendallSeasonalTrendTest(x[[value_var]], season = x[['MONTH']], year = x[['WYEAR']])
 
-  slope <- sk[['B']]
-  pval <- sk[['sl']] %>%  as.numeric
+  slope <- sk$estimate[["slope"]]
+  intercept <- sk$estimate[["intercept"]]
+  pval <- sk$p.value[["z (Trend)"]]
 
   if (log_trans) {
-    slope.pct <- slope.pct <- 10^slope-1
+    slope.pct <- 10^slope - 1
   } else {
-    slope.pct <- sk$sen.slope.pct/100
+    slope.pct <- slope / mean(x[[value_var]])
   }
 
+  if (is.null(pval)) {
+    sig <- "p>0.10"
+  } else {
+    sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
+  }
 
-
-  sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
-  if (is.na(sig)) {sig <- "p>0.10"}
-
-  intercept <- median(x[[value_var]] - slope*time(x[[value_var]]), na.rm=T) # is this correct? check w jeff
-
-  return(data.frame(TERM=value_var,
-                    LOG=log_trans,
-                    YEAR_SPAN=paste(min(years),max(years),sep='-'),
-                    MONTH_LABEL=month_label,
-                    METHOD='SeasonalKendall',
-                    INTERCEPT=intercept,
-                    MEAN.VAL=mean(x[[value_var]],na.rm=T),
-                    MEAN.TIME=mean(x[['DATE_NUM']]),
-                    SLOPE=slope,
-                    SLOPE.PCT=slope.pct,
-                    PVAL=pval,
-                    SIGNIF=sig,
-                    DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing'))))
-
+  return(data.frame(
+    TERM=value_var,
+    LOG=log_trans,
+    YEAR_SPAN=paste(min(years),max(years),sep='-'),
+    MONTH_LABEL=month_label,
+    METHOD='SeasonalKendall',
+    INTERCEPT=intercept,
+    MEAN.VAL=mean(x[[value_var]],na.rm=T),
+    MEAN.TIME=mean(x[['DATE_NUM']]),
+    SLOPE=slope,
+    SLOPE.PCT=slope.pct,
+    PVAL=pval,
+    SIGNIF=sig,
+    DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing'))
+  ))
 }
-
-
-test <- prism.mon%>%
-  filter(SITE_NAME=="Power")
-test.wyr <- prism.wyr%>%
-  filter(SITE_NAME=="Power")
-
-trend.sk(test,
-         month_label='All Months',
-         months=1:12,
-         years=2010:2019,
-         value_var='PRCP',
-         log_trans=TRUE,
-         water_year=TRUE)
 
 trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
              months=1:12,
@@ -150,20 +141,6 @@ trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
              value_var='C',
              water_year=TRUE,
              log_trans=TRUE)
-#trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
-#          value_var='C',
-#          months=1:12,
-#          month_label='Seasonal',
-#          years=2002:2014,
-#          log_trans=TRUE,
-#          water_year=TRUE)
-# trend.sk(x=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
-#          value_var='C',
-#          months=10,
-#          month_label='10',
-#          years=2002:2014,
-#          log_trans=TRUE,
-#          water_year=TRUE)
 
 
 # mann kendall
@@ -188,21 +165,25 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
     x[[value_var]] <- x[[value_var]]
   }
 
-  sk <- rkt(date=x[['DATE_NUM']],y=x[[value_var]])
+  # sk <- rkt(date=x[['DATE_NUM']],y=x[[value_var]])
+  sk <- kendallTrendTest(x[[value_var]], x = x[['WYEAR']])
 
-  slope <- sk[['B']]
-  pval <- sk[['sl']] %>%  as.numeric
+  slope <- sk$estimate[['slope']]
+  intercept <- sk$estimate[['intercept']]
+  pval <- sk$p.value[['z']]
 
   if (log_trans) {
-    slope.pct <- slope.pct <- 10^slope-1
+    slope.pct <- 10^slope-1
   } else {
-    slope.pct <- sk$sen.slope.pct/100
+    slope.pct <- slope / mean(x[[value_var]])
   }
 
-  sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
-  if (is.na(sig)) {sig <- "p>0.10"}
-
-  intercept <- median(x[[value_var]] - slope*time(x[[value_var]]), na.rm=T) # is this correct? check w jeff
+  if (is.null(pval)) {
+    sig <- "p>0.10"
+  } else {
+    sig <- cut(pval, breaks=c(0,0.05,0.1,1), labels=c("p<0.05","0.05<p<0.10","p>0.10"))
+  }
+  # intercept <- median(x[[value_var]] - slope*time(x[[value_var]]), na.rm=T) # is this correct? check w jeff
 
   data.frame(TERM=value_var,
              LOG=log_trans,
@@ -219,20 +200,6 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
              DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))
 }
 
-
-test <- prism.mon%>%
-  filter(SITE_NAME=="Power")
-test.wyr <- prism.wyr%>%
-  filter(SITE_NAME=="Power")
-
-trend.mk(test.wyr,
-         month_label='All Months',
-         years=2010:2019,
-         value_var='PRCP',
-         log_trans=TRUE,
-         water_year=TRUE)
-
-
 trend.mk(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
           value_var='C',
           month_label='Annual',
@@ -240,7 +207,6 @@ trend.mk(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
           log_trans=TRUE,
           water_year=TRUE)
 
-# linear regression
 trend.lm <- function(x, value_var, years, month_label, log_trans=FALSE, water_year=TRUE) {
   if (water_year==TRUE) {
     x <- subset(x, WYEAR %in% years)
@@ -285,27 +251,6 @@ trend.lm <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
              DIRECTION=ordered(ifelse(slope>0, 'Increasing', 'Decreasing'), levels=c('Increasing', 'Decreasing')))
 }
 
-
-test <- prism.mon%>%
-  filter(SITE_NAME=="NF")
-test.wyr <- prism.wyr%>%
-  filter(SITE_NAME=="NF")
-
-trend.lm(test.wyr,
-         month_label='All Months',
-         years=2010:2019,
-         value_var='PRCP',
-         log_trans=FALSE,
-         water_year=TRUE)
-
-
-# trend.lm(x=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
-#          value_var='C',
-#          month_label='Annual',
-#          years=2002:2014,
-#          log_trans=TRUE,
-#          water_year=TRUE)
-
 trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
   x.site_name <- unique(x_mon$SITE_NAME)
   x.var <- unique(x_mon$VAR)
@@ -334,13 +279,14 @@ trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
     df.summer <- trend.sk(x, value_var=value_var,
                           months=7:9, month_label='Jul-Sep',
                           years=years, log_trans=log_trans, water_year=water_year)
-    df <- rbind(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
+    df <- bind_rows(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
 
     for (m in 1:12) {
-      df.m <- trend.sk(x=x, value_var=value_var,
-                       months=m, month_label=as.character(m),
-                       years=years, log_trans=log_trans, water_year=water_year)
-      df <- rbind(df, df.m)
+      df.m <- trend.mk(x=x, value_var=value_var,
+                       years=years, month_label=as.character(m),
+                       log_trans=log_trans, water_year=water_year)
+
+      df <- bind_rows(df, df.m)
     }
 
     df
@@ -375,21 +321,12 @@ trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
   t_all
 }
 
-
-
-#trend.batch(x_mon=filter(df_mon, SITE_NAME=="Power", VAR=="TP"),
-#          x_wyr=filter(df_wyr, SITE_NAME=="Power", VAR=="TP"),
-#           years=2002:2014,
-#             log_trans=TRUE,
-#             water_year=TRUE)
-
-
-
 # compute trends ----
 cat('Computing trend analysis...\n\n')
 trends <- lapply(as.character(unique(df_mon$VAR)), function(variable) {
   cat('..', variable, '\n')
   lapply(as.character(levels(df_mon$SITE_NAME)), function(site) {
+    cat('....', site, '\n')
     # year_range <- 2002:2012
     x <- trend.batch(x_mon=filter(df_mon, SITE_NAME==site, VAR==variable),
                      x_wyr=filter(df_wyr, SITE_NAME==site, VAR==variable),
@@ -428,6 +365,23 @@ trends <- trends %>%
 # precip trends ----
 
 
+prism.mon <- prism_subbasin %>%
+  select(-geometry) %>%
+  mutate(DATE=MONTHYEAR,
+         VAR='PRCP',
+         N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
+         YEAR=year(DATE),
+         MONTH=month(DATE),
+         DATE_NUM=decimal_date(DATE),
+         PRCP=PRCP/N.DAY,PRCP=as.numeric(PRCP)) %>% # mean mm/day
+  filter(WYEAR>=min(year_range), WYEAR<=max(year_range),
+         SITE_NAME %in% levels(df_mon$SITE_NAME)) %>%
+  droplevels
+prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR,YEAR,DATE_NUM) %>%
+  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) %>%  # mm/day
+  mutate(PRCP=as.numeric(PRCP))
+
+
 trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRUE) {
   x <- x.mon
   #  mutate(MONTH=month(MONTHYEAR))
@@ -458,9 +412,9 @@ trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRU
   df <- rbind(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
 
   for (m in 1:12) {
-    df.m <- trend.sk(x=x, value_var,
-                     months=m, month_label=as.character(m),
-                     years=years, log_trans=log_trans, water_year=water_year)
+    df.m <- trend.mk(x=x, value_var,
+                     years=years, month_label=as.character(m),
+                     log_trans=log_trans, water_year=water_year)
     df <- rbind(df, df.m)
   }
 
@@ -514,23 +468,6 @@ trend.batch.prcp.wut(x.mon=prism.mon %>% filter(SITE_NAME=="Power"),
                      water_year=TRUE)
 
 ## end test
-
-prism.mon <- prism_subbasin %>%
-  select(-geometry) %>%
-  mutate(DATE=MONTHYEAR,
-         VAR='PRCP',
-         N.DAY=as.numeric(difftime(DATE+months(1), DATE, units='days')),
-         YEAR=year(DATE),
-         MONTH=month(DATE),
-         DATE_NUM=decimal_date(DATE),
-         PRCP=PRCP/N.DAY,PRCP=as.numeric(PRCP)) %>% # mean mm/day
-  filter(WYEAR>=min(year_range), WYEAR<=max(year_range),
-         SITE_NAME %in% levels(df_mon$SITE_NAME)) %>%
-  droplevels
-prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR,YEAR,DATE_NUM) %>%
-  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) %>%  # mm/day
-  mutate(PRCP=as.numeric(PRCP))
-
 
 
 
@@ -984,7 +921,6 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     guides(fill=guide_legend(override.aes = list(colour=NA))) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
-
   if (x.trends.all$PVAL < 1e-4) {
     pval <- '< 0.0001'
   } else {
@@ -1115,7 +1051,7 @@ cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 for (site in unique(trend.prcp$SITE_NAME)) {
   cat('..', site, '\n')
-  plot_diagnostic_prcp(site_name=site, log_trans=FALSE)
+  plot_diagnostic_prcp(site_name=site, log_trans=TRUE)
   Sys.sleep(1)
 }
 dev.off()
