@@ -23,6 +23,13 @@
       "Repository": "CRAN",
       "Hash": "030aaec5bc6553f35347cbb1e70b1a17"
     },
+    "EnvStats": {
+      "Package": "EnvStats",
+      "Version": "2.7.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "3c75601e880b3cc9c47b14a7caf8f76f"
+    },
     "GGally": {
       "Package": "GGally",
       "Version": "2.1.0",
@@ -368,15 +375,15 @@
     },
     "fluxr": {
       "Package": "fluxr",
-      "Version": "0.1.4",
+      "Version": "0.1.8",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteUsername": "walkerjeffd",
       "RemoteRepo": "fluxr",
       "RemoteRef": "master",
-      "RemoteSha": "b58887bb9c5569fda43138bde82dbffdd8bc8d8c",
-      "Hash": "09e76814f175ff3b350606b2356e8e8d"
+      "RemoteSha": "58eb8c144dbe474f6f0432f2e83c19fcaaacba4f",
+      "Hash": "5253a100f38d7cf21cbc5e955e40ba91"
     },
     "forcats": {
       "Package": "forcats",
@@ -671,6 +678,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "35de1ce639f20b5e10f7f46260730c65"
+    },
+    "nortest": {
+      "Package": "nortest",
+      "Version": "1.0-4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "e587e7a30c737ad415590976481332e4"
     },
     "openssl": {
       "Package": "openssl",
