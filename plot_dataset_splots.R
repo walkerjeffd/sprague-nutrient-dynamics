@@ -45,13 +45,16 @@ for (site in levels(wq$SITE_NAME)) {
     select(-DATE, -SITE, -SITE_NAME) %>%
     ggpairs(lower=list(continuous=wrap("smooth",method="lm")),
             upper=list(continuous=wrap("smooth",method="lm")),
+            mapping=aes(alpha = 0.25),
             title=paste0('Station: ', site))+
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
     #ggpairs(upper=list(continuous="points", params=c(size=1)),
     #       lower=list(continuous="points", params=c(size=1)),
     #      title=paste0('Station: ', site),
     #     params=list(labelSize=6)) +
-    theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
+    theme(
+      axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)
+    )
   print(p, left=0.5, bottom=0.5)
 }
 dev.off()
@@ -68,12 +71,14 @@ for (variable in levels(wq$VAR)) {
            VALUE=log10(VALUE)) %>%
     dplyr::group_by(SITE_NAME, YEAR, WEEK) %>%
     dplyr::summarise(VALUE=median(VALUE)) %>%
+    ungroup() %>%
     spread(SITE_NAME, VALUE) %>%
     select(-YEAR, -WEEK) %>%
     #   ggpairs(upper=list(continuous = "points", combo = "dot")) +
 
     ggpairs(lower=list(continuous=wrap("smooth",method="lm"),size=0.5),
             upper=list(continuous=wrap("smooth",method="lm"),size=0.5),
+            mapping=aes(alpha = 0.25),
             title=paste0('Variable: ', variable))+
     #ggpairs(upper=list(continuous="points", params=c(size=1)),
     #       lower=list(continuous="points", params=c(size=1)),

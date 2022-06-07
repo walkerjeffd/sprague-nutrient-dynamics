@@ -231,7 +231,7 @@ p <- snotel.update %>%
   facet_wrap(~SITE_NAME, ncol=1, scales='free_y') +
   scale_x_date( date_breaks ="5 years",
                 date_labels = "%Y",
-                limits=c(as.Date("1981-12-31"), as.Date("2021-08-30")))+
+                limits=c(as.Date("1981-12-31"), as.Date("2020-09-30")))+
   theme(strip.background=element_blank(),
         strip.text=element_text(face='bold'))
 print(p)

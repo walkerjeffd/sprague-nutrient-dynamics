@@ -1,8 +1,6 @@
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 library(lubridate)
 library(ggplot2)
-library(knitr)
 library(ggmap)
 library(gridExtra)
 library(scales)
@@ -102,7 +100,8 @@ trend.sk <- function(x,months,month_label,years,value_var,water_year=TRUE,log_tr
   sk <- kendallSeasonalTrendTest(x[[value_var]], season = x[['MONTH']], year = x[['WYEAR']])
 
   slope <- sk$estimate[["slope"]]
-  intercept <- sk$estimate[["intercept"]]
+  # intercept <- sk$estimate[["intercept"]]
+  intercept = median(x[[value_var]]) - slope * median(x[['WYEAR']])
   pval <- sk$p.value[["z (Trend)"]]
 
   if (log_trans) {
@@ -169,7 +168,8 @@ trend.mk <- function(x, value_var, years, month_label, log_trans=FALSE, water_ye
   sk <- kendallTrendTest(x[[value_var]], x = x[['WYEAR']])
 
   slope <- sk$estimate[['slope']]
-  intercept <- sk$estimate[['intercept']]
+  # intercept <- sk$estimate[["intercept"]]
+  intercept = median(x[[value_var]]) - slope * median(x[['WYEAR']])
   pval <- sk$p.value[['z']]
 
   if (log_trans) {
@@ -282,7 +282,7 @@ trend.batch <- function(x_mon, x_wyr, years, log_trans=FALSE, water_year=TRUE) {
     df <- bind_rows(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
 
     for (m in 1:12) {
-      df.m <- trend.mk(x=x, value_var=value_var,
+      df.m <- trend.mk(x=filter(x, MONTH == m), value_var=value_var,
                        years=years, month_label=as.character(m),
                        log_trans=log_trans, water_year=water_year)
 
@@ -377,10 +377,13 @@ prism.mon <- prism_subbasin %>%
   filter(WYEAR>=min(year_range), WYEAR<=max(year_range),
          SITE_NAME %in% levels(df_mon$SITE_NAME)) %>%
   droplevels
-prism.wyr <- group_by(prism.mon, SITE_NAME, WYEAR,YEAR,DATE_NUM) %>%
-  summarise(PRCP=sum(PRCP*N.DAY)/sum(N.DAY)) %>%  # mm/day
-  mutate(PRCP=as.numeric(PRCP))
-
+prism.wyr <- dplyr::group_by(prism.mon, SITE_NAME, WYEAR) %>%
+  dplyr::summarise(
+    DATE = min(DATE),
+    PRCP=sum(PRCP*N.DAY)/sum(N.DAY)
+  ) %>%  # mm/day
+  ungroup() %>%
+  mutate(DATE_NUM = decimal_date(DATE))
 
 trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRUE) {
   x <- x.mon
@@ -412,7 +415,7 @@ trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRU
   df <- rbind(df.seasonal, df.fall, df.winter, df.spring, df.summer, df.4_9, df.10_3)
 
   for (m in 1:12) {
-    df.m <- trend.mk(x=x, value_var,
+    df.m <- trend.mk(x=filter(x, MONTH == m), value_var,
                      years=years, month_label=as.character(m),
                      log_trans=log_trans, water_year=water_year)
     df <- rbind(df, df.m)
@@ -426,7 +429,7 @@ trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRU
 
   df.lm <- trend.lm(x=x.wyr, value_var,
                     years=years, month_label='Annual-Reg',
-                    log_trans=FALSE, water_year=water_year)
+                    log_trans=log_trans, water_year=water_year)
 
   df <- rbind(df, df.mk, df.lm)
   df <- mutate(df,
@@ -444,7 +447,7 @@ trend.batch.prcp <- function(x.mon, x.wyr, years, log_trans=TRUE, water_year=TRU
 
 trend.batch.prcp(x.mon=prism.mon %>% filter(SITE_NAME=="SF"), # Godowa/NF/SF produces the two equal dates same block error
                  x.wyr=prism.wyr %>% filter(SITE_NAME=="SF"),
-                 years=year_range, log_trans=TRUE, water_year=TRUE)
+                 years=year_range, log_trans=FALSE, water_year=TRUE)
 
 trend.batch.prcp.wut <- function(x.mon, years, log_trans=TRUE, water_year=TRUE) {
  # x <- x.mon
@@ -477,7 +480,7 @@ trend.prcp <- lapply(levels(prism.mon$SITE_NAME), function(site) {
   df <- trend.batch.prcp(x.mon=prism.mon %>% filter(SITE_NAME==site),
                          x.wyr=prism.wyr %>% filter(SITE_NAME==site),
                          years=year_range,
-                         log_trans=TRUE, # was originally noted as FALSE, won't run with this as FALSE, check with Jeff regarding log transforms and structure in trend.sk, trend.mk, and trend.lm
+                         log_trans=FALSE, # was originally noted as FALSE, won't run with this as FALSE, check with Jeff regarding log transforms and structure in trend.sk, trend.mk, and trend.lm
                          water_year=TRUE)
 
   df$SITE_NAME <- site
@@ -675,7 +678,7 @@ p.mon.ts <-
 plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
   x.trend <- filter(trends, SITE_NAME==site_name,
                     VAR==variable, TERM==term, LOG==log_trans)
-  x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall') %>%
+  x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall' | MONTH_LABEL %in% as.character(1:12)) %>%
     select(SEASON=MONTH_LABEL, SLOPE, INTERCEPT)
   x.wyr.trends <- filter(x.trend, MONTH_LABEL %in% c('Annual-MK', 'Annual-Reg'))
   x.trends.all <- filter(x.trend, METHOD=='SeasonalKendall', MONTH_LABEL=='All Months') %>%
@@ -751,10 +754,10 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     mutate(MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
     ggplot() +
     aes_string(x='WYEAR', y=term) +
-    geom_point(size=1.5) +
+    geom_point(size=1.5, alpha = 0.5) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE),
                 data=filter(x.mon.trends, SEASON %in% seq(1, 12)) %>%
-                  rename(MONTH=SEASON)) +
+                  dplyr::rename(MONTH=SEASON)) +
     facet_wrap(~MONTH, nrow=1) +
     scale_x_continuous(breaks=seq(min(year_range), max(year_range),
                                   by=ifelse(n_year >= 10, 4, 2))) +
@@ -778,7 +781,7 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
     geom_hline(yintercept=0, color='grey50') +
     scale_y_continuous(labels=percent) +
     labs(x='', y='Trend Slope (%/yr)') +
-    guides(fill=guide_legend(override.aes = list(colour=NA))) +
+    # guides(fill=guide_legend(override.aes = list(colour=NA))) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
   if (x.trends.all$PVAL < 1e-4) {
@@ -820,12 +823,12 @@ plot_diagnostic <- function(site_name, variable, term, log_trans=TRUE) {
 }
 
 
-plot_diagnostic(site_name='Power', variable='TP', term='C')
+plot_diagnostic(site_name='Power', variable='TP', term='L')
 
 plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
   term <- 'PRCP'
-  x.trend <- filter(trend.prcp, SITE_NAME==site_name, LOG==log_trans)
-  x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall') %>%
+  x.trend <- filter(trend.prcp, SITE_NAME==site_name)
+  x.mon.trends <- filter(x.trend, METHOD=='SeasonalKendall' | MONTH_LABEL %in% as.character(1:12)) %>%
     select(SEASON=MONTH_LABEL, SLOPE, INTERCEPT)
   x.wyr.trends <- filter(x.trend, MONTH_LABEL %in% c('Annual-MK', 'Annual-Reg'))
   x.trends.all <- filter(x.trend, METHOD=='SeasonalKendall', MONTH_LABEL=='All Months') %>%
@@ -892,9 +895,9 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
   p.mon <- x.mon %>%
     mutate(MONTH=ordered(MONTH, levels=c(10:12, 1:9))) %>%
     ggplot() + aes_string(x='WYEAR', y=term) +
-    geom_point(size=1.5) +
+    geom_point(size=1.5, alpha = 0.5) +
     geom_abline(aes(intercept=INTERCEPT, slope=SLOPE),
-                data=filter(x.mon.trends, SEASON %in% seq(1, 12)) %>% rename(MONTH=SEASON) %>% droplevels) +
+                data=filter(x.mon.trends, SEASON %in% seq(1, 12)) %>% dplyr::rename(MONTH=SEASON) %>% droplevels) +
     facet_wrap(~MONTH, nrow=1) +
     scale_x_continuous(breaks=seq(min(year_range), max(year_range),
                                   by=ifelse(n_year >= 10, 4, 2))) +
@@ -918,7 +921,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
     geom_hline(yintercept=0, color='grey50') +
     scale_y_continuous(labels=percent) +
     labs(x='', y='Trend Slope (%/yr)') +
-    guides(fill=guide_legend(override.aes = list(colour=NA))) +
+    # guides(fill=guide_legend(override.aes = list(colour=NA))) +
     theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))
 
   if (x.trends.all$PVAL < 1e-4) {
@@ -956,7 +959,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
                heights=c(10/24, 6/24, 8/24),
                top=title)
 }
-# plot_diagnostic_prcp(site_name='Power', log_trans=FALSE)
+plot_diagnostic_prcp(site_name='Power', log_trans=FALSE)
 
 plot_dot_precip <- function(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')) {
   x.trend <- filter(trend.prcp, MONTH_LABEL %in% seasons) %>%

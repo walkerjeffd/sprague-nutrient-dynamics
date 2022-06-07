@@ -18,13 +18,15 @@ dl <- readRDS('detection_limits.Rdata')
 dl <- gather(dl, TERM, VALUE, -VAR) %>%
   filter(VAR %in% c('TN', 'NH4', 'NO23')) %>%
   mutate(VALUE=VALUE*1000,
-         TERM=ordered(TERM, levels=c('UPPERDL', 'LOWERDL')))
+         TERM=ordered(TERM, levels=c('UPPERDL', 'LOWERDL'))) %>%
+  mutate(VAR = factor(VAR, levels = c("TN", "NH4", "NO23")))
 
 p.wyr <- loads_df$wyr %>%
   filter(VAR %in% c('TN', 'NH4', 'NO23'), TERM=='C',
          SEASON == "Annual",
          WYEAR >= 2010,
          SITE_NAME %in% stn.kt_sprague$SITE_NAME) %>%
+  mutate(VAR = factor(VAR, levels = c("TN", "NH4", "NO23"))) %>%
   # filter(!(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
   ggplot(aes(factor(WYEAR), VALUE)) +
   geom_bar(aes(fill=DATASET), stat='identity', position='dodge') +
@@ -59,7 +61,7 @@ p.wyr <- loads_df$wyr %>%
 p.site <- loads_df$site %>%
   filter(VAR %in% c('TN', 'NH4', 'NO23'), TERM=='C',
          SEASON == "Annual",
-         PERIOD == "2010-2014",
+         PERIOD == "2010-2020",
          SITE_NAME %in% stn.kt_sprague$SITE_NAME) %>%
   # filter(!(SITE_NAME %in% c('SF_Ivory', 'NF_Ivory'))) %>%
   ggplot(aes(SITE_NAME, VALUE)) +

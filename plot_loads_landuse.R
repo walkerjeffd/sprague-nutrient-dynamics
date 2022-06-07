@@ -326,8 +326,11 @@ df_pou_rho <- df_site_area %>%
   mutate(MAX_VALUE=max(VALUE)) %>%
   dplyr::group_by(VAR, SEASON, MAX_VALUE) %>%
   do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
-  mutate(rho=ct$estimate,
-         p=ct$p.value) %>%
+  ungroup() %>%
+  mutate(
+    rho = map_dbl(ct, ~.x$estimate),
+    p = map_dbl(ct, ~.x$p.value)
+  ) %>%
   select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
 
@@ -430,8 +433,11 @@ df_nlcd_rho <- df_site_area %>%
   mutate(MAX_VALUE=max(VALUE)) %>%
   dplyr::group_by(LANDUSE, VAR, SEASON, MAX_VALUE) %>%
   do(ct=cor.test(x=.$VALUE, y=.$AREA_FRAC, method="pearson")) %>%
-  mutate(rho=ct$estimate,
-         p=ct$p.value) %>%
+  ungroup() %>%
+  mutate(
+    rho = map_dbl(ct, ~.x$estimate),
+    p = map_dbl(ct, ~.x$p.value)
+  ) %>%
   select(-ct) %>%
   mutate(LABEL=ifelse(p<0.1, 'p <= 0.1', 'p > 0.1'))
 

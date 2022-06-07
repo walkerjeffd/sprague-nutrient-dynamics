@@ -23,10 +23,10 @@ log_y <- scale_y_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))
 
 start_date <- as.Date('2008-10-01')
-end_date <- as.Date('2020-08-30')
+end_date <- as.Date('2020-09-30')
 #end_date <- as.Date('2014-09-30')
 start_date_ivory <- as.Date('2000-10-01')
-end_date_ivory <- as.Date('2020-08-30')
+end_date_ivory <- as.Date('2020-09-30')
 #end_date_ivory <- as.Date('2014-09-30')
 
 
@@ -178,9 +178,11 @@ q.out <- select(q.model, SITE_NAME, DATE, Q=PRED_RESID)
 
 # validation ----
 q.valid <- filter(q.owrd, SITE_NAME %in% c('SF', 'NF', 'Godowa', 'Lone_Pine')) %>%
+  filter(!is.na(FLOW)) %>%
   dplyr::rename(VALID_Q=FLOW) %>%
   mutate(SITE=paste0('OWRD:', SITE)) %>%
-  select(-SOURCE)
+  select(-SOURCE) %>%
+  filter(DATE >= min(q.out$DATE))
 q.valid <- left_join(q.valid, select(q.out, SITE_NAME, DATE, Q),
                      by=c('SITE_NAME', 'DATE')) %>%
   filter(!is.na(Q)) %>%
@@ -193,16 +195,18 @@ q.valid.mon <- q.valid %>%
             Q=mean(Q, na.rm=TRUE)) %>%
   ungroup
 
-q.valid.rmse <- dplyr::group_by(q.valid, SITE_NAME, SITE) %>%
+q.valid.rmse <- q.valid %>%
+  filter(!is.na(Q), !is.na(VALID_Q)) %>%
+  dplyr::group_by(SITE_NAME, SITE) %>%
   dplyr::summarise(START_DATE=min(DATE),
             END_DATE=max(DATE),
             N=n(),
-            X=min(VALID_Q),
-            Y=max(Q),
+            X=min(VALID_Q, na.rm = TRUE),
+            Y=max(Q, na.rm = TRUE),
             R2=cor(Q, VALID_Q, use="complete.obs")^2,
-            RMSE=sqrt(sum((VALID_Q-Q)^2)/N),
-            VALID_Q=mean(VALID_Q),
-            Q=mean(Q),
+            RMSE=sqrt(sum((VALID_Q-Q)^2, na.rm = TRUE)/N),
+            VALID_Q=mean(VALID_Q, na.rm = TRUE),
+            Q=mean(Q, na.rm = TRUE),
             REL_RMSE=RMSE/Q)
 q.valid.mon.rmse <- dplyr::group_by(q.valid.mon, SITE_NAME, SITE) %>%
   dplyr::summarise(START_DATE=min(DATE),
@@ -841,9 +845,9 @@ print(p)
 p <- q.valid %>%
   filter(DATE>=start_date) %>%
     ggplot(aes(VALID_Q, Q)) +
-  geom_point(size=1, alpha=0.7) +
-  geom_abline(linetype=2, show.legend=TRUE) +#aes(color='1:1 Line'), ) +
-  geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.rmse, R2=paste0("R2 = ", scales::percent(R2))),
+  geom_point(size=1, alpha=0.5) +
+  geom_abline(aes(slope = 1, intercept = 0, color = "1:1 Line"), linetype=2, show.legend=TRUE) +#aes(color='1:1 Line'), ) +
+  geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.rmse, R2=paste0("R2 = ", scales::percent(R2, accuracy = 0.1))),
             hjust=0, vjust=1) +
   log_x +
   log_y +
@@ -875,8 +879,8 @@ p <- q.valid.mon %>%
   filter(DATE>=start_date) %>%
   ggplot(aes(VALID_Q, Q)) +
   geom_point() +
-  geom_abline( linetype=2, show.legend=TRUE) + # aes(color='1:1 Line'),
-  geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.mon.rmse, R2=paste0("R2 = ", scales::percent(R2))),
+  geom_abline(aes(color = "1:1 Line", slope = 1, intercept = 0), linetype=2, show.legend=TRUE) + # aes(color='1:1 Line'),
+  geom_text(aes(x=X, y=Y, label=R2), data=mutate(q.valid.mon.rmse, R2=paste0("R2 = ", scales::percent(R2, accuracy = 0.1))),
             hjust=0, vjust=1) +
   log_x +
   log_y +
