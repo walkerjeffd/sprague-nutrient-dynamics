@@ -60,14 +60,14 @@ spread(flow, SOURCE, FLOW_cfs) %>%
 filename <- 'report/gannet.png'
 cat('Saving report figure to:', filename, '\n')
 png(filename, width=8, height=6, res=200, units='in')
-p <- filter(flow, SOURCE %in% c("Gannett", 2010:2021)) %>%
+p <- filter(flow, SOURCE %in% c("Gannett", "2010-2020")) %>%
   mutate(label=ifelse(SOURCE=="Gannett","Gannett","2010-2020"),
          SOURCE=ifelse(SOURCE=="Gannett", "Gannett et al (2007)", paste0("This Study (WY", label, ")"))) %>%
   ggplot(aes(SITE_NAME, FLOW_cfs, fill=SOURCE)) +
   geom_bar(stat='identity', position='dodge') +
   geom_hline(yintercept=0, color='grey20') +
   scale_y_continuous(breaks=seq(-20, 100, by=10)) +
-  labs(x="", y="Flow (cfs)") +
+  labs(x="", y="Net Summer Flow (cfs)") +
   scale_fill_manual("", values=c("Gannett et al (2007)"="grey50",
                                  "This Study (WY2010-2020)"="deepskyblue")) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5))

@@ -271,6 +271,11 @@ ggsave(filename,p,width=6,height=4)
 print(p)
 dev.off()
 
+df %>%
+  filter(SEASON=="Annual") %>%
+  mutate(X = 1-PO4_TP) %>%
+  group_by(SITE_NAME) %>%
+  summarise(X = median(X, na.rm = TRUE))
 
 
 

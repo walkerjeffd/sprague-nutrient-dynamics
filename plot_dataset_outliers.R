@@ -99,7 +99,7 @@ plot_data <- function(variable, site, log.trans) {
     labs(y=ylabel, x='Water Year Day (0=Oct 1)')
   p.flow <- filter(wq, SITE_NAME==site, VAR==variable) %>%
     group_by(DATE,VAR) %>%
-    mutate(row = 1:nrow(.)) %>%
+    mutate(row = row_number()) %>%
     pivot_wider(names_from=VAR, values_from=VALUE) %>%
     left_join(filter(wq, SITE_NAME==site, VAR=="FLOW") %>%
                 select(DATE, FLOW=VALUE),

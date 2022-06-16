@@ -1,5 +1,6 @@
 library(tidyverse)
 library(lubridate)
+library(janitor)
 library(maptools)
 library(sf)
 library(ggplot2)
@@ -482,10 +483,21 @@ print(table(df.raw$VAR, df.raw$QAQC))
 # CLEAN dataset ----
 df.clean <- df.raw
 
-df_removed <- filter(df.raw, !(QAQC %in% c('PASS', 'RPD')))
-df_removed <- group_by(df_removed, SITE_NAME, VAR) %>%
+df_removed <- filter(df.raw, !(QAQC %in% c('PASS', 'RPD'))) %>%
+  group_by(SITE_NAME, VAR) %>%
   dplyr::summarise(N=n()) %>%
-  spread(VAR, N, fill=0)
+  ungroup() %>%
+  spread(VAR, N, fill=0) %>%
+  select(SITE_NAME, TP, PO4, TN, NH4, NO23, TSS) %>%
+  adorn_totals(name = "Total Removed") %>%
+  bind_rows(
+    df.raw %>%
+      filter(!is.na(VALUE)) %>%
+      count(VAR) %>%
+      spread(VAR, n) %>%
+      mutate(SITE_NAME = "Total Collected") %>%
+      select(SITE_NAME, TP, PO4, TN, NH4, NO23, TSS)
+  )
 write.csv(df_removed, file="csv/wq_removed.csv", row.names=FALSE)
 
 # keep only PASS and RPD samples

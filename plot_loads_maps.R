@@ -87,15 +87,29 @@ map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
     geom_sf(aes(),
                  data = incbasin[[period]],
                  color = 'grey50', fill = NA, size = 0.2,inherit.aes=FALSE) +
-    geom_sf(aes(fill = VALUE),inherit.aes=FALSE,
-                 data = (subbasin[[period]] %>%
-              left_join(df_site %>%
-                          filter(DATASET==dataset,
-                                 PERIOD==period, SEASON==season,
-                                 VAR==variable, TERM==term,
-                                 SITE_NAME %in% subbasin_levels[[period]]) %>%
-               mutate(SITE_NAME=ordered(as.character(SITE_NAME), levels=subbasin_levels[[period]])))),
-                 colour = 'black', size = 0.2) +
+    geom_sf(
+      data = subbasin[[period]] %>%
+        mutate(
+          SITE_NAME = ordered(as.character(SITE_NAME), levels = subbasin_levels[[period]])
+        ) %>%
+        left_join(
+          df_site %>%
+            filter(
+              DATASET==dataset,
+              PERIOD==period,
+              SEASON==season,
+              VAR==variable,
+              TERM==term,
+              SITE_NAME %in% subbasin_levels[[period]]
+            ) %>%
+            mutate(
+              SITE_NAME = ordered(as.character(SITE_NAME), levels = subbasin_levels[[period]])
+            )
+        ),
+      aes(fill = VALUE),
+      inherit.aes=FALSE,
+      colour = 'black', size = 0.2
+    ) +
     geom_sf(aes(), data = basin, # removed group=group
                  color = 'black', fill = NA, size = 0.2,inherit.aes=FALSE) +
     geom_point(aes(x = LON, y = LAT), data = stn[[period]], fill = 'deepskyblue', pch = 21, color = 'black', size = 3) +
@@ -104,7 +118,8 @@ map_subbasin <- function(dataset, period, season, variable, term, title=NULL) {
     facet_wrap(~SITE_NAME, nrow=2) +
     ggtitle(title) +
     theme(strip.background=element_blank(),
-          strip.text.x=element_text(face='bold'))
+          strip.text.x=element_text(face='bold'),
+          plot.margin = unit(c(5, 2, 2, 2), "mm"))
 }
 # map_subbasin(dataset='POR', period='P2002', season='Annual', variable='FLOW', term='Q_AREA')
 # map_subbasin(dataset='POR', period='P2002', season='Annual', variable='TP', term='C')
@@ -238,7 +253,8 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
       ggtitle(title)
   }
   p <- p + theme(strip.background=element_blank(),
-                 strip.text.x=element_text(face='bold'))
+                 strip.text.x=element_text(face='bold'),
+                 plot.margin = unit(c(5, 2, 2, 2), "mm"))
   p <- p + geom_text(x=-120.61, y=42.17,
                      label='Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.',
                      size=3,
@@ -248,7 +264,7 @@ map_incbasin <- function(dataset, period, season, variable, term, title=NULL) {
 }
 
 
-#map_incbasin('POR', 'P2010', 'Annual', 'TP', 'L', '')
+# map_incbasin('POR', 'P2010', 'Annual', 'TP', 'L', '')
 
 # map_incbasin(dataset='POR', period='P2002', season='Annual',
 #              variable='FLOW', term='Q_AREA',
@@ -349,45 +365,45 @@ for (period in c('P2002', 'P2010')) {
   cat('.. SUBBASINS', '\n')
   variables <- setdiff(filter(df_site, PERIOD==period)$VAR %>% as.character %>% unique, 'FLOW')
 
-#   for (variable in variables) {
-#     if (variable == 'TSS') {
-#       period_label <- 'WY2011-2014'
-#     } else {
-#       period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
-#     }
-#
-#     filename <- file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period,
-#                           paste0('loads-cumul-basin-', period_label, '-', tolower(variable), '.pdf'))
-#     cat('Printing:', filename, '\n')
-#     pdf(filename, width=11, height=8.5)
-#     dash_subbasin(dataset, period, season, variable, 'L_AREA',
-#                   paste0('Mean Annual Load per Unit Area\n',
-#                          'Period: ', period_label,
-#                          '   |   Season: ', season,
-#                          '   |   Variable: ', variable,
-#                          '   |   Term: ', 'Load per Unit Area', '\n'))
-#     dash_subbasin(dataset, period, season, variable, 'C',
-#                   paste0('Mean Annual FWM Concentration\n',
-#                          'Period: ', period_label,
-#                          '   |   Season: ', season,
-#                          '   |   Variable: ', variable,
-#                          '   |   Term: ', 'FWM Concentration', '\n'))
-#     dev.off()
-#     Sys.sleep(2)
-#   }
-#
-#   variable <- 'Flow'
-#   filename <- file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period,
-#                         paste0('loads-cumul-basin-', period_label, '-', tolower(variable), '.pdf'))
-#   cat('Printing:', filename, '\n')
-#   pdf(filename, width=11, height=8.5)
-#   dash_subbasin(dataset, period, season, 'FLOW', 'Q_AREA',
-#                 paste0('Mean Annual Flow per Unit Area\n',
-#                        'Period: ', period_label,
-#                        '   |   Season: ', season,
-#                        '   |   Variable: ', variable,
-#                        '   |   Term: ', 'Flow per Unit Area', '\n'))
-#   dev.off()
+  for (variable in variables) {
+    if (variable == 'TSS') {
+      period_label <- 'WY2011-2020'
+    } else {
+      period_label <- paste0('WY', paste0(wyears_levels[[period]], collapse='-'))
+    }
+
+    filename <- file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period,
+                          paste0('loads-cumul-basin-', period_label, '-', tolower(variable), '.pdf'))
+    cat('Printing:', filename, '\n')
+    pdf(filename, width=11, height=8.5)
+    dash_subbasin(dataset, period, season, variable, 'L_AREA',
+                  paste0('Mean Annual Load per Unit Area\n',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable,
+                         '   |   Term: ', 'Load per Unit Area', '\n'))
+    dash_subbasin(dataset, period, season, variable, 'C',
+                  paste0('Mean Annual FWM Concentration\n',
+                         'Period: ', period_label,
+                         '   |   Season: ', season,
+                         '   |   Variable: ', variable,
+                         '   |   Term: ', 'FWM Concentration', '\n'))
+    dev.off()
+    Sys.sleep(2)
+  }
+
+  variable <- 'Flow'
+  filename <- file.path('pdf', tolower(dataset), 'loads-maps-cumul-basin', period,
+                        paste0('loads-cumul-basin-', period_label, '-', tolower(variable), '.pdf'))
+  cat('Printing:', filename, '\n')
+  pdf(filename, width=11, height=8.5)
+  dash_subbasin(dataset, period, season, 'FLOW', 'Q_AREA',
+                paste0('Mean Annual Flow per Unit Area\n',
+                       'Period: ', period_label,
+                       '   |   Season: ', season,
+                       '   |   Variable: ', variable,
+                       '   |   Term: ', 'Flow per Unit Area', '\n'))
+  dev.off()
 
   cat('.. INCBASINS', '\n')
   for (variable in variables) {

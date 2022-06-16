@@ -537,7 +537,7 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
                                "Decreasing (0.05<p<0.1)"="#AAC4DB",
                                "Decreasing (p<0.05)"="steelblue"),
                       drop=FALSE) +
-    scale_x_continuous(labels=percent) +
+    scale_x_continuous(labels=scales::percent_format(accuracy = 1)) +
     labs(x='Trend Slope (%/yr)', y='') +
     facet_grid(VAR~MONTH_LABEL) +
     theme(strip.background=element_blank())
@@ -553,7 +553,7 @@ plot_dot_season_flow <- function(only4=FALSE, log_trans=TRUE) {
                                "Decreasing (0.05<p<0.1)"="#AAC4DB",
                                "Decreasing (p<0.05)"="steelblue"),
                       drop=FALSE) +
-    scale_x_continuous(labels=percent) +
+    scale_x_continuous(labels=scales::percent_format(accuracy = 1)) +
     labs(x='Trend Slope (%/yr)', y='') +
     facet_grid(VAR~MONTH_LABEL) +
     theme(strip.background=element_blank())
@@ -959,7 +959,7 @@ plot_diagnostic_prcp <- function(site_name, log_trans=TRUE) {
                heights=c(10/24, 6/24, 8/24),
                top=title)
 }
-plot_diagnostic_prcp(site_name='Power', log_trans=FALSE)
+# plot_diagnostic_prcp(site_name='Power', log_trans=FALSE)
 
 plot_dot_precip <- function(seasons=c('All Months', 'Oct-Dec', 'Jan-Mar', 'Apr-Jun', 'Jul-Sep')) {
   x.trend <- filter(trend.prcp, MONTH_LABEL %in% seasons) %>%
@@ -1054,7 +1054,7 @@ cat('Printing:', filename, '\n')
 pdf(filename, width=11, height=8.5)
 for (site in unique(trend.prcp$SITE_NAME)) {
   cat('..', site, '\n')
-  plot_diagnostic_prcp(site_name=site, log_trans=TRUE)
+  plot_diagnostic_prcp(site_name=site, log_trans=FALSE)
   Sys.sleep(1)
 }
 dev.off()

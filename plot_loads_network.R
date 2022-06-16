@@ -105,7 +105,7 @@ for (season in unique(as.character(df_wyr$SEASON))) {
                    data=filter(df_segments_wyr, TERM==term, SEASON==season),
                    alpha=0.5) +
       geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
-                 size=3) +
+                 size=2) +
       facet_grid(VAR~WYEAR, scales='free_y') +
       scale_color_manual('Station', values=color_site) +
       scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
@@ -141,7 +141,7 @@ for (period in c("P2002", "P2010")) {
                    data=filter(df_segments, PERIOD==period, TERM==term),
                    alpha=0.5) +
       geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
-                 size=3) +
+                 size=2) +
       facet_grid(VAR~SEASON, scales='free_y') +
       scale_color_manual('Station', values=color_site) +
       scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
@@ -187,7 +187,7 @@ p <- df_site_tp_tn %>%
                data=df_segments_tp_tn,
                alpha=0.5) +
   geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
-             size=3) +
+             size=2) +
   facet_grid(VAR_TERM~SEASON, scales='free_y') +
   scale_color_manual('Station', values=color_site) +
   scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +
@@ -218,7 +218,7 @@ p <- filter(df_site, PERIOD=='P2010', TERM=='C',
                data=filter(df_segments, PERIOD=='P2010', TERM=='C'),
                alpha=0.5) +
   geom_point(aes(AREA_KM2, VALUE, color=SITE_NAME),
-             size=3) +
+             size=2) +
   facet_grid(VAR~SEASON, scales='free_y') +
   scale_color_manual('Station', values=color_site) +
   scale_size_manual(guide=FALSE, values=c('FALSE'=0.5, 'TRUE'=1)) +

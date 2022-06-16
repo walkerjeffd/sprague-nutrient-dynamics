@@ -1,5 +1,4 @@
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 library(lubridate)
 library(fluxr)
 library(ggplot2)
@@ -564,24 +563,34 @@ p <- ggplot(loads_wyr_por_tp, aes(factor(WYEAR), mean, fill=TERM)) +
   geom_bar(stat='identity') +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=0.2) +
   scale_fill_manual('', values=c(C='orangered', LAREA='olivedrab3', L='olivedrab3', QAREA='steelblue', Q='steelblue')) +
-  facet_grid(VAR_TERM~SITE_NAME, scales='free_y') +
+  facet_grid(VAR_TERM~SITE_NAME, scales='free_y', labeller = labeller(VAR_TERM = c(
+    'FLOW_Q' = 'Flow\n(hm3/yr)',
+    'FLOW_QAREA' = 'Runoff\n(cm/yr)',
+    'TP_L' = 'TP Load\n(kg/yr)',
+    'TP_LAREA' = 'TP Export\n(kg/km2/yr)',
+    'TP_C' = 'TP FWM Conc\n(ppb)',
+    'TN_L' = 'TN Load\n(kg/yr)',
+    'TN_LAREA' = 'TN Export\n(kg/km2/yr)',
+    'TN_C' = 'TN FWM Conc\n(ppb)'
+  )), switch = "y") +
   scale_x_discrete(labels=c(2002, "", 2004, "", 2006, "", 2008, "", 2010, "", 2012, "", 2014,"",2016,"",2018,"",2020)) +
   scale_y_continuous(labels=scales::comma) +
   guides(fill='none') +
-  labs(x='Water Year',
-       y=paste(rev(c('Flow (hm3/yr)         ',
-                     '  Runoff (cm/yr)        ',
-                     ' TP Load (kg/yr)     ',
-                     'TP Export (kg/km2/yr)',
-                     'FWM TP Conc (ppb) ',
-                     'TN Load (kg/yr)  ',
-                     'TN Export (kg/km2/yr)',
-                     'FWM TN Conc (ppb) ')),
-               collapse=' ')) +
+  labs(x='Water Year', y=  NULL) +
+       # y=paste(rev(c('Flow\n(hm3/yr)',
+       #               'Runoff\n(cm/yr)',
+       #               'TP Load\n(kg/yr)',
+       #               'TP Export\n(kg/km2/yr)',
+       #               'FWM TP Conc\n(ppb)',
+       #               'TN Load\n(kg/yr)',
+       #               'TN Export\n(kg/km2/yr)',
+       #               'FWM TN Conc\n(ppb)')),
+       #         collapse=' ')) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
         axis.title.y=element_text(size=10),
         strip.background=element_blank(),
-        strip.text.y=element_blank(),
+        strip.placement = "outside",
+        # strip.text.y=element_blank(),
         strip.text.x=element_text(face='bold',size=9))
 ggsave(paste0("./",filename),p,height=11,width=10)
 #print(p)
@@ -619,6 +628,12 @@ flows_mon <- filter(loads_df[['mon']],
   spread(TERM, VALUE) %>%
   mutate(Q=hm3d_cfs(Q))
 
+flows_wyr <- filter(loads_df[['wyr']],
+                    DATASET=="POR",
+                    TERM %in% c("Q", "Q_AREA")) %>%
+  droplevels %>%
+  spread(TERM, VALUE) %>%
+  mutate(Q=hm3d_cfs(Q))
 
 flows_site <- filter(loads_df[['site']],
                     DATASET=="POR",
@@ -656,7 +671,7 @@ p <- flows_site %>%
          DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
   ggplot(aes(SITE_NAME, Q, fill=DIR)) +
   geom_bar(stat='identity') +
-  geom_hline(yintercept=0, fill='grey20') +
+  geom_hline(yintercept=0, color='grey20') +
   scale_fill_manual('',
                     values=c('TRUE'='steelblue', 'FALSE'='orangered'),
                     labels=c('TRUE'='Increase', 'FALSE'='Decrease')) +
@@ -667,6 +682,87 @@ p <- flows_site %>%
         strip.text=element_text(face='bold'))
 print(p)
 dev.off()
+
+tibble(
+  PERIOD = fct_inorder(c("2010-2020", "2010-2012", "2013-2020")),
+  WYEAR = list(c(2010:2020), c(2010:2012), c(2013:2020))
+) %>%
+  unnest(WYEAR) %>%
+  left_join(
+    flows_wyr %>%
+      filter(SITE_NAME %in% c("Power-Lone_Pine", "Lone_Pine-Godowa-Sycan", "Sycan", "Godowa-SF_Ivory-NF_Ivory",
+                              "SF_Ivory-SF", "NF_Ivory-NF", "SF", "NF")) %>%
+      select(WYEAR, SEASON, SITE_NAME, Q),
+    by = c("WYEAR")
+  ) %>%
+  group_by(PERIOD, SEASON, SITE_NAME) %>%
+  summarise(Q = mean(Q)) %>%
+  mutate(SITE_NAME=plyr::revalue(SITE_NAME, incbasin_names),
+         DIR=Q>0,
+         DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
+  ggplot(aes(SITE_NAME, Q, fill=DIR)) +
+  geom_bar(stat='identity') +
+  geom_hline(yintercept=0, color='grey20') +
+  scale_fill_manual('',
+                    values=c('TRUE'='steelblue', 'FALSE'='orangered'),
+                    labels=c('TRUE'='Increase', 'FALSE'='Decrease')) +
+  facet_grid(PERIOD~SEASON) +
+  labs(x="", y="Net Flow (cfs)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+
+flows_wyr %>%
+  filter(SITE_NAME %in% c("Power-Lone_Pine", "Lone_Pine-Godowa-Sycan", "Sycan", "Godowa-SF_Ivory-NF_Ivory",
+                          "SF_Ivory-SF", "NF_Ivory-NF", "SF", "NF")) %>%
+  select(WYEAR, SEASON, SITE_NAME, Q) %>%
+  mutate(SITE_NAME=plyr::revalue(SITE_NAME, incbasin_names),
+         DIR=Q>0,
+         DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
+  ggplot(aes(WYEAR, Q)) +
+  geom_line(alpha = 0.5) +
+  geom_point(aes(color=DIR)) +
+  geom_vline(xintercept=2013, color='black', linetype = "dashed") +
+  geom_hline(yintercept=0, color='grey20') +
+  scale_color_manual('',
+                    values=c('TRUE'='steelblue', 'FALSE'='orangered'),
+                    labels=c('TRUE'='Increase', 'FALSE'='Decrease')) +
+  facet_grid(vars(SITE_NAME), vars(SEASON), scales = "free_y") +
+  labs(x="", y="Net Flow (cfs)") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+
+
+filter(loads_df[['wyr']],
+                    DATASET=="POR",
+                    TERM %in% c("C"), VAR == "PP") %>%
+  droplevels %>%
+  spread(TERM, VALUE) %>%
+  filter(SITE_NAME %in% c("Power-Lone_Pine", "Lone_Pine-Godowa-Sycan", "Sycan", "Godowa-SF_Ivory-NF_Ivory",
+                          "SF_Ivory-SF", "NF_Ivory-NF", "SF", "NF")) %>%
+  select(WYEAR, SEASON, SITE_NAME, C) %>%
+  mutate(SITE_NAME=plyr::revalue(SITE_NAME, incbasin_names),
+         DIR=C>0,
+         DIR=ordered(DIR, levels=c("TRUE", "FALSE"))) %>%
+  ggplot(aes(WYEAR, C)) +
+  geom_line(alpha = 0.5) +
+  geom_point(aes(color=DIR)) +
+  geom_vline(xintercept=2013, color='black', linetype = "dashed") +
+  geom_hline(yintercept=0, color='grey20') +
+  scale_color_manual('',
+                     values=c('TRUE'='steelblue', 'FALSE'='orangered'),
+                     labels=c('TRUE'='Increase', 'FALSE'='Decrease')) +
+  facet_grid(vars(SITE_NAME), vars(SEASON), scales = "free_y") +
+  labs(x="", y="Net Change in PP Conc (ppb)", title = "Net Change | PP Conc") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5, size=8),
+        strip.background=element_blank(),
+        strip.text=element_text(face='bold'))
+
+
+
+
+
 
 log_x <- scale_x_log10(breaks=log_breaks(seq(1, 9), 10^seq(-3, 3)),
                        labels=log_labels(c(1, 5), 10^seq(-3, 3)))

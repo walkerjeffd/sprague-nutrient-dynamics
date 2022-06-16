@@ -62,13 +62,13 @@ c_runoff <- sum(df_sfnf$L_RO)/sum(df_sfnf$Q_RO)*1000
 
 df <- mutate(df,  # NEGATIVE VALUES FOR NF, IS THIS APPROPRIATE? the old figure has anthro TP at NF at 0, does it relate to that?
              Q_BRO=Q_RO,
-             C_BRO=c_runoff,
+             C_BRO=pmin(c_runoff, C_RO),
              L_BRO=Q_BRO*C_BRO/1000,
              Q_BACK=Q_TOT,
              L_BACK=L_GW+L_BRO,
              C_BACK=L_BACK/Q_BACK*1000,
              Q_ANTH=Q_TOT,
-             L_ANTH=L_TOT-L_BACK, # THIS CALCULATION IS CREATING THE NEGATIVE VALUE
+             L_ANTH=pmax(L_TOT-L_BACK, 0), # THIS CALCULATION IS CREATING THE NEGATIVE VALUE
              C_ANTH=L_ANTH/Q_ANTH*1000)
 
 df <- gather(df, TERM_VAR, VALUE, Q_TOT:C_ANTH)

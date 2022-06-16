@@ -98,6 +98,101 @@ snotel <- mutate(snotel,
 snotel.wyr <- filter(snotel.wyr, SITE_NAME != "QUARTZ MOUNTAIN")
 snotel.wyr <- filter(snotel.wyr, WYEAR >= 2002)
 
+p <- snotel.wyr %>%
+  select(-SWE_MEAN_cm) %>%
+  left_join(
+    snotel %>%
+      arrange(SITE_NAME, desc(DATE)) %>%
+      filter(month(DATE) %in% c(3:6)) %>%
+      group_by(SITE_NAME, WYEAR) %>%
+      mutate(cumul_SWE_cm = cumsum(coalesce(SWE_cm, 0))) %>%
+      filter(SWE_cm > 1) %>%
+      slice(1) %>%
+      filter(WYEAR >= 2002) %>%
+      transmute(SITE_NAME, WYEAR, SWE_MELT_cm = yday(DATE)),
+    by = c("SITE_NAME", "WYEAR")
+  ) %>%
+  pivot_longer(starts_with("SWE")) %>%
+  mutate(name = factor(name, levels = c("SWE_MAX_cm", "SWE_APR_cm", "SWE_MELT_cm"))) %>%
+  ggplot(aes(WYEAR, value)) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x) +
+  facet_grid(vars(name), vars(SITE_NAME), scales = "free_y", switch = "y", labeller = labeller(name = c(
+    SWE_MAX_cm = "Max Annual\nSWE (cm)",
+    SWE_APR_cm = "SWE on Apr 1\n(cm)",
+    SWE_MELT_cm = "Last Julian Day\nSWE > 1 cm"
+  ))) +
+  labs(
+    x = "Water Year",
+    y = NULL
+  ) +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    strip.placement = "outside"
+  )
+print(p)
+
+ggsave("report/snotel-wyr.png", p, width = 8, height = 6)
+
+p <- snotel %>%
+  filter(WYEAR >= 2002) %>%
+  filter(month(DATE) %in% c(10:12, 1:6)) %>%
+  ggplot(aes(WDAY_LABEL, SWE_cm)) +
+  geom_line(aes(group = WYEAR, alpha = WYEAR >= 2013, color = WYEAR >= 2013)) +
+  scale_x_date(date_breaks = "2 months", date_labels = "%b") +
+  scale_color_manual(NULL, values = c("gray50", "orangered"), labels = c(
+    "TRUE" = "WY2013-2020",
+    "FALSE" = "WY2002-2012"
+  )) +
+  scale_alpha_manual(NULL, values = c(0.5, 1), labels = c(
+    "TRUE" = "WY2013-2020",
+    "FALSE" = "WY2002-2012"
+  )) +
+  facet_wrap(vars(SITE_NAME), scales = "free_y") +
+  labs(
+    x = "Day of Water Year",
+    y = "Snow Water Equivalent (cm)"
+  ) +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    strip.placement = "outside"
+  )
+print(p)
+ggsave("report/snotel-daily-water-day-2013.png", p, width = 8, height = 3)
+
+snotel %>%
+  arrange(SITE_NAME, desc(DATE)) %>%
+  filter(month(DATE) %in% c(3:6)) %>%
+  group_by(SITE_NAME, WYEAR) %>%
+  mutate(cumul_SWE_cm = cumsum(coalesce(SWE_cm, 0))) %>%
+  filter(SWE_cm > 1) %>%
+  slice(1) %>%
+  filter(WYEAR >= 2002) %>%
+  ggplot(aes(WYEAR, WDAY_LABEL)) +
+  geom_point(aes(color = SITE_NAME)) +
+  geom_smooth(se = FALSE, span = 1) +
+  facet_wrap(vars(SITE_NAME), ncol = 3) +
+  theme(aspect.ratio = 1)
+
+snotel %>%
+  filter(WYEAR >= 2002) %>%
+  filter(month(DATE) %in% c(10:12, 1:6)) %>%
+  ggplot(aes(WDAY_LABEL, SWE_cm)) +
+  geom_line(
+    data = snotel %>%
+      filter(WYEAR >= 2002) %>%
+      filter(month(DATE) %in% c(10:12, 1:6)) %>%
+      rename(WYEAR2 = WYEAR),
+    aes(group = WYEAR2),
+    alpha = 0.2,
+  ) +
+  geom_line(aes(group = WYEAR), color = "orangered") +
+  facet_grid(vars(SITE_NAME), vars(WYEAR), scales = "free_y")
+
+
 
 filename <- file.path('pdf', 'climate.pdf')
 cat('Printing:', filename, '\n')

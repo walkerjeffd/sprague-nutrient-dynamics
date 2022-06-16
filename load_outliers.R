@@ -13,7 +13,7 @@ outliers_list <- list(TP=list(Power=c('2013-09-05'),
                                NF_Ivory=c('2015-04-08'),
                                SF_Ivory=c('2020-08-06'),
                                SF=c('2005-09-14', '2008-11-17')),
-                      TSS=list(Lone_Pine=c('2011-04-04')),
+                      TSS=list(Lone_Pine=c('2011-04-04'), NF=c('2017-03-20')),
                       NH4=list(Sycan=c('2008-11-04')),
                       NO23=list(Sycan=c('2008-11-04')))
 
