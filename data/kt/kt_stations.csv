@@ -1,0 +1,9 @@
+station,site_code,site_abbr,site_description,latitude,longitude
+Power,SR0090,POW,Sprague R @ Power Plant,42.584638,-121.841861
+Lone_Pine,SR0080,LP,Sprague R @ Lone Pine,42.550499,-121.617611
+Godowa,SR0060,GOD,Sprague R @ Godowa Rd,42.460388,-121.269861
+Sycan,SR0070,SYC,Sycan R @ Drews Rd,42.485479,-121.278532
+SF_Ivory,SR0150,SFI,SF Sprague @ Ivory Pine,42.439371,-121.095362
+SF,SR0050,SF,SF Sprague @ Picnic Area,42.376055,-120.969444
+NF_Ivory,SR0140,NFI,NF Sprague @ Ivory Pine,42.455954,-121.109406
+NF,SR0040,NF,NF Sprague @ 3411 Rd,42.496972,-121.005555

@@ -1,22 +1,10 @@
 .Rproj.user
 .Rhistory
 .RData
-.Rapp.history
+.Ruserdata
 
-config.yml
+_targets
 
-*_cache/
+data/prism/rasters
 
-csv/sprague_loads_*.csv
-csv/loads_*.csv
-csv/wq_kt_sprague.csv
-
-*.jpg
-*.png
-*.rdata
-*.Rdata
-*.pdf
-*.html
-*.zip
-
-data/raw/prism/rasters
+report/
