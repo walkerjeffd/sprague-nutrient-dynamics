@@ -201,6 +201,14 @@ targets_flows <- list(
     flows_model %>% 
       select(station, date, flow_cfs = pred_resid)
   }),
+  tar_target(flows_day_export, {
+    filename <- "export/flows-daily.csv"
+    flows_model %>% 
+      select(station, date, obs_flow_cfs = flow_cfs, est_flow_cfs = pred_resid) %>% 
+      arrange(station, date) %>% 
+      write_csv(filename, na = "")
+    filename
+  }, format = "file"),
 
   tar_target(flows_validation_day, {
     x_obs <- owrd_day %>% 

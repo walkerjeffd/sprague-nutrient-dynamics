@@ -98,6 +98,14 @@ targets_kt <- list(
       geom_point(size = 1) +
       facet_wrap(vars(station), scales = "free_y")
   }),
+  tar_target(kt_flow_export, {
+    filename <- "export/flows-kt-obs.csv"
+    kt_flow %>% 
+      arrange(station, date, flow_cfs) %>% 
+      relocate(station) %>% 
+      write_csv(filename)
+    filename
+  }, format = "file"),
   
   tar_target(kt_field_raw, {
     x <- kt_raw %>% 
